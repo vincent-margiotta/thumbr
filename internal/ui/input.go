@@ -35,11 +35,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// When help is open, ignore other keys except closing it.
+		// When help is open, close on any key (without applying it).
 		if m.showHelp {
-			if key == "esc" {
-				m.showHelp = false
-			}
+			m.showHelp = false
 			return m, nil
 		}
 
@@ -70,6 +68,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
+				m.overlayPage = 0
 			case "j", "down":
 				m = m.moveCursor(-1)
 			case "k", "up":
@@ -83,35 +82,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc", "q":
 				// Drop back into stack browsing
 				m.state = StateBrowsing
+				m.overlayPage = 0
 
 			case "enter":
 				// Toggle viewing off (back to browsing)
 				m.state = StateBrowsing
+				m.overlayPage = 0
 
 			case "j", "down":
-				if m.settings.StickyOverlayNav {
-					m = m.moveCursor(-1)
-				} else {
-					// Close overlay, then move
-					m.state = StateBrowsing
-					m = m.moveCursor(-1)
-				}
-
+				m = m.scrollOverlayLines(1)
 			case "k", "up":
-				if m.settings.StickyOverlayNav {
-					m = m.moveCursor(1)
-				} else {
-					m.state = StateBrowsing
-					m = m.moveCursor(1)
-				}
+				m = m.scrollOverlayLines(-1)
 
 			case "r":
 				if m.settings.StickyOverlayNav {
 					m = m.randomCursor()
 				} else {
 					m.state = StateBrowsing
+					m.overlayPage = 0
 					m = m.randomCursor()
 				}
+			case "n":
+				m = m.nextPage()
+			case "p":
+				m = m.prevPage()
 			}
 
 		case StatePrompting:

@@ -1,5 +1,5 @@
 BINARY := thumbr
-ARGS ?= obsidian/Main
+ARGS ?= samples/notes
 ARCHIVE_NAME := thumbr-$(shell date +%Y%m%d%H%M%S).tar.gz
 VERSION ?= $(shell git describe --tags --dirty --always 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)

@@ -127,6 +127,8 @@ type Model struct {
 	marked map[int]bool
 	// filterMarked toggles showing only marked cards.
 	filterMarked bool
+	// overlayPage is the current page offset when viewing overlay content.
+	overlayPage int
 
 	err       error
 	noteRoot  string
@@ -306,10 +308,12 @@ func (m Model) ensureCursorVisible() Model {
 	vis := m.visibleIndices()
 	if len(vis) == 0 {
 		m.cursor = 0
+		m.overlayPage = 0
 		return m
 	}
 	if m.visibleCursorIndex(vis) == -1 {
 		m.cursor = vis[0]
+		m.overlayPage = 0
 	}
 	return m
 }
@@ -318,6 +322,29 @@ func (m Model) setStatus(msg string, dur time.Duration) Model {
 	m.statusMsg = msg
 	m.statusMsgUntil = time.Now().Add(dur)
 	return m
+}
+
+func sanitizeContent(s string) string {
+	// Replace Obsidian-style links [[note]] or [[note|alias]] with visible text.
+	for {
+		start := strings.Index(s, "[[")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(s[start:], "]]")
+		if end == -1 {
+			break
+		}
+		end += start
+		inner := s[start+2 : end]
+		parts := strings.SplitN(inner, "|", 2)
+		repl := parts[0]
+		if len(parts) == 2 && parts[1] != "" {
+			repl = parts[1]
+		}
+		s = s[:start] + repl + s[end+2:]
+	}
+	return s
 }
 
 func (m Model) toggleMark() Model {
@@ -355,5 +382,71 @@ func (m Model) toggleFilter() Model {
 	}
 	m.filterMarked = true
 	m = m.ensureCursorVisible()
+	m.overlayPage = 0
 	return m
+}
+
+func (m Model) nextPage() Model {
+	if m.state != StateViewing {
+		return m
+	}
+	step := m.pageStep()
+	return m.scrollOverlayLines(step)
+}
+
+func (m Model) prevPage() Model {
+	if m.state != StateViewing {
+		return m
+	}
+	step := m.pageStep()
+	return m.scrollOverlayLines(-step)
+}
+
+func (m Model) pageStep() int {
+	_, cardH := m.cardSize()
+	bodyH := cardH - 4 // header + borders
+	if bodyH < 1 {
+		return 1
+	}
+	return max(1, bodyH/2)
+}
+
+func (m Model) scrollOverlayLines(delta int) Model {
+	if m.state != StateViewing {
+		return m
+	}
+	bodyH, total := m.overlayLimits()
+	if bodyH <= 0 || total == 0 {
+		return m
+	}
+	maxStart := total - bodyH
+	if maxStart < 0 {
+		maxStart = 0
+	}
+
+	offset := m.overlayPage + delta
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > maxStart {
+		offset = maxStart
+	}
+	m.overlayPage = offset
+	return m
+}
+
+// overlayLimits computes body height and total wrapped lines for the current card.
+func (m Model) overlayLimits() (bodyH int, totalLines int) {
+	if len(m.cards) == 0 {
+		return 0, 0
+	}
+	cardW, cardH := m.cardSize()
+	bodyW := cardW - 4
+	bodyH = cardH - 4
+	if bodyW <= 0 || bodyH <= 0 {
+		return bodyH, 0
+	}
+	content := sanitizeContent(m.cards[m.cursor].Content)
+	lines := wrapText(content, bodyW, -1)
+	return bodyH, len(lines)
 }

@@ -139,6 +139,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	}
 
 	card := m.cards[m.cursor]
+	content := sanitizeContent(card.Content)
 
 	maxY := len(grid)
 	if maxY == 0 {
@@ -251,7 +252,20 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 		return
 	}
 
-	lines := wrapText(card.Content, bodyW, bodyH)
+	allLines := wrapText(content, bodyW, -1) // effectively unlimited
+
+	start := m.overlayPage
+	if start < 0 {
+		start = 0
+	}
+	end := start + bodyH
+	if end > len(allLines) {
+		end = len(allLines)
+	}
+	if start > end {
+		start = max(0, end-bodyH)
+	}
+	lines := allLines[start:end]
 
 	for i, line := range lines {
 		yy := bodyY + i
@@ -270,13 +284,35 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 			grid[yy][xx] = cell{ch: r, styleID: bodyID}
 		}
 	}
+
+	// Edge cues
+	if start > 0 && bodyH > 0 && bodyY < maxY {
+		cx := bodyX + bodyW - 1
+		if cx >= 0 && cx < maxX {
+			grid[bodyY][cx] = cell{ch: '^', styleID: styleCardMuted}
+		}
+	}
+	if end < len(allLines) && bodyH > 0 {
+		lastLine := bodyY + bodyH - 1
+		cx := bodyX + bodyW - 1
+		if lastLine < maxY && cx >= 0 && cx < maxX {
+			grid[lastLine][cx] = cell{ch: 'v', styleID: styleCardMuted}
+		}
+	}
 }
 
 // wrapText wraps a string into lines of at most `width` runes,
 // up to `maxLines` lines, preferring to break on spaces.
 // If a single word is longer than `width`, it is hard-broken.
 func wrapText(s string, width, maxLines int) []string {
-	if width <= 0 || maxLines <= 0 {
+	if width <= 0 {
+		return nil
+	}
+
+	if maxLines < 0 {
+		maxLines = int(^uint(0) >> 1)
+	}
+	if maxLines == 0 {
 		return nil
 	}
 
@@ -514,10 +550,15 @@ func (m Model) renderHelp() string {
 	bindings := []binding{
 		{keys: "k / up", desc: "move into stack"},
 		{keys: "j / down", desc: "move back/out"},
-		{keys: "enter", desc: "toggle overlay view"},
 		{keys: "r", desc: "jump to random card"},
 		{keys: "m", desc: "mark/unmark card"},
 		{keys: "t", desc: "toggle marked-only filter"},
+		{keys: "enter", desc: "toggle overlay view"},
+		{keys: "", desc: ""},
+		{keys: "(overlay only)", desc: ""},
+		{keys: "j / k", desc: "scroll overlay by 1 line"},
+		{keys: "n / p", desc: "next/prev page"},
+		{keys: "", desc: ""},
 		{keys: "q", desc: "quit (from stack) / back (from overlay)"},
 		{keys: "esc", desc: "close overlay or help"},
 		{keys: "?, h", desc: "toggle this help overlay"},

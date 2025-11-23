@@ -19,12 +19,13 @@ Terminal note browser that lets you thumb through a stack of Markdown cards. Thu
 - `--ignore pattern1,pattern2`: comma-separated glob patterns to skip (matched against full path and basename).
 
 ## Controls
-- `k`/`up`, `j`/`down`: move through the stack (accelerates with rapid presses). `k/up` moves into the stack; `j/down` moves back out.
+- `k`/`up`, `j`/`down`: move through the stack (accelerates with rapid presses). `k/up` moves into the stack; `j/down` moves back out. In overlay view, `j`/`k` scroll content one line.
 - `enter`: open or close the overlay view for the current card.
 - `r`: jump to a random card.
 - `q` or `ctrl+c`: quit; `esc` leaves the overlay.
 - `m`: mark/unmark the current card.
 - `t`: toggle marked-only filter (shows only marked cards when on).
+- `n` / `p`: next/previous page when the overlay content spans multiple pages.
 - `?` or `h`: toggle the help overlay with keybindings.
 - Marked cards show a `*` marker; unmarked cards dim when any marks exist.
 
@@ -33,12 +34,14 @@ Terminal note browser that lets you thumb through a stack of Markdown cards. Thu
 - Directories are walked recursively; use `--ignore`/`ignoreGlobs` to skip paths (globs match basename or full path).
 - Filenames shaped like `ID Title.md` are parsed into an `ID` and `Title` (e.g. `1.1a Some idea.md`). A lone title such as `Draft.md` also works; the ID is left empty.
 - File contents are shown best-effort in the overlay; unreadable files are skipped without stopping the scan.
+- Obsidian-style links like `[[Note]]` or `[[Note|Alias]]` are rendered without brackets in the overlay; other Markdown is shown as plain text.
 
 ## Project layout
 - `cmd/thumbr/main.go`: CLI entry point; flags/config, RNG seeding, Bubble Tea program.
 - `internal/notes`: card discovery, filename parsing, include/ignore filters.
 - `internal/ui`: Bubble Tea model, input handling, geometry, rendering, help overlay.
 - `Makefile`: build/test/lint targets; `config.example.json`: config reference; `Dockerfile`: dev shell + release image.
+- `samples/notes`: sample note set (Markdown formatting, long content, hidden/ignored files, nested paths) for quick smoke tests.
 
 ## Development
 - `make fmt` (gofmt), `make lint` (go vet), `make test` (with local `GOCACHE`, `-count=1`), `make check` (lint+test).
