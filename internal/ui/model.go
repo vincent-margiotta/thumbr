@@ -47,6 +47,8 @@ type Settings struct {
 	CardHeightFrac float64
 
 	ColorHiFG      lipgloss.Color
+	ColorMutFG     lipgloss.Color
+	ColorMarkFG    lipgloss.Color
 	ColorDimFG     lipgloss.Color
 	ColorStatusBG  lipgloss.Color
 	ColorStatusFG  lipgloss.Color
@@ -67,6 +69,8 @@ var DefaultSettings = Settings{
 	CardWidthFrac:     0.6,
 	CardHeightFrac:    0.6,
 	ColorHiFG:         lipgloss.Color("#FFD166"), // warm highlight
+	ColorMutFG:        lipgloss.Color("#444444"), // muted for unmarked when marks exist
+	ColorMarkFG:       lipgloss.Color("#6CCB5F"), // distinct mark indicator
 	ColorDimFG:        lipgloss.Color("#666666"),
 	ColorStatusBG:     lipgloss.Color("#222222"),
 	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
@@ -92,6 +96,8 @@ const (
 	styleBase styleID = iota
 	styleCardDim
 	styleCardHi
+	styleCardMuted
+	styleCardMark
 	styleOverlayBorder
 	styleOverlayHeader
 	styleOverlayBody
@@ -117,11 +123,18 @@ type Model struct {
 	rng *rand.Rand
 	// showHelp toggles the keybinding overlay.
 	showHelp bool
+	// marked tracks marked cards by absolute index in m.cards.
+	marked map[int]bool
+	// filterMarked toggles showing only marked cards.
+	filterMarked bool
 
 	err       error
 	noteRoot  string
 	ready     bool
 	lastWidth int
+
+	statusMsg      string
+	statusMsgUntil time.Time
 }
 
 // NewModel constructs the initial UI model. The RNG controls random jumps; pass
@@ -133,6 +146,7 @@ func NewModel(cards []notes.Card, noteRoot string, rng *rand.Rand) Model {
 		state:    StateBrowsing,
 		settings: DefaultSettings,
 		rng:      rng,
+		marked:   make(map[int]bool),
 		noteRoot: noteRoot,
 	}
 }
@@ -150,8 +164,8 @@ func (m Model) View() string {
 		return m.renderHelp()
 	}
 
-	// No cards? Simple empty view.
-	if len(m.cards) == 0 {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
 		return m.renderEmpty()
 	}
 
@@ -169,11 +183,14 @@ func (m Model) View() string {
 	overlayBorderStyle := cardHiStyle
 	overlayHeaderStyle := cardHiStyle
 	overlayBodyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#DDDDDD"))
+	cardMutedStyle := lipgloss.NewStyle().Foreground(m.settings.ColorMutFG)
 
 	styles := []lipgloss.Style{
 		styleBase:          baseStyle,
 		styleCardDim:       cardDimStyle,
 		styleCardHi:        cardHiStyle,
+		styleCardMuted:     cardMutedStyle,
+		styleCardMark:      lipgloss.NewStyle().Foreground(m.settings.ColorMarkFG).Bold(true),
 		styleOverlayBorder: overlayBorderStyle,
 		styleOverlayHeader: overlayHeaderStyle,
 		styleOverlayBody:   overlayBodyStyle,
@@ -249,4 +266,94 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// visibleIndices returns the card indices respecting the current filter.
+func (m Model) visibleIndices() []int {
+	if m.filterMarked {
+		if len(m.marked) == 0 {
+			return nil
+		}
+		vis := make([]int, 0, len(m.marked))
+		for i := range m.cards {
+			if m.marked[i] {
+				vis = append(vis, i)
+			}
+		}
+		return vis
+	}
+
+	vis := make([]int, len(m.cards))
+	for i := range m.cards {
+		vis[i] = i
+	}
+	return vis
+}
+
+// visibleCursorIndex returns the cursor's position within the visible list.
+// If not present, returns -1.
+func (m Model) visibleCursorIndex(vis []int) int {
+	for i, idx := range vis {
+		if idx == m.cursor {
+			return i
+		}
+	}
+	return -1
+}
+
+// ensureCursorVisible snaps the cursor to a valid visible index if needed.
+func (m Model) ensureCursorVisible() Model {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		m.cursor = 0
+		return m
+	}
+	if m.visibleCursorIndex(vis) == -1 {
+		m.cursor = vis[0]
+	}
+	return m
+}
+
+func (m Model) setStatus(msg string, dur time.Duration) Model {
+	m.statusMsg = msg
+	m.statusMsgUntil = time.Now().Add(dur)
+	return m
+}
+
+func (m Model) toggleMark() Model {
+	if len(m.cards) == 0 {
+		return m
+	}
+	if m.marked[m.cursor] {
+		delete(m.marked, m.cursor)
+	} else {
+		m.marked[m.cursor] = true
+	}
+
+	// If filtering and we just removed the last marked card, drop the filter.
+	if m.filterMarked {
+		vis := m.visibleIndices()
+		if len(vis) == 0 {
+			m.filterMarked = false
+			return m.ensureCursorVisible()
+		}
+		if m.visibleCursorIndex(vis) == -1 {
+			m.cursor = vis[0]
+		}
+	}
+	return m
+}
+
+func (m Model) toggleFilter() Model {
+	if m.filterMarked {
+		m.filterMarked = false
+		return m.ensureCursorVisible()
+	}
+	// Turn on filtering only if something is marked.
+	if len(m.marked) == 0 {
+		return m.setStatus("No marked cards to filter", 2*time.Second)
+	}
+	m.filterMarked = true
+	m = m.ensureCursorVisible()
+	return m
 }

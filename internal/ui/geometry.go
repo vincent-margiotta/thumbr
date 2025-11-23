@@ -7,12 +7,14 @@ func (m Model) computeStackGeometry() []cardGeom {
 		return nil
 	}
 
-	s := m.settings
-
-	total := len(m.cards)
-	if total == 0 {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
 		return nil
 	}
+
+	s := m.settings
+
+	total := len(vis)
 
 	visible := s.StackVisibleCount
 	if visible > total {
@@ -39,7 +41,12 @@ func (m Model) computeStackGeometry() []cardGeom {
 
 	// 1) Compute the theoretical window start that would keep the cursor
 	//    at `maxCursorDepth` layers from the front.
-	startIdx := m.cursor - maxCursorDepth
+	cursorPos := m.visibleCursorIndex(vis)
+	if cursorPos < 0 {
+		cursorPos = 0
+	}
+
+	startIdx := cursorPos - maxCursorDepth
 
 	// 2) Clamp that start into [0, lastWindowStart].
 	if startIdx < 0 {
@@ -86,7 +93,8 @@ func (m Model) computeStackGeometry() []cardGeom {
 		y := baseY - layer*dy
 
 		// Active card always gets a vertical boost so the title peeks.
-		if idx == m.cursor {
+		cardIdx := vis[idx]
+		if cardIdx == m.cursor {
 			y -= s.ActiveLiftY
 		}
 
@@ -105,12 +113,12 @@ func (m Model) computeStackGeometry() []cardGeom {
 		}
 
 		geoms = append(geoms, cardGeom{
-			index:  idx,
+			index:  cardIdx,
 			x:      x,
 			y:      y,
 			w:      cardW,
 			h:      cardH,
-			active: idx == m.cursor,
+			active: cardIdx == m.cursor,
 			depth:  layer,
 		})
 	}

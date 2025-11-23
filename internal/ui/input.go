@@ -43,6 +43,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// Global actions (apply in all states).
+		switch key {
+		case "m":
+			m = m.toggleMark()
+			return m, nil
+		case "t":
+			m = m.toggleFilter()
+			return m, nil
+		}
+
 		// If we have no cards, let q also quit, otherwise do nothing
 		if len(m.cards) == 0 {
 			if key == "q" {
@@ -117,8 +127,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ==== Navigation ====
 
 func (m Model) moveCursor(dir int) Model {
-	if dir == 0 || len(m.cards) == 0 {
+	vis := m.visibleIndices()
+	if dir == 0 || len(vis) == 0 {
 		return m
+	}
+
+	pos := m.visibleCursorIndex(vis)
+	if pos < 0 {
+		m.cursor = vis[0]
+		pos = 0
 	}
 
 	now := time.Now()
@@ -147,9 +164,9 @@ func (m Model) moveCursor(dir int) Model {
 		// How many cards remain in the direction we're moving?
 		var remaining int
 		if dir > 0 {
-			remaining = len(m.cards) - 1 - m.cursor
+			remaining = len(vis) - 1 - pos
 		} else {
-			remaining = m.cursor
+			remaining = pos
 		}
 
 		if remaining > 0 {
@@ -201,26 +218,27 @@ func (m Model) moveCursor(dir int) Model {
 
 	// --- Apply step ---
 
-	newCursor := m.cursor + dir*step
-	if newCursor < 0 {
-		newCursor = 0
+	newPos := pos + dir*step
+	if newPos < 0 {
+		newPos = 0
 	}
-	if newCursor >= len(m.cards) {
-		newCursor = len(m.cards) - 1
+	if newPos >= len(vis) {
+		newPos = len(vis) - 1
 	}
 
-	m.cursor = newCursor
+	m.cursor = vis[newPos]
 	return m
 }
 
 func (m Model) randomCursor() Model {
-	if len(m.cards) == 0 {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
 		return m
 	}
 	if m.rng != nil {
-		m.cursor = m.rng.Intn(len(m.cards))
+		m.cursor = vis[m.rng.Intn(len(vis))]
 	} else {
-		m.cursor = rand.Intn(len(m.cards))
+		m.cursor = vis[rand.Intn(len(vis))]
 	}
 	m.velocity = 1
 	m.lastNavDir = 0

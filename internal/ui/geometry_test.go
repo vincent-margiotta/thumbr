@@ -21,6 +21,7 @@ func newTestModel(totalCards, cursor int) Model {
 		cursor:   cursor,
 		state:    StateBrowsing,
 		settings: DefaultSettings,
+		marked:   make(map[int]bool),
 		viewport: Viewport{
 			Width:  120,
 			Height: 40,

@@ -23,7 +23,10 @@ Terminal note browser that lets you thumb through a stack of Markdown cards. Thu
 - `enter`: open or close the overlay view for the current card.
 - `r`: jump to a random card.
 - `q` or `ctrl+c`: quit; `esc` leaves the overlay.
+- `m`: mark/unmark the current card.
+- `t`: toggle marked-only filter (shows only marked cards when on).
 - `?` or `h`: toggle the help overlay with keybindings.
+- Marked cards show a `*` marker; unmarked cards dim when any marks exist.
 
 ## Notes and filenames
 - Markdown files are loaded by default; configure extensions with `--include-exts` or config.

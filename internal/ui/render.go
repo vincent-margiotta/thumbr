@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,6 +20,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	// Style IDs (cached styles elsewhere)
 	borderID := styleCardDim
 	headerID := styleCardDim
+	isMarked := m.marked[g.index]
 	if g.active {
 		borderID = styleCardHi
 		headerID = styleCardHi
@@ -74,10 +76,16 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 		}
 	}
 
-	// Header: ID + Title
+	// Header: ID + Title with marker for marked cards
 	headerText := strings.TrimSpace(card.ID + " " + card.Title)
 	if len(headerText) == 0 {
 		headerText = "(untitled)"
+	}
+	headerRunes := []rune(headerText)
+	markerRunes := []rune{}
+	if isMarked {
+		markerRunes = []rune("* ")
+		headerRunes = append(markerRunes, headerRunes...)
 	}
 
 	headerY := g.y + 1
@@ -91,24 +99,31 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	}
 
 	// Truncate header if needed
-	if len([]rune(headerText)) > headerMaxWidth {
-		runes := []rune(headerText)
+	if len(headerRunes) > headerMaxWidth {
 		if headerMaxWidth > 3 {
-			runes = append(runes[:headerMaxWidth-3], []rune("...")...)
+			headerRunes = append(headerRunes[:headerMaxWidth-3], []rune("...")...)
 		} else {
-			runes = runes[:headerMaxWidth]
+			headerRunes = headerRunes[:headerMaxWidth]
 		}
-		headerText = string(runes)
 	}
 
-	for i, r := range []rune(headerText) {
+	markerLen := len(markerRunes)
+	hasMarks := len(m.marked) > 0
+	for i, r := range headerRunes {
 		x := g.x + 1 + i
 		if x < 0 || x >= maxX {
 			continue
 		}
+		style := headerID
+		if hasMarks && !isMarked {
+			style = styleCardMuted
+		}
+		if isMarked && i < markerLen {
+			style = styleCardMark
+		}
 		grid[headerY][x] = cell{
 			ch:      r,
-			styleID: headerID,
+			styleID: style,
 		}
 	}
 }
@@ -156,6 +171,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	borderID := styleOverlayBorder
 	headerID := styleOverlayHeader
 	bodyID := styleOverlayBody
+	isMarked := m.marked[m.cursor]
 
 	// Draw border and clear interior
 	for dy := 0; dy < cardH; dy++ {
@@ -187,30 +203,40 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 		}
 	}
 
-	// Header: ID + Title
+	// Header: ID + Title with marker
 	headerText := strings.TrimSpace(card.ID + " " + card.Title)
 	if len(headerText) == 0 {
 		headerText = "(untitled)"
+	}
+	headerRunes := []rune(headerText)
+	markerRunes := []rune{}
+	if isMarked {
+		markerRunes = []rune("* ")
+		headerRunes = append(markerRunes, headerRunes...)
 	}
 
 	headerY := y + 1
 	if headerY >= 0 && headerY < maxY {
 		headerMaxWidth := cardW - 2
 		if headerMaxWidth > 0 {
-			runes := []rune(headerText)
-			if len(runes) > headerMaxWidth {
+			if len(headerRunes) > headerMaxWidth {
 				if headerMaxWidth > 3 {
-					runes = append(runes[:headerMaxWidth-3], []rune("...")...)
+					headerRunes = append(headerRunes[:headerMaxWidth-3], []rune("...")...)
 				} else {
-					runes = runes[:headerMaxWidth]
+					headerRunes = headerRunes[:headerMaxWidth]
 				}
 			}
-			for i, r := range runes {
+			markerLen := len(markerRunes)
+			for i, r := range headerRunes {
 				xx := x + 1 + i
 				if xx < 0 || xx >= maxX {
 					continue
 				}
-				grid[headerY][xx] = cell{ch: r, styleID: headerID}
+				style := headerID
+				if isMarked && i < markerLen {
+					style = styleCardMark
+				}
+				grid[headerY][xx] = cell{ch: r, styleID: style}
 			}
 		}
 	}
@@ -418,11 +444,27 @@ func (m Model) renderStatusBar() string {
 
 	var leftParts []string
 	leftParts = append(leftParts, statusStyle.Render(" Thumbr "))
-	if len(m.cards) == 0 {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
 		leftParts = append(leftParts, dimStyle.Render("no cards"))
 	} else {
-		pos := fmt.Sprintf("Card %d/%d", m.cursor+1, len(m.cards))
+		posIdx := m.visibleCursorIndex(vis)
+		if posIdx < 0 {
+			posIdx = 0
+		}
+		pos := fmt.Sprintf("Card %d/%d", posIdx+1, len(vis))
 		leftParts = append(leftParts, dimStyle.Render(pos))
+	}
+	if m.filterMarked && len(m.marked) > 0 {
+		leftParts = append(leftParts, statusStyle.Render("[Marked filter]"))
+	} else if len(m.marked) > 0 {
+		leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("%d marked", len(m.marked))))
+	}
+
+	// Ephemeral status message
+	var rightParts []string
+	if m.statusMsg != "" && time.Now().Before(m.statusMsgUntil) {
+		rightParts = append(rightParts, statusStyle.Render(m.statusMsg))
 	}
 
 	modeStr := m.state.String()
@@ -435,7 +477,11 @@ func (m Model) renderStatusBar() string {
 		navHint = " [esc] close help  [?/h] toggle"
 	}
 
-	right := dimStyle.Render(modeStr + navHint)
+	rightText := modeStr + navHint
+	if len(rightParts) > 0 {
+		rightText = rightText + "  " + strings.Join(rightParts, " | ")
+	}
+	right := dimStyle.Render(rightText)
 	left := strings.Join(leftParts, " ")
 
 	line := left + strings.Repeat(" ", max(0, m.viewport.Width-len(stripANSI(left))-len(stripANSI(right)))) + right
@@ -470,6 +516,8 @@ func (m Model) renderHelp() string {
 		{keys: "j / down", desc: "move back/out"},
 		{keys: "enter", desc: "toggle overlay view"},
 		{keys: "r", desc: "jump to random card"},
+		{keys: "m", desc: "mark/unmark card"},
+		{keys: "t", desc: "toggle marked-only filter"},
 		{keys: "q", desc: "quit (from stack) / back (from overlay)"},
 		{keys: "esc", desc: "close overlay or help"},
 		{keys: "?, h", desc: "toggle this help overlay"},
