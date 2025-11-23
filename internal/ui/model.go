@@ -82,6 +82,58 @@ var DefaultSettings = Settings{
 	StickyOverlayNav:  false,
 }
 
+type Colors struct {
+	ColorHiFG      lipgloss.Color
+	ColorMutFG     lipgloss.Color
+	ColorMarkFG    lipgloss.Color
+	ColorDimFG     lipgloss.Color
+	ColorStatusBG  lipgloss.Color
+	ColorStatusFG  lipgloss.Color
+	ColorStatusDim lipgloss.Color
+}
+
+type Layout struct {
+	StackVisibleCount int
+	StackOffsetX      int
+	StackOffsetY      int
+	CardWidthFrac     float64
+	CardHeightFrac    float64
+	ActiveLiftY       int
+	StickyOverlayNav  *bool
+}
+
+type KeyBindings struct {
+	Up            []string
+	Down          []string
+	Random        []string
+	OverlayToggle []string
+	Mark          []string
+	Filter        []string
+	Help          []string
+	Quit          []string
+	PageNext      []string
+	PagePrev      []string
+	OverlayUp     []string
+	OverlayDown   []string
+}
+
+func DefaultBindings() KeyBindings {
+	return KeyBindings{
+		Up:            []string{"k", "up"},
+		Down:          []string{"j", "down"},
+		Random:        []string{"r"},
+		OverlayToggle: []string{"enter"},
+		Mark:          []string{"m"},
+		Filter:        []string{"t"},
+		Help:          []string{"?", "h"},
+		Quit:          []string{"q"},
+		PageNext:      []string{"n"},
+		PagePrev:      []string{"p"},
+		OverlayUp:     []string{"k", "up"},
+		OverlayDown:   []string{"j", "down"},
+	}
+}
+
 type cardGeom struct {
 	index  int
 	x, y   int
@@ -115,6 +167,7 @@ type Model struct {
 	state    State
 	viewport Viewport
 	settings Settings
+	bindings KeyBindings
 
 	lastNavDir  int
 	lastNavTime time.Time
@@ -129,6 +182,8 @@ type Model struct {
 	filterMarked bool
 	// overlayPage is the current page offset when viewing overlay content.
 	overlayPage int
+	// overlayPageStep overrides computed half-page step when >0.
+	overlayPageStep int
 
 	err       error
 	noteRoot  string
@@ -147,9 +202,95 @@ func NewModel(cards []notes.Card, noteRoot string, rng *rand.Rand) Model {
 		cursor:   0,
 		state:    StateBrowsing,
 		settings: DefaultSettings,
+		bindings: DefaultBindings(),
 		rng:      rng,
 		marked:   make(map[int]bool),
 		noteRoot: noteRoot,
+	}
+}
+
+func (m *Model) ApplyColors(c Colors) {
+	if c.ColorHiFG != "" {
+		m.settings.ColorHiFG = c.ColorHiFG
+	}
+	if c.ColorMutFG != "" {
+		m.settings.ColorMutFG = c.ColorMutFG
+	}
+	if c.ColorMarkFG != "" {
+		m.settings.ColorMarkFG = c.ColorMarkFG
+	}
+	if c.ColorDimFG != "" {
+		m.settings.ColorDimFG = c.ColorDimFG
+	}
+	if c.ColorStatusBG != "" {
+		m.settings.ColorStatusBG = c.ColorStatusBG
+	}
+	if c.ColorStatusFG != "" {
+		m.settings.ColorStatusFG = c.ColorStatusFG
+	}
+	if c.ColorStatusDim != "" {
+		m.settings.ColorStatusDim = c.ColorStatusDim
+	}
+}
+
+func (m *Model) SetPageStep(step int) {
+	if step > 0 {
+		m.overlayPageStep = step
+	}
+}
+
+func (m *Model) ApplyNav(navAccelMs, navMaxStep int) {
+	if navAccelMs > 0 {
+		m.settings.NavAccelWindow = time.Duration(navAccelMs) * time.Millisecond
+	}
+	if navMaxStep > 0 {
+		m.settings.NavMaxStep = navMaxStep
+	}
+}
+
+// ApplyBindings overrides default keybindings with provided values (non-empty slices).
+func (m *Model) ApplyBindings(b KeyBindings) {
+	override := func(dst *[]string, src []string) {
+		if len(src) > 0 {
+			*dst = src
+		}
+	}
+	override(&m.bindings.Up, b.Up)
+	override(&m.bindings.Down, b.Down)
+	override(&m.bindings.Random, b.Random)
+	override(&m.bindings.OverlayToggle, b.OverlayToggle)
+	override(&m.bindings.Mark, b.Mark)
+	override(&m.bindings.Filter, b.Filter)
+	override(&m.bindings.Help, b.Help)
+	override(&m.bindings.Quit, b.Quit)
+	override(&m.bindings.PageNext, b.PageNext)
+	override(&m.bindings.PagePrev, b.PagePrev)
+	override(&m.bindings.OverlayUp, b.OverlayUp)
+	override(&m.bindings.OverlayDown, b.OverlayDown)
+}
+
+// ApplyLayout overrides layout-related settings.
+func (m *Model) ApplyLayout(l Layout) {
+	if l.StackVisibleCount > 0 {
+		m.settings.StackVisibleCount = l.StackVisibleCount
+	}
+	if l.StackOffsetX != 0 {
+		m.settings.StackOffsetX = l.StackOffsetX
+	}
+	if l.StackOffsetY != 0 {
+		m.settings.StackOffsetY = l.StackOffsetY
+	}
+	if l.CardWidthFrac > 0 {
+		m.settings.CardWidthFrac = l.CardWidthFrac
+	}
+	if l.CardHeightFrac > 0 {
+		m.settings.CardHeightFrac = l.CardHeightFrac
+	}
+	if l.ActiveLiftY != 0 {
+		m.settings.ActiveLiftY = l.ActiveLiftY
+	}
+	if l.StickyOverlayNav != nil {
+		m.settings.StickyOverlayNav = *l.StickyOverlayNav
 	}
 }
 
@@ -347,6 +488,15 @@ func sanitizeContent(s string) string {
 	return s
 }
 
+func (m Model) isBinding(key string, set []string) bool {
+	for _, k := range set {
+		if key == k {
+			return true
+		}
+	}
+	return false
+}
+
 func (m Model) toggleMark() Model {
 	if len(m.cards) == 0 {
 		return m
@@ -403,6 +553,9 @@ func (m Model) prevPage() Model {
 }
 
 func (m Model) pageStep() int {
+	if m.overlayPageStep > 0 {
+		return m.overlayPageStep
+	}
 	_, cardH := m.cardSize()
 	bodyH := cardH - 4 // header + borders
 	if bodyH < 1 {

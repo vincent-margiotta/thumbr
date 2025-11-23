@@ -490,6 +490,17 @@ func (m Model) renderStatusBar() string {
 		}
 		pos := fmt.Sprintf("Card %d/%d", posIdx+1, len(vis))
 		leftParts = append(leftParts, dimStyle.Render(pos))
+		if m.state == StateViewing {
+			bodyH, total := m.overlayLimits()
+			if bodyH > 0 && total > bodyH {
+				pages := (total + bodyH - 1) / bodyH
+				pageIdx := m.overlayPage/bodyH + 1
+				if pageIdx > pages {
+					pageIdx = pages
+				}
+				leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("Page %d/%d", pageIdx, pages)))
+			}
+		}
 	}
 	if m.filterMarked && len(m.marked) > 0 {
 		leftParts = append(leftParts, statusStyle.Render("[Marked filter]"))
@@ -543,32 +554,34 @@ func (m Model) renderHelp() string {
 	}
 
 	type binding struct {
-		keys string
+		keys []string
 		desc string
 	}
 
 	bindings := []binding{
-		{keys: "k / up", desc: "move into stack"},
-		{keys: "j / down", desc: "move back/out"},
-		{keys: "r", desc: "jump to random card"},
-		{keys: "m", desc: "mark/unmark card"},
-		{keys: "t", desc: "toggle marked-only filter"},
-		{keys: "enter", desc: "toggle overlay view"},
-		{keys: "", desc: ""},
-		{keys: "(overlay only)", desc: ""},
-		{keys: "j / k", desc: "scroll overlay by 1 line"},
-		{keys: "n / p", desc: "next/prev page"},
-		{keys: "", desc: ""},
-		{keys: "q", desc: "quit (from stack) / back (from overlay)"},
-		{keys: "esc", desc: "close overlay or help"},
-		{keys: "?, h", desc: "toggle this help overlay"},
-		{keys: "ctrl+c", desc: "quit immediately"},
+		{keys: m.bindings.Up, desc: "move into stack"},
+		{keys: m.bindings.Down, desc: "move back/out"},
+		{keys: m.bindings.Random, desc: "jump to random card"},
+		{keys: m.bindings.Mark, desc: "mark/unmark card"},
+		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
+		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
+		{keys: nil, desc: ""},
+		{keys: []string{"(overlay only)"}, desc: ""},
+		{keys: m.bindings.OverlayDown, desc: "scroll overlay by 1 line"},
+		{keys: m.bindings.PageNext, desc: "next page"},
+		{keys: m.bindings.PagePrev, desc: "previous page"},
+		{keys: nil, desc: ""},
+		{keys: m.bindings.Quit, desc: "quit (from stack) / back (from overlay)"},
+		{keys: []string{"esc"}, desc: "close overlay or help"},
+		{keys: m.bindings.Help, desc: "toggle this help overlay"},
+		{keys: []string{"ctrl+c"}, desc: "quit immediately"},
 	}
 
 	leftWidth := 0
 	for _, b := range bindings {
-		if len(b.keys) > leftWidth {
-			leftWidth = len(b.keys)
+		keyStr := strings.Join(b.keys, " / ")
+		if len(keyStr) > leftWidth {
+			leftWidth = len(keyStr)
 		}
 	}
 
@@ -578,8 +591,9 @@ func (m Model) renderHelp() string {
 	sb.WriteString("\n\n")
 
 	for _, b := range bindings {
-		pad := strings.Repeat(" ", leftWidth-len(b.keys))
-		line := fmt.Sprintf("  %s%s  %s\n", b.keys, pad, b.desc)
+		keyStr := strings.Join(b.keys, " / ")
+		pad := strings.Repeat(" ", leftWidth-len(keyStr))
+		line := fmt.Sprintf("  %s%s  %s\n", keyStr, pad, b.desc)
 		sb.WriteString(line)
 	}
 

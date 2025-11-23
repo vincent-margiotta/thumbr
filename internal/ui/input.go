@@ -29,8 +29,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		// Toggle help overlay.
-		if key == "?" || key == "h" {
+		if m.isBinding(key, m.bindings.Help) {
 			m.showHelp = !m.showHelp
 			return m, nil
 		}
@@ -42,11 +41,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Global actions (apply in all states).
-		switch key {
-		case "m":
+		switch {
+		case m.isBinding(key, m.bindings.Mark):
 			m = m.toggleMark()
 			return m, nil
-		case "t":
+		case m.isBinding(key, m.bindings.Filter):
 			m = m.toggleFilter()
 			return m, nil
 		}
@@ -62,39 +61,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.state {
 
 		case StateBrowsing:
-			switch key {
-			case "q":
+			switch {
+			case m.isBinding(key, m.bindings.Quit):
 				return m, tea.Quit
-			case "enter":
+			case m.isBinding(key, m.bindings.OverlayToggle):
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
 				m.overlayPage = 0
-			case "j", "down":
+			case m.isBinding(key, m.bindings.Down):
 				m = m.moveCursor(-1)
-			case "k", "up":
+			case m.isBinding(key, m.bindings.Up):
 				m = m.moveCursor(1)
-			case "r":
+			case m.isBinding(key, m.bindings.Random):
 				m = m.randomCursor()
 			}
 
 		case StateViewing:
-			switch key {
-			case "esc", "q":
+			switch {
+			case key == "esc" || m.isBinding(key, m.bindings.Quit):
 				// Drop back into stack browsing
 				m.state = StateBrowsing
 				m.overlayPage = 0
 
-			case "enter":
+			case m.isBinding(key, m.bindings.OverlayToggle):
 				// Toggle viewing off (back to browsing)
 				m.state = StateBrowsing
 				m.overlayPage = 0
 
-			case "j", "down":
+			case m.isBinding(key, m.bindings.OverlayDown):
 				m = m.scrollOverlayLines(1)
-			case "k", "up":
+			case m.isBinding(key, m.bindings.OverlayUp):
 				m = m.scrollOverlayLines(-1)
 
-			case "r":
+			case m.isBinding(key, m.bindings.Random):
 				if m.settings.StickyOverlayNav {
 					m = m.randomCursor()
 				} else {
@@ -102,9 +101,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.overlayPage = 0
 					m = m.randomCursor()
 				}
-			case "n":
+			case m.isBinding(key, m.bindings.PageNext):
 				m = m.nextPage()
-			case "p":
+			case m.isBinding(key, m.bindings.PagePrev):
 				m = m.prevPage()
 			}
 
