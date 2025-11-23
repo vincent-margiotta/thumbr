@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Go build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Format check
+        run: |
+          files=$(gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print))
+          if [ -n "$files" ]; then
+            echo "Unformatted Go files (run gofmt -w):"
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Vet
+        env:
+          GOCACHE: ${{ github.workspace }}/.gocache
+        run: go vet ./...
+
+      - name: Test
+        env:
+          GOCACHE: ${{ github.workspace }}/.gocache
+        run: go test ./...
