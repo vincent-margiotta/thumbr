@@ -1,0 +1,38 @@
+# Binaries and build outputs
+/thumbr
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+/bin/
+/build/
+/dist/
+/release/
+*.tar.gz
+
+# Go build/test cache
+/.gocache/
+
+# Coverage and test artifacts
+*.out
+*.coverprofile
+coverage.txt
+
+# Go workspace files (optional; enable if using go workspaces)
+go.work
+go.work.sum
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS / misc
+.DS_Store
+*.tmp
+*.log
+
+# Sample notes
+samples/notes/Archive/

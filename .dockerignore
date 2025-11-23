@@ -1,0 +1,58 @@
+# --- Go build artifacts ---
+bin/
+build/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# --- Go module cache ---
+pkg/
+vendor/
+
+# --- VCS ---
+.git/
+.gitignore
+.gitattributes
+
+# --- Local environment / tooling ---
+.env
+.env.*
+*.local
+*.dev
+*.secret
+
+# --- IDE / Editor junk ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Dependency / tooling caches ---
+node_modules/
+.tmp/
+.cache/
+
+# --- Docker-specific ---
+docker-compose.yml
+
+# --- Local caches/binaries ---
+.gocache
+thumbr
+dist/
+release/
+samples/
+
+# --- Tests / coverage artifacts ---
+coverage.out
+.coverage
+.tmp-coverage

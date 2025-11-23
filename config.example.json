@@ -1,0 +1,7 @@
+{
+  "noteRoot": "obsidian/Main",
+  "randomSeed": 12345,
+  "altScreen": true,
+  "includeExts": [".md", ".txt"],
+  "ignoreGlobs": ["Archive/*", "**/*.tmp"]
+}
