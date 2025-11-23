@@ -59,11 +59,11 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 
 			var ch rune
 			if isBorderY && isBorderX {
-				ch = '+'
+				ch = m.settings.BorderCorner
 			} else if isBorderY {
-				ch = '-'
+				ch = m.settings.BorderH
 			} else if isBorderX {
-				ch = '|'
+				ch = m.settings.BorderV
 			} else {
 				// Interior: only for active card and front card.
 				ch = ' '
@@ -190,11 +190,11 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 			styleID := borderID
 
 			if isBorderY && isBorderX {
-				ch = '+'
+				ch = m.settings.BorderCorner
 			} else if isBorderY {
-				ch = '-'
+				ch = m.settings.BorderH
 			} else if isBorderX {
-				ch = '|'
+				ch = m.settings.BorderV
 			} else {
 				ch = ' '
 				styleID = bodyID

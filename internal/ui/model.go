@@ -60,6 +60,10 @@ type Settings struct {
 	MaxCursorDepth   int
 	ActiveLiftY      int
 	StickyOverlayNav bool
+
+	BorderCorner rune
+	BorderH      rune
+	BorderV      rune
 }
 
 var DefaultSettings = Settings{
@@ -80,6 +84,10 @@ var DefaultSettings = Settings{
 	MaxCursorDepth:    2,
 	ActiveLiftY:       2,
 	StickyOverlayNav:  false,
+
+	BorderCorner: '+',
+	BorderH:      '-',
+	BorderV:      '|',
 }
 
 type Colors struct {
@@ -100,6 +108,10 @@ type Layout struct {
 	CardHeightFrac    float64
 	ActiveLiftY       int
 	StickyOverlayNav  *bool
+	MaxCursorDepth    int
+	BorderCorner      rune
+	BorderH           rune
+	BorderV           rune
 }
 
 type KeyBindings struct {
@@ -291,6 +303,18 @@ func (m *Model) ApplyLayout(l Layout) {
 	}
 	if l.StickyOverlayNav != nil {
 		m.settings.StickyOverlayNav = *l.StickyOverlayNav
+	}
+	if l.MaxCursorDepth > 0 {
+		m.settings.MaxCursorDepth = l.MaxCursorDepth
+	}
+	if l.BorderCorner != 0 {
+		m.settings.BorderCorner = l.BorderCorner
+	}
+	if l.BorderH != 0 {
+		m.settings.BorderH = l.BorderH
+	}
+	if l.BorderV != 0 {
+		m.settings.BorderV = l.BorderV
 	}
 }
 

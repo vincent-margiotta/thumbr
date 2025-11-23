@@ -47,6 +47,10 @@ type config struct {
 	CardHeightFrac   float64  `json:"cardHeightFrac" yaml:"cardHeightFrac" toml:"cardHeightFrac"`
 	ActiveLiftY      int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
 	StickyOverlayNav *bool    `json:"stickyOverlayNav" yaml:"stickyOverlayNav" toml:"stickyOverlayNav"`
+	MaxCursorDepth   int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
+	BorderCorner     string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
+	BorderH          string   `json:"borderH" yaml:"borderH" toml:"borderH"`
+	BorderV          string   `json:"borderV" yaml:"borderV" toml:"borderV"`
 	BindUp           []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
 	BindDown         []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
 	BindRandom       []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
@@ -149,6 +153,10 @@ func main() {
 		cardHeightFracArg   float64
 		activeLiftYArg      int
 		stickyOverlayNavArg bool
+		maxCursorDepthArg   int
+		borderCornerArg     string
+		borderHArg          string
+		borderVArg          string
 	)
 
 	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
@@ -176,6 +184,10 @@ func main() {
 	flagSet.Float64Var(&cardHeightFracArg, "card-height-frac", 0, "card height fraction of viewport (0 to use default)")
 	flagSet.IntVar(&activeLiftYArg, "active-lift-y", 0, "active card vertical lift (0 to use default)")
 	flagSet.BoolVar(&stickyOverlayNavArg, "sticky-overlay-nav", ui.DefaultSettings.StickyOverlayNav, "allow overlay to retain nav keys without exiting")
+	flagSet.IntVar(&maxCursorDepthArg, "max-cursor-depth", 0, "max depth the active card can sit in the stack (0 to use default)")
+	flagSet.StringVar(&borderCornerArg, "border-corner", "", "single rune for card corners (default '+')")
+	flagSet.StringVar(&borderHArg, "border-h", "", "single rune for horizontal card borders (default '-')")
+	flagSet.StringVar(&borderVArg, "border-v", "", "single rune for vertical card borders (default '|')")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg        string
@@ -237,6 +249,10 @@ func main() {
 		cardHeightFrac     float64
 		activeLiftY        int
 		stickyOverlayNav   bool
+		maxCursorDepth     int
+		borderCorner       string
+		borderH            string
+		borderV            string
 	}{
 		noteRoot:           ".",
 		randomSeed:         time.Now().UnixNano(),
@@ -261,6 +277,10 @@ func main() {
 		cardHeightFrac:     0,
 		activeLiftY:        0,
 		stickyOverlayNav:   ui.DefaultSettings.StickyOverlayNav,
+		maxCursorDepth:     0,
+		borderCorner:       "",
+		borderH:            "",
+		borderV:            "",
 	}
 
 	if configPath != "" {
@@ -312,6 +332,18 @@ func main() {
 		}
 		if cfg.NavMaxStep > 0 {
 			opts.navMaxStep = cfg.NavMaxStep
+		}
+		if cfg.MaxCursorDepth > 0 {
+			opts.maxCursorDepth = cfg.MaxCursorDepth
+		}
+		if cfg.BorderCorner != "" {
+			opts.borderCorner = cfg.BorderCorner
+		}
+		if cfg.BorderH != "" {
+			opts.borderH = cfg.BorderH
+		}
+		if cfg.BorderV != "" {
+			opts.borderV = cfg.BorderV
 		}
 		if cfg.StackVisible > 0 {
 			opts.stackVisible = cfg.StackVisible
@@ -418,6 +450,18 @@ func main() {
 	}
 	if cfgNavMaxStep > 0 {
 		opts.navMaxStep = cfgNavMaxStep
+	}
+	if maxCursorDepthArg > 0 {
+		opts.maxCursorDepth = maxCursorDepthArg
+	}
+	if borderCornerArg != "" {
+		opts.borderCorner = borderCornerArg
+	}
+	if borderHArg != "" {
+		opts.borderH = borderHArg
+	}
+	if borderVArg != "" {
+		opts.borderV = borderVArg
 	}
 	if stackVisibleArg > 0 {
 		opts.stackVisible = stackVisibleArg
@@ -555,6 +599,16 @@ func main() {
 		CardHeightFrac:    opts.cardHeightFrac,
 		ActiveLiftY:       opts.activeLiftY,
 		StickyOverlayNav:  &opts.stickyOverlayNav,
+		MaxCursorDepth:    opts.maxCursorDepth,
+	}
+	if opts.borderCorner != "" {
+		layout.BorderCorner = []rune(opts.borderCorner)[0]
+	}
+	if opts.borderH != "" {
+		layout.BorderH = []rune(opts.borderH)[0]
+	}
+	if opts.borderV != "" {
+		layout.BorderV = []rune(opts.borderV)[0]
 	}
 	m.ApplyLayout(layout)
 

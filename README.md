@@ -21,6 +21,7 @@ Terminal note browser that lets you thumb through a stack of Markdown cards. Thu
 - `--page-step`: override overlay paging step (lines); defaults to half the overlay body height.
 - `--nav-accel-ms`, `--nav-max-step`: tune navigation acceleration window and max jump size.
 - `--bind-*`: override keybindings (comma-separated lists) for nav (`bind-up`, `bind-down`), random (`bind-random`), overlay toggle (`bind-overlay`), mark/filter/help/quit, paging (`bind-page-next`, `bind-page-prev`), and overlay scroll (`bind-overlay-up`, `bind-overlay-down`).
+- Layout and style: `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth`, `--sticky-overlay-nav`, and border chars (`--border-corner`, `--border-h`, `--border-v`).
 
 Config fields (matching the flags):
 - `noteRoot`: root directory of notes (positional arg also works).
@@ -33,6 +34,7 @@ Config fields (matching the flags):
 - `navAccelMs` / `navMaxStep`: navigation acceleration window (ms) and max jump size.
 - `stackVisible`, `stackOffsetX/Y`, `cardWidthFrac`, `cardHeightFrac`, `activeLiftY`, `stickyOverlayNav`: stack/overlay layout tuning.
 - `bind*`: keybinding overrides as arrays (e.g., `bindUp`, `bindDown`, `bindOverlay`, `bindPageNext`, etc.).
+- `maxCursorDepth`, `borderCorner/H/V`: stack depth limit for active card, and characters used for card borders.
 
 ## Controls
 - `k`/`up`, `j`/`down`: move through the stack (accelerates with rapid presses). `k/up` moves into the stack; `j/down` moves back out. In overlay view, `j`/`k` scroll content one line.
