@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: ["main"]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-test:
     runs-on: ubuntu-latest
@@ -17,20 +24,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-
-      - name: Cache Go build
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
+          cache: true
 
       - name: Format check
         run: |
-          files=$(gofmt -l $(find . -path ./vendor -prune -o -name '*.go' -print))
+          set -eo pipefail
+          files=$(git ls-files -z -- '*.go' ':!:vendor/*' | xargs -0 gofmt -l)
           if [ -n "$files" ]; then
             echo "Unformatted Go files (run gofmt -w):"
             echo "$files"

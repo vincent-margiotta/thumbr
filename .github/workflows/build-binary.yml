@@ -6,6 +6,13 @@ on:
   # allow manual runs too
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -21,6 +28,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+          cache: true
 
       - name: Build Linux binary via Makefile
         env:
@@ -38,4 +46,4 @@ jobs:
         with:
           name: thumbr-linux-amd64
           path: bin/thumbr
-
+          retention-days: 7
