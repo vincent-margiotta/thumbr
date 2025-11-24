@@ -1,0 +1,41 @@
+name: Build thumbr binary
+
+on:
+  push:
+    branches: [ main ]
+  # allow manual runs too
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          # IMPORTANT: needed so `git describe` works
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Build Linux binary via Makefile
+        env:
+          # Cross-compile for Linux x86_64
+          GOOS: linux
+          GOARCH: amd64
+          # optional but often nice for portable binaries
+          CGO_ENABLED: 0
+        run: |
+          make build
+          ls -l bin
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: thumbr-linux-amd64
+          path: bin/thumbr
+
