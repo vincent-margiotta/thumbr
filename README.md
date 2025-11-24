@@ -2,7 +2,9 @@
 
 **Thumbr** is a terminal note browser that lets you thumb through a stack of Markdown cards. It walks a directory of `.md` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading.
 
-![Thumbr screenshot](docs/thumbr.gif)
+<img src="docs/thumbr.gif" alt="Thumbr demo" width="720" />
+
+> If the GIF looks cropped, record at 80x24: `asciinema rec demo.cast` (v2 recorder), then `asciicast2gif -w 80 -h 24 demo.cast docs/thumbr.gif`.
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
