@@ -574,6 +574,7 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Quit, desc: "quit (from stack) / back (from overlay)"},
 		{keys: []string{"esc"}, desc: "close overlay or help"},
 		{keys: m.bindings.Help, desc: "toggle this help overlay"},
+		{keys: m.bindings.Debug, desc: "toggle debug overlay"},
 		{keys: []string{"ctrl+c"}, desc: "quit immediately"},
 	}
 
@@ -599,4 +600,41 @@ func (m Model) renderHelp() string {
 
 	body := sb.String()
 	return body + "\n" + m.renderStatusBar()
+}
+
+func (m Model) renderDebug() string {
+	if m.viewport.Width == 0 {
+		return "Debug\n"
+	}
+
+	vis := m.visibleIndices()
+	bodyH, totalLines := m.overlayLimits()
+	updateAvg := time.Duration(0)
+	if len(m.updateSamples) > 0 {
+		var sum time.Duration
+		for _, d := range m.updateSamples {
+			sum += d
+		}
+		updateAvg = sum / time.Duration(len(m.updateSamples))
+	}
+
+	var sb strings.Builder
+	title := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true).Render("Debug")
+	sb.WriteString(title)
+	sb.WriteString("\n\n")
+
+	lines := []string{
+		fmt.Sprintf("Root: %s", m.noteRoot),
+		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), len(m.marked), m.filterMarked),
+		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
+		fmt.Sprintf("Nav accel: %v, max step: %d", m.settings.NavAccelWindow, m.settings.NavMaxStep),
+		fmt.Sprintf("Cursor depth max: %d", m.settings.MaxCursorDepth),
+		fmt.Sprintf("Update avg (last %d): %v", len(m.updateSamples), updateAvg),
+	}
+	for _, line := range lines {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+
+	return sb.String() + "\n" + m.renderStatusBar()
 }

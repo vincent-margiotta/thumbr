@@ -10,6 +10,8 @@ import (
 // Update and navigation-related methods live here.
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	start := time.Now()
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
@@ -19,25 +21,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.Height = msg.Height
 		}
 		m.ready = true
-		return m, nil
+		return m.withUpdateSample(start), nil
 
 	case tea.KeyMsg:
 		key := msg.String()
 
 		// ctrl+c always quits
 		if key == "ctrl+c" {
-			return m, tea.Quit
+			return m.withUpdateSample(start), tea.Quit
+		}
+
+		if m.isBinding(key, m.bindings.Debug) {
+			m.showDebug = !m.showDebug
+			if m.showDebug {
+				m.showHelp = false
+			}
+			return m, nil
 		}
 
 		if m.isBinding(key, m.bindings.Help) {
 			m.showHelp = !m.showHelp
-			return m, nil
+			if m.showHelp {
+				m.showDebug = false
+			}
+			return m.withUpdateSample(start), nil
 		}
 
 		// When help is open, close on any key (without applying it).
 		if m.showHelp {
 			m.showHelp = false
-			return m, nil
+			return m.withUpdateSample(start), nil
+		}
+		// When debug is open, close on any key (without applying it).
+		if m.showDebug {
+			m.showDebug = false
+			return m.withUpdateSample(start), nil
 		}
 
 		// Global actions (apply in all states).
@@ -63,7 +81,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case StateBrowsing:
 			switch {
 			case m.isBinding(key, m.bindings.Quit):
-				return m, tea.Quit
+				return m.withUpdateSample(start), tea.Quit
 			case m.isBinding(key, m.bindings.OverlayToggle):
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
@@ -111,10 +129,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// not used yet; ignore keys for now
 		}
 
-		return m, nil
+		return m.withUpdateSample(start), nil
 	}
 
-	return m, nil
+	return m.withUpdateSample(start), nil
 }
 
 // ==== Navigation ====

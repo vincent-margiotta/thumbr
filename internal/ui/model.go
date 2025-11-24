@@ -122,6 +122,7 @@ type KeyBindings struct {
 	Mark          []string
 	Filter        []string
 	Help          []string
+	Debug         []string
 	Quit          []string
 	PageNext      []string
 	PagePrev      []string
@@ -138,6 +139,7 @@ func DefaultBindings() KeyBindings {
 		Mark:          []string{"m"},
 		Filter:        []string{"t"},
 		Help:          []string{"?", "h"},
+		Debug:         []string{"d"},
 		Quit:          []string{"q"},
 		PageNext:      []string{"n"},
 		PagePrev:      []string{"p"},
@@ -188,6 +190,8 @@ type Model struct {
 	rng *rand.Rand
 	// showHelp toggles the keybinding overlay.
 	showHelp bool
+	// showDebug toggles the debug overlay.
+	showDebug bool
 	// marked tracks marked cards by absolute index in m.cards.
 	marked map[int]bool
 	// filterMarked toggles showing only marked cards.
@@ -204,6 +208,8 @@ type Model struct {
 
 	statusMsg      string
 	statusMsgUntil time.Time
+
+	updateSamples []time.Duration
 }
 
 // NewModel constructs the initial UI model. The RNG controls random jumps; pass
@@ -274,6 +280,7 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.Mark, b.Mark)
 	override(&m.bindings.Filter, b.Filter)
 	override(&m.bindings.Help, b.Help)
+	override(&m.bindings.Debug, b.Debug)
 	override(&m.bindings.Quit, b.Quit)
 	override(&m.bindings.PageNext, b.PageNext)
 	override(&m.bindings.PagePrev, b.PagePrev)
@@ -323,6 +330,9 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	if m.showDebug {
+		return m.renderDebug()
+	}
 	if !m.ready || m.viewport.Width == 0 || m.viewport.Height == 0 {
 		return "Thumbr – initializing…\n"
 	}
@@ -519,6 +529,20 @@ func (m Model) isBinding(key string, set []string) bool {
 		}
 	}
 	return false
+}
+
+func appendSample(samples []time.Duration, d time.Duration) []time.Duration {
+	const maxSamples = 50
+	samples = append(samples, d)
+	if len(samples) > maxSamples {
+		samples = samples[len(samples)-maxSamples:]
+	}
+	return samples
+}
+
+func (m Model) withUpdateSample(start time.Time) Model {
+	m.updateSamples = appendSample(m.updateSamples, time.Since(start))
+	return m
 }
 
 func (m Model) toggleMark() Model {

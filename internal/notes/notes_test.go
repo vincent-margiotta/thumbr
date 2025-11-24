@@ -27,6 +27,50 @@ func TestParseCardFilename_TitleOnly(t *testing.T) {
 	}
 }
 
+func TestParseCardFilename_TrimsExtraSpace(t *testing.T) {
+	id, title := parseCardFilename("2.0a   Spaced   Title.md")
+	if id != "2.0a" {
+		t.Fatalf("expected id '2.0a', got %q", id)
+	}
+	if title != "Spaced   Title" {
+		t.Fatalf("expected trimmed title 'Spaced   Title', got %q", title)
+	}
+}
+
+func TestLoadCardsFromDir_DefaultsToMarkdown(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"keep.md":    "# md",
+		"skip.txt":   "# text",
+		".hidden.md": "# hidden ok",
+	}
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	cards, err := LoadCardsFromDir(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	got := map[string]bool{}
+	for _, c := range cards {
+		got[filepath.Base(c.Path)] = true
+	}
+
+	for _, name := range []string{"keep.md", ".hidden.md"} {
+		if !got[name] {
+			t.Fatalf("expected to include %s", name)
+		}
+	}
+	if got["skip.txt"] {
+		t.Fatalf("did not expect to include skip.txt")
+	}
+}
+
 func TestLoadCardsFromDir_FiltersByExtAndIgnore(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
