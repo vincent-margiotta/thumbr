@@ -2,7 +2,7 @@
 
 **Thumbr** is a terminal note browser that lets you thumb through a stack of Markdown cards. It walks a directory of `.md` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading.
 
-![Thumbr screenshot](docs/thumbr.png)
+![Thumbr screenshot](docs/thumbr.gif)
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
