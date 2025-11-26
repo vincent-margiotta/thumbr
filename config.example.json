@@ -2,7 +2,7 @@
   "noteRoot": "samples/notes",
   "randomSeed": 12345,
   "altScreen": true,
-  "includeExts": [".txt", ".md"],
+  "includeExts": [".txt"],
   "ignoreGlobs": ["Archive/*", "**/*.tmp"],
   "sortMode": "natural",
   "sortPattern": "^[0-9]+[A-Za-z0-9]*$",

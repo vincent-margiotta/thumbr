@@ -1,6 +1,6 @@
 # Thumbr
 
-**Thumbr** is a terminal note browser that lets you thumb through a stack of plain-text cards. It walks a directory of note files (`.txt` by default; add `.md` or others via config), renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content is shown as plain text—no rendering).
+**Thumbr** is a terminal card box emulator for plain-text notes. It walks a directory of note files (`.txt` by default; extensions are configurable), renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content is shown as plain text—no rendering).
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
@@ -9,6 +9,7 @@
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
 - **Persistent Marks/Filters:** Marks and filter state stick to each box during a session (cleared when you quit).
+- **Highly Configurable:** Tune extensions, sorting, layout, colors, and keys via flags or config files.
 
 ## Requirements
 - **Go 1.24+**
@@ -83,40 +84,16 @@ Precedence:
 
 Tip: copy `config.example.json` to `config.json` and adjust only the fields you care about.
 
-### Configuration Options
+### Configuration (quick scan)
 
-| Category | Settings | Description |
-| :--- | :--- | :--- |
-| **Paths** | `noteRoot`, `includeExts`, `ignoreGlobs` | Define where notes live and what to skip. |
-| **Display** | `altScreen`, `randomSeed` | Terminal screen settings. |
-| **Styling** | `colorMark`, `colorMuted`, `borderCorner`... | Customize colors and border styles. |
-| **Layout** | `stackVisible`, `cardWidthFrac`, `stackOffsetX` | Adjust geometry of the stack and cards. |
-| **Navigation** | `pageStep`, `navAccelMs`, `navMaxStep` | Tune scrolling speed and acceleration physics. |
-| **Bindings** | `bindUp`, `bindDown`, `bindQuit`... | Remap keys. |
-| **Sorting** | `sortMode`, `sortPattern`, `sortPatternFirst` | Control natural vs lexical ordering and grouping of pattern matches. |
+Common tweaks:
+- **Files:** `includeExts` (defaults to `.txt`), `ignoreGlobs`.
+- **Sorting:** `sortMode`, `sortPattern`, `sortPatternFirst` to control natural vs lexical ordering and grouping.
+- **Layout/Styling:** `stackVisible`, `cardWidthFrac`, `colors`, border characters.
+- **Bindings:** `bind*` keys to remap navigation, overlay, marks, etc.
 
-See `config.example.json` for a full reference.
+Full reference lives in `config.example.json` (JSON) and is supported via YAML/TOML too.
 
-## Notes & Filename Parsing
-
-  - **Discovery:** Directories are walked recursively. Files ending in `.txt` are loaded by default; add `.md` (or others) via `--include-exts` or config.
-  - **Ignoring Files:** Use `--ignore` or `ignoreGlobs` to skip paths (globs match basename or full path).
-    - Patterns ending in `/*` act as directory ignores (e.g., `Archive/*` skips that folder).
-  - **Filename Handling:** The filename without extension becomes the card title (IDs in names are not parsed separately).
-  - **Rendering:**
-      - Content is shown as plain text (no rendering or link rewriting).
-      - Unreadable files are skipped gracefully.
-  - **Marks/Filters:** Marks and the marked-only filter are remembered per box within a session and clear when you exit Thumbr.
-
-## Flags at a Glance
-
-- **Screen/behavior:** `--alt-screen` (default true) or `--no-alt-screen`; `--random-seed` for deterministic random jumps; `--page-step` to override half-page paging.
-- **File selection:** `--include-exts=.txt,.md`; `--ignore=Archive/*,**/*.tmp`.
-- **Sorting:** `--sort-mode=natural|lexical` (default natural), `--sort-pattern` regex to apply that mode (default `^[0-9]+[A-Za-z0-9]*$`; non-matching names fall back to lexical), and `--sort-pattern-first` (default false) to place matched names before/after others.
-- **Navigation feel:** `--nav-accel-ms` (default 350ms) and `--nav-max-step` (default 8) control thumbing acceleration.
-- **Layout:** `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth` (how deep the active card can sit in the visible stack), `--sticky-overlay-nav` to keep overlay navigation active when jumping.
-- **Styling:** `--color-*` for accents/status, `--border-corner`, `--border-h`, `--border-v`.
-- **Keybindings:** `--bind-up/down/random/overlay/edit/box/new/mark/filter/help/quit/page-next/page-prev/overlay-up/overlay-down` accept comma-separated keys; blank keeps defaults.
 
 ## Development
 
