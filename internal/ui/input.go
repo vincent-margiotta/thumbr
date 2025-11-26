@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"math/rand"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,7 +23,50 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.viewport.Height = msg.Height
 		}
+		if m.state == StatePrompting {
+			width := m.viewport.Width - 4
+			if width < 10 {
+				width = m.viewport.Width
+			}
+			if width < 10 {
+				width = 10
+			}
+			m.prompt.input.Width = width
+		}
 		m.ready = true
+		return m.withUpdateSample(start), nil
+
+	case boxLoadResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("Load failed: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		m = m.resetAfterLoad(msg.cards, msg.path)
+		m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
+		return m.withUpdateSample(start), nil
+
+	case newFileResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("New file error: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		m = m.setActiveBox(msg.box)
+		status := "Opening file in editor"
+		if msg.path != "" {
+			status = fmt.Sprintf("Opening %s", filepath.Base(msg.path))
+		}
+		m = m.setStatus(status, 2*time.Second)
+		return m.withUpdateSample(start), m.loadBoxCmd(msg.box)
+
+	case editorResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
+		} else {
+			m = m.setStatus("Opening in editor…", 2*time.Second)
+		}
 		return m.withUpdateSample(start), nil
 
 	case tea.KeyMsg:
@@ -29,6 +75,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// ctrl+c always quits
 		if key == "ctrl+c" {
 			return m.withUpdateSample(start), tea.Quit
+		}
+
+		if m.state == StatePrompting {
+			return m.handlePromptKey(msg, start)
 		}
 
 		if m.isBinding(key, m.bindings.Debug) {
@@ -66,6 +116,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isBinding(key, m.bindings.Filter):
 			m = m.toggleFilter()
 			return m, nil
+		case m.isBinding(key, m.bindings.OpenBox):
+			m = m.startBoxPrompt()
+			return m.withUpdateSample(start), nil
+		case m.isBinding(key, m.bindings.NewFile):
+			m = m.startNewFilePrompt()
+			return m.withUpdateSample(start), nil
+		case m.isBinding(key, m.bindings.OpenEditor):
+			if len(m.cards) > 0 {
+				cmd := m.openInEditorCmd(m.cards[m.cursor].Path)
+				m = m.setStatus("Opening in editor…", 2*time.Second)
+				return m.withUpdateSample(start), cmd
+			}
+			return m.withUpdateSample(start), nil
 		}
 
 		// If we have no cards, let q also quit, otherwise do nothing
@@ -124,15 +187,84 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.isBinding(key, m.bindings.PagePrev):
 				m = m.prevPage()
 			}
-
-		case StatePrompting:
-			// not used yet; ignore keys for now
 		}
 
 		return m.withUpdateSample(start), nil
 	}
 
 	return m.withUpdateSample(start), nil
+}
+
+func (m Model) handlePromptKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
+	key := msg.String()
+
+	switch key {
+	case "esc":
+		m = m.clearPrompt()
+		return m.withUpdateSample(start), nil
+	case "tab":
+		m = m.cyclePromptBox(1)
+		return m.withUpdateSample(start), nil
+	case "shift+tab":
+		m = m.cyclePromptBox(-1)
+		return m.withUpdateSample(start), nil
+	case "enter":
+		return m.submitPrompt(start)
+	}
+
+	var cmd tea.Cmd
+	m.prompt.input, cmd = m.prompt.input.Update(msg)
+	return m.withUpdateSample(start), cmd
+}
+
+func (m Model) submitPrompt(start time.Time) (tea.Model, tea.Cmd) {
+	switch m.prompt.kind {
+	case promptBox:
+		path := strings.TrimSpace(m.prompt.input.Value())
+		if path == "" {
+			m = m.setStatus("Enter a box path", 2*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		m = m.clearPrompt()
+		return m.withUpdateSample(start), m.loadBoxCmd(path)
+
+	case promptNewFile:
+		name := strings.TrimSpace(m.prompt.input.Value())
+		if name == "" {
+			m = m.setStatus("Enter a file name", 2*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		target := m.promptTargetBox()
+		cmd := m.createFileCmd(target, name)
+		m = m.clearPrompt()
+		m = m.setStatus("Creating file…", 1*time.Second)
+		return m.withUpdateSample(start), cmd
+	}
+
+	m = m.clearPrompt()
+	return m.withUpdateSample(start), nil
+}
+
+func (m Model) cyclePromptBox(delta int) Model {
+	if len(m.boxes) == 0 {
+		return m
+	}
+	count := len(m.boxes)
+	m.prompt.selectedBox = (m.prompt.selectedBox + delta + count) % count
+	if m.prompt.kind == promptBox {
+		m.prompt.input.SetValue(m.boxes[m.prompt.selectedBox])
+	}
+	return m
+}
+
+func (m Model) promptTargetBox() string {
+	if len(m.boxes) == 0 {
+		return m.noteRoot
+	}
+	if m.prompt.selectedBox >= 0 && m.prompt.selectedBox < len(m.boxes) {
+		return m.boxes[m.prompt.selectedBox]
+	}
+	return m.currentBox()
 }
 
 // ==== Navigation ====

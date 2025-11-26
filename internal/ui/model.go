@@ -1,11 +1,19 @@
 package ui
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -18,6 +26,14 @@ const (
 	StateBrowsing State = iota
 	StateViewing
 	StatePrompting
+)
+
+type promptKind int
+
+const (
+	promptNone promptKind = iota
+	promptBox
+	promptNewFile
 )
 
 func (s State) String() string {
@@ -119,6 +135,9 @@ type KeyBindings struct {
 	Down          []string
 	Random        []string
 	OverlayToggle []string
+	OpenEditor    []string
+	OpenBox       []string
+	NewFile       []string
 	Mark          []string
 	Filter        []string
 	Help          []string
@@ -136,6 +155,9 @@ func DefaultBindings() KeyBindings {
 		Down:          []string{"j", "down"},
 		Random:        []string{"r"},
 		OverlayToggle: []string{"enter"},
+		OpenEditor:    []string{"e"},
+		OpenBox:       []string{"b"},
+		NewFile:       []string{"a"},
 		Mark:          []string{"m"},
 		Filter:        []string{"t"},
 		Help:          []string{"?", "h"},
@@ -201,6 +223,17 @@ type Model struct {
 	// overlayPageStep overrides computed half-page step when >0.
 	overlayPageStep int
 
+	// loadOpts keeps the include/ignore globs so we can reload boxes in-session.
+	loadOpts notes.LoadOptions
+	// boxes tracks visited roots; activeBox indexes boxes.
+	boxes     []string
+	activeBox int
+
+	// Prompt UI state
+	prompt promptState
+	// stateBeforePrompt lets us restore browsing/viewing after prompt dismissal.
+	stateBeforePrompt State
+
 	err       error
 	noteRoot  string
 	ready     bool
@@ -212,10 +245,34 @@ type Model struct {
 	updateSamples []time.Duration
 }
 
+type promptState struct {
+	kind        promptKind
+	input       textinput.Model
+	selectedBox int
+}
+
+type boxLoadResult struct {
+	path  string
+	cards []notes.Card
+	err   error
+}
+
+type newFileResult struct {
+	box  string
+	path string
+	err  error
+}
+
+type editorResult struct {
+	path string
+	err  error
+}
+
 // NewModel constructs the initial UI model. The RNG controls random jumps; pass
 // nil to use the global math/rand instance.
-func NewModel(cards []notes.Card, noteRoot string, rng *rand.Rand) Model {
-	return Model{
+func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, rng *rand.Rand) Model {
+	root := cleanBoxPath(noteRoot)
+	m := Model{
 		cards:    cards,
 		cursor:   0,
 		state:    StateBrowsing,
@@ -223,8 +280,11 @@ func NewModel(cards []notes.Card, noteRoot string, rng *rand.Rand) Model {
 		bindings: DefaultBindings(),
 		rng:      rng,
 		marked:   make(map[int]bool),
-		noteRoot: noteRoot,
+		noteRoot: root,
+		loadOpts: loadOpts,
 	}
+	m = m.setActiveBox(root)
+	return m
 }
 
 func (m *Model) ApplyColors(c Colors) {
@@ -273,6 +333,9 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 			*dst = src
 		}
 	}
+	override(&m.bindings.OpenEditor, b.OpenEditor)
+	override(&m.bindings.OpenBox, b.OpenBox)
+	override(&m.bindings.NewFile, b.NewFile)
 	override(&m.bindings.Up, b.Up)
 	override(&m.bindings.Down, b.Down)
 	override(&m.bindings.Random, b.Random)
@@ -330,6 +393,9 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	if m.state == StatePrompting {
+		return m.renderPrompt()
+	}
 	if m.showDebug {
 		return m.renderDebug()
 	}
@@ -543,6 +609,187 @@ func appendSample(samples []time.Duration, d time.Duration) []time.Duration {
 func (m Model) withUpdateSample(start time.Time) Model {
 	m.updateSamples = appendSample(m.updateSamples, time.Since(start))
 	return m
+}
+
+func (m Model) defaultExt() string {
+	if len(m.loadOpts.IncludeExts) > 0 {
+		return m.loadOpts.IncludeExts[0]
+	}
+	return ".md"
+}
+
+func cleanBoxPath(path string) string {
+	if strings.TrimSpace(path) == "" {
+		path = "."
+	}
+	path = filepath.Clean(path)
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	return path
+}
+
+func (m Model) setActiveBox(path string) Model {
+	path = cleanBoxPath(path)
+	for i, b := range m.boxes {
+		if b == path {
+			m.activeBox = i
+			m.noteRoot = path
+			return m
+		}
+	}
+	m.boxes = append(m.boxes, path)
+	m.activeBox = len(m.boxes) - 1
+	m.noteRoot = path
+	return m
+}
+
+func (m Model) currentBox() string {
+	if len(m.boxes) == 0 {
+		return m.noteRoot
+	}
+	if m.activeBox < 0 || m.activeBox >= len(m.boxes) {
+		return m.noteRoot
+	}
+	return m.boxes[m.activeBox]
+}
+
+func (m Model) startPrompt(kind promptKind, initial string) Model {
+	ti := textinput.New()
+	ti.Prompt = "> "
+	ti.SetValue(initial)
+	if m.viewport.Width > 4 {
+		ti.Width = m.viewport.Width - 4
+	} else {
+		ti.Width = 40
+	}
+	ti.Focus()
+	m.prompt = promptState{
+		kind:        kind,
+		input:       ti,
+		selectedBox: m.activeBox,
+	}
+	m.stateBeforePrompt = m.state
+	m.state = StatePrompting
+	m.showHelp = false
+	m.showDebug = false
+	return m
+}
+
+func (m Model) startBoxPrompt() Model {
+	return m.startPrompt(promptBox, m.noteRoot)
+}
+
+func (m Model) startNewFilePrompt() Model {
+	return m.startPrompt(promptNewFile, "")
+}
+
+// loadBoxCmd loads the given path with the model's load options in a goroutine.
+func (m Model) loadBoxCmd(path string) tea.Cmd {
+	root := cleanBoxPath(path)
+	opts := m.loadOpts
+	return func() tea.Msg {
+		cards, err := notes.LoadCardsFromDir(root, opts)
+		return boxLoadResult{path: root, cards: cards, err: err}
+	}
+}
+
+// openInEditorCmd launches the editor (VISUAL/EDITOR or OS default) for the path.
+func (m Model) openInEditorCmd(path string) tea.Cmd {
+	return func() tea.Msg {
+		return editorResult{path: path, err: launchEditor(path)}
+	}
+}
+
+// createFileCmd makes sure the file exists under boxRoot, creates directories,
+// and opens it in the editor.
+func (m Model) createFileCmd(boxRoot, userPath string) tea.Cmd {
+	root := cleanBoxPath(boxRoot)
+	defaultExt := m.defaultExt()
+	return func() tea.Msg {
+		raw := strings.TrimSpace(userPath)
+		if raw == "" {
+			return newFileResult{box: root, err: errors.New("file name required")}
+		}
+
+		target := raw
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(root, target)
+		}
+		target = filepath.Clean(target)
+		if filepath.Ext(target) == "" && defaultExt != "" {
+			target += defaultExt
+		}
+
+		dir := filepath.Dir(target)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return newFileResult{box: root, path: target, err: fmt.Errorf("make dir: %w", err)}
+		}
+
+		// Create the file if missing; preserve existing content otherwise.
+		if _, err := os.Stat(target); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return newFileResult{box: root, path: target, err: fmt.Errorf("stat: %w", err)}
+			}
+			if err := os.WriteFile(target, []byte{}, 0o644); err != nil {
+				return newFileResult{box: root, path: target, err: fmt.Errorf("create: %w", err)}
+			}
+		}
+
+		if err := launchEditor(target); err != nil {
+			return newFileResult{box: root, path: target, err: fmt.Errorf("open: %w", err)}
+		}
+
+		return newFileResult{box: root, path: target, err: nil}
+	}
+}
+
+func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
+	m = m.setActiveBox(root)
+	m.cards = cards
+	m.cursor = 0
+	m.marked = make(map[int]bool)
+	m.filterMarked = false
+	m.overlayPage = 0
+	m.state = StateBrowsing
+	return m.ensureCursorVisible()
+}
+
+func (m Model) clearPrompt() Model {
+	m.prompt = promptState{}
+	if m.state == StatePrompting {
+		m.state = m.stateBeforePrompt
+	}
+	return m
+}
+
+func launchEditor(path string) error {
+	if editor := os.Getenv("VISUAL"); editor != "" {
+		return runEditorCommand(editor, path)
+	}
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		return runEditorCommand(editor, path)
+	}
+	return openWithSystem(path)
+}
+
+func runEditorCommand(cmdStr, path string) error {
+	command := fmt.Sprintf("%s %s", cmdStr, strconv.Quote(path))
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd", "/c", command).Start()
+	}
+	return exec.Command("sh", "-c", command).Start()
+}
+
+func openWithSystem(path string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", path).Start()
+	case "windows":
+		return exec.Command("cmd", "/c", "start", "", strconv.Quote(path)).Start()
+	default:
+		return exec.Command("xdg-open", path).Start()
+	}
 }
 
 func (m Model) toggleMark() Model {

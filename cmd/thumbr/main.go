@@ -55,6 +55,9 @@ type config struct {
 	BindDown         []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
 	BindRandom       []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
 	BindOverlay      []string `json:"bindOverlay" yaml:"bindOverlay" toml:"bindOverlay"`
+	BindEdit         []string `json:"bindEdit" yaml:"bindEdit" toml:"bindEdit"`
+	BindBox          []string `json:"bindBox" yaml:"bindBox" toml:"bindBox"`
+	BindNewFile      []string `json:"bindNewFile" yaml:"bindNewFile" toml:"bindNewFile"`
 	BindMark         []string `json:"bindMark" yaml:"bindMark" toml:"bindMark"`
 	BindFilter       []string `json:"bindFilter" yaml:"bindFilter" toml:"bindFilter"`
 	BindHelp         []string `json:"bindHelp" yaml:"bindHelp" toml:"bindHelp"`
@@ -194,6 +197,9 @@ func main() {
 		bindDownArg      string
 		bindRandomArg    string
 		bindOverlayArg   string
+		bindEditArg      string
+		bindBoxArg       string
+		bindNewFileArg   string
 		bindMarkArg      string
 		bindFilterArg    string
 		bindHelpArg      string
@@ -207,6 +213,9 @@ func main() {
 	flagSet.StringVar(&bindDownArg, "bind-down", "", "comma-separated keys for down navigation")
 	flagSet.StringVar(&bindRandomArg, "bind-random", "", "comma-separated keys for random jump")
 	flagSet.StringVar(&bindOverlayArg, "bind-overlay", "", "comma-separated keys to toggle overlay")
+	flagSet.StringVar(&bindEditArg, "bind-edit", "", "comma-separated keys to open the current card in the editor")
+	flagSet.StringVar(&bindBoxArg, "bind-box", "", "comma-separated keys to open/switch boxes")
+	flagSet.StringVar(&bindNewFileArg, "bind-new", "", "comma-separated keys to create a new file in the active box")
 	flagSet.StringVar(&bindMarkArg, "bind-mark", "", "comma-separated keys to mark/unmark")
 	flagSet.StringVar(&bindFilterArg, "bind-filter", "", "comma-separated keys to toggle marked filter")
 	flagSet.StringVar(&bindHelpArg, "bind-help", "", "comma-separated keys to toggle help")
@@ -375,6 +384,9 @@ func main() {
 		mergeBinding(&opts.bindings.Down, cfg.BindDown)
 		mergeBinding(&opts.bindings.Random, cfg.BindRandom)
 		mergeBinding(&opts.bindings.OverlayToggle, cfg.BindOverlay)
+		mergeBinding(&opts.bindings.OpenEditor, cfg.BindEdit)
+		mergeBinding(&opts.bindings.OpenBox, cfg.BindBox)
+		mergeBinding(&opts.bindings.NewFile, cfg.BindNewFile)
 		mergeBinding(&opts.bindings.Mark, cfg.BindMark)
 		mergeBinding(&opts.bindings.Filter, cfg.BindFilter)
 		mergeBinding(&opts.bindings.Help, cfg.BindHelp)
@@ -508,6 +520,15 @@ func main() {
 	if v := parseBinding(bindOverlayArg); len(v) > 0 {
 		opts.bindings.OverlayToggle = v
 	}
+	if v := parseBinding(bindEditArg); len(v) > 0 {
+		opts.bindings.OpenEditor = v
+	}
+	if v := parseBinding(bindBoxArg); len(v) > 0 {
+		opts.bindings.OpenBox = v
+	}
+	if v := parseBinding(bindNewFileArg); len(v) > 0 {
+		opts.bindings.NewFile = v
+	}
 	if v := parseBinding(bindMarkArg); len(v) > 0 {
 		opts.bindings.Mark = v
 	}
@@ -582,7 +603,7 @@ func main() {
 		colors.ColorStatusDim = lipgloss.Color(opts.colorStatusDim)
 	}
 
-	m := ui.NewModel(cards, opts.noteRoot, rng)
+	m := ui.NewModel(cards, opts.noteRoot, loadOpts, rng)
 	m.ApplyColors(colors)
 	m.ApplyBindings(opts.bindings)
 	if opts.pageStep > 0 {

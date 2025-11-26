@@ -2,16 +2,13 @@
 
 **Thumbr** is a terminal note browser that lets you thumb through a stack of Markdown cards. It walks a directory of `.md` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading.
 
-<img src="docs/thumbr.gif" alt="Thumbr demo" width="720" />
-
-> If the GIF looks cropped, record at 80x24: `asciinema rec demo.cast` (v2 recorder), then `asciicast2gif -w 80 -h 24 demo.cast docs/thumbr.gif`.
-
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
 - **Smart Parsing:** Automatically parses filenames (e.g., `ID Title.md`) and renders Markdown.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Obsidian Friendly:** Handles Obsidian-style links (`[[note]]`) cleanly.
+- **Multi-Box Sessions:** Switch vaults on the fly and create new notes from inside Thumbr.
 
 ## Requirements
 - **Go 1.24+**
@@ -64,6 +61,9 @@ Thumbr has two main interaction modes: the **Stack** (browsing files) and the **
 | **Overlay** | **Page** | `n` / `p` | Next/Previous page (if content overflows). |
 | **System** | **Help** | `?` / `h` | Shows current keybindings. |
 | **System** | **Debug** | `d` | Toggle debug stats (counts, paging, nav metrics). |
+| **System** | **Switch Box** | `b` | Open a different root (box) within the same session. |
+| **System** | **New File** | `a` | Create a new file in a box and open it in your editor. |
+| **System** | **Open in Editor** | `e` | Open the active card in `$EDITOR` (or system default). |
 | **System** | **Quit** | `q` / `Ctrl+c` | Quit app. (`Esc` also quits, or closes overlay if open). |
 
 > **Note:** Keybindings can be customized via the configuration file.
@@ -115,7 +115,7 @@ See `config.example.json` for a full reference.
 - **Navigation feel:** `--nav-accel-ms` (default 350ms) and `--nav-max-step` (default 8) control thumbing acceleration.
 - **Layout:** `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth` (how deep the active card can sit in the visible stack), `--sticky-overlay-nav` to keep overlay navigation active when jumping.
 - **Styling:** `--color-*` for accents/status, `--border-corner`, `--border-h`, `--border-v`.
-- **Keybindings:** `--bind-up/down/random/overlay/mark/filter/help/quit/page-next/page-prev/overlay-up/overlay-down` accept comma-separated keys; blank keeps defaults.
+- **Keybindings:** `--bind-up/down/random/overlay/edit/box/new/mark/filter/help/quit/page-next/page-prev/overlay-up/overlay-down` accept comma-separated keys; blank keeps defaults.
 
 ## Development
 
@@ -163,6 +163,5 @@ docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
 ## Roadmap / Known Gaps
 
   - Live vault/config reloading.
-  - "Open in Editor" functionality.
   - Performance tuning for large vaults (target: 90k notes in \<2s).
   - Release pipelines (GoReleaser/Homebrew).

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -480,6 +481,11 @@ func (m Model) renderStatusBar() string {
 
 	var leftParts []string
 	leftParts = append(leftParts, statusStyle.Render(" Thumbr "))
+	boxLabel := filepath.Base(m.noteRoot)
+	if boxLabel == "" || boxLabel == "." || boxLabel == "/" {
+		boxLabel = m.noteRoot
+	}
+	leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("Box: %s", boxLabel)))
 	vis := m.visibleIndices()
 	if len(vis) == 0 {
 		leftParts = append(leftParts, dimStyle.Render("no cards"))
@@ -522,6 +528,8 @@ func (m Model) renderStatusBar() string {
 	navHint := " [j/k] move  [r] random  [q] quit"
 	if m.showHelp {
 		navHint = " [esc] close help  [?/h] toggle"
+	} else if m.state == StatePrompting {
+		navHint = " [enter] confirm  [esc] cancel  [tab] box history"
 	}
 
 	rightText := modeStr + navHint
@@ -541,11 +549,71 @@ func (m Model) renderEmpty() string {
 
 	msg := "No cards found.\n\n" +
 		"Point Thumbr at a directory of markdown notes:\n\n" +
-		"  thumbr /path/to/notes\n"
+		"  thumbr /path/to/notes\n\n" +
+		"Press 'b' to open another box or 'a' to add a new note.\n"
 
 	body := bodyStyle.Render(msg)
 
 	return body + "\n" + status
+}
+
+func (m Model) renderPrompt() string {
+	if m.viewport.Width == 0 {
+		return "Prompt\n"
+	}
+
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	var title string
+	var notes []string
+	switch m.prompt.kind {
+	case promptBox:
+		title = "Open Box"
+		notes = append(notes, "Enter a path to switch boxes.")
+		if len(m.boxes) > 1 {
+			notes = append(notes, "Use tab to cycle previously opened boxes.")
+		}
+	case promptNewFile:
+		title = "New File"
+		notes = append(notes, fmt.Sprintf("Target box: %s", m.promptTargetBox()))
+		notes = append(notes, "Enter a filename (relative paths allowed).")
+		if len(m.boxes) > 1 {
+			notes = append(notes, "Tab cycles boxes; Esc cancels.")
+		}
+	default:
+		title = "Prompt"
+	}
+
+	var sb strings.Builder
+	sb.WriteString(hi.Render(title))
+	sb.WriteString("\n\n")
+	for _, line := range notes {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+	if len(notes) > 0 {
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(m.prompt.input.View())
+	sb.WriteString("\n\n")
+
+	if len(m.boxes) > 0 {
+		sb.WriteString("Boxes:\n")
+		for i, box := range m.boxes {
+			marker := " "
+			if i == m.prompt.selectedBox {
+				marker = ">"
+			}
+			sb.WriteString(fmt.Sprintf(" %s %s\n", marker, box))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(dim.Render("[enter] confirm  [esc] cancel  [tab] box history"))
+	body := sb.String()
+	return body + "\n" + m.renderStatusBar()
 }
 
 func (m Model) renderHelp() string {
@@ -564,6 +632,9 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Random, desc: "jump to random card"},
 		{keys: m.bindings.Mark, desc: "mark/unmark card"},
 		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
+		{keys: m.bindings.OpenBox, desc: "open/switch box"},
+		{keys: m.bindings.NewFile, desc: "create new file in selected box"},
+		{keys: m.bindings.OpenEditor, desc: "open current card in $EDITOR"},
 		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
 		{keys: nil, desc: ""},
 		{keys: []string{"(overlay only)"}, desc: ""},
@@ -625,6 +696,7 @@ func (m Model) renderDebug() string {
 
 	lines := []string{
 		fmt.Sprintf("Root: %s", m.noteRoot),
+		fmt.Sprintf("Boxes: %d (active: %d)", len(m.boxes), m.activeBox),
 		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), len(m.marked), m.filterMarked),
 		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
 		fmt.Sprintf("Nav accel: %v, max step: %d", m.settings.NavAccelWindow, m.settings.NavMaxStep),
