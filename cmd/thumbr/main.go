@@ -66,6 +66,8 @@ type config struct {
 	BindPagePrev     []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
 	BindOverlayUp    []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
 	BindOverlayDown  []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
+	SortMode         string   `json:"sortMode" yaml:"sortMode" toml:"sortMode"`
+	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 }
 
 type int64Flag struct {
@@ -160,6 +162,8 @@ func main() {
 		borderCornerArg     string
 		borderHArg          string
 		borderVArg          string
+		sortModeArg         string
+		sortPatternArg      string
 	)
 
 	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
@@ -191,6 +195,8 @@ func main() {
 	flagSet.StringVar(&borderCornerArg, "border-corner", "", "single rune for card corners (default '+')")
 	flagSet.StringVar(&borderHArg, "border-h", "", "single rune for horizontal card borders (default '-')")
 	flagSet.StringVar(&borderVArg, "border-v", "", "single rune for vertical card borders (default '|')")
+	flagSet.StringVar(&sortModeArg, "sort-mode", "", "card sort mode: lexical or natural (default natural)")
+	flagSet.StringVar(&sortPatternArg, "sort-pattern", "", "regex for names to apply sort-mode to; others use lexical (default ^[0-9]+[A-Za-z0-9]*$)")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg        string
@@ -240,6 +246,8 @@ func main() {
 		useAlternateScreen bool
 		includeExts        []string
 		ignoreGlobs        []string
+		sortMode           string
+		sortPattern        string
 		colorMark          string
 		colorMuted         string
 		colorHi            string
@@ -268,6 +276,8 @@ func main() {
 		useAlternateScreen: true,
 		includeExts:        nil,
 		ignoreGlobs:        nil,
+		sortMode:           "",
+		sortPattern:        "",
 		colorMark:          "",
 		colorMuted:         "",
 		colorHi:            "",
@@ -311,6 +321,12 @@ func main() {
 		}
 		if len(cfg.IgnoreGlobs) > 0 {
 			opts.ignoreGlobs = cfg.IgnoreGlobs
+		}
+		if cfg.SortMode != "" {
+			opts.sortMode = cfg.SortMode
+		}
+		if cfg.SortPattern != "" {
+			opts.sortPattern = cfg.SortPattern
 		}
 		if cfg.ColorMark != "" {
 			opts.colorMark = cfg.ColorMark
@@ -374,6 +390,12 @@ func main() {
 		}
 		if cfg.StickyOverlayNav != nil {
 			opts.stickyOverlayNav = *cfg.StickyOverlayNav
+		}
+		if cfg.SortMode != "" {
+			opts.sortMode = cfg.SortMode
+		}
+		if cfg.SortPattern != "" {
+			opts.sortPattern = cfg.SortPattern
 		}
 		mergeBinding := func(dst *[]string, src []string) {
 			if len(src) > 0 {
@@ -453,6 +475,12 @@ func main() {
 	}
 	if colorStatusDimArg != "" {
 		opts.colorStatusDim = colorStatusDimArg
+	}
+	if sortModeArg != "" {
+		opts.sortMode = sortModeArg
+	}
+	if sortPatternArg != "" {
+		opts.sortPattern = sortPatternArg
 	}
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
@@ -565,6 +593,8 @@ func main() {
 	loadOpts := notes.LoadOptions{
 		IncludeExts: opts.includeExts,
 		IgnoreGlobs: opts.ignoreGlobs,
+		SortMode:    opts.sortMode,
+		SortPattern: opts.sortPattern,
 	}
 
 	cards, err := notes.LoadCardsFromDir(opts.noteRoot, loadOpts)

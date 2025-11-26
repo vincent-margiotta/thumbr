@@ -109,6 +109,7 @@ See `config.example.json` for a full reference.
 
 - **Screen/behavior:** `--alt-screen` (default true) or `--no-alt-screen`; `--random-seed` for deterministic random jumps; `--page-step` to override half-page paging.
 - **File selection:** `--include-exts=.txt,.md`; `--ignore=Archive/*,**/*.tmp`.
+- **Sorting:** `--sort-mode=natural|lexical` (default natural) and `--sort-pattern` regex to apply that mode (default `^[0-9]+[A-Za-z0-9]*$`; non-matching names fall back to lexical).
 - **Navigation feel:** `--nav-accel-ms` (default 350ms) and `--nav-max-step` (default 8) control thumbing acceleration.
 - **Layout:** `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth` (how deep the active card can sit in the visible stack), `--sticky-overlay-nav` to keep overlay navigation active when jumping.
 - **Styling:** `--color-*` for accents/status, `--border-corner`, `--border-h`, `--border-v`.
