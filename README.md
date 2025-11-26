@@ -73,13 +73,13 @@ Thumbr has two main interaction modes: the **Stack** (browsing files) and the **
 
 Thumbr looks for a config file via the `--config` flag (supports JSON, YAML, TOML). Command line flags override config file values.
 
-**Example:** `./thumbr --config config.example.json`
+**Config search:** Thumbr looks for `config.json`, `config.yaml`, `config.yml`, or `config.toml` (in that order) in the current directory, then in `~/.thumbr/`, unless you pass `--config` to point somewhere else.
 
 Precedence:
 
 1. Positional path (if provided)
 2. CLI flags
-3. Config file values
+3. Config file values (via `--config` or auto-discovery above)
 4. Built-in defaults
 
 Tip: copy `config.example.json` to `config.json` and adjust only the fields you care about.

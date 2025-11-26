@@ -125,6 +125,24 @@ func loadConfig(path string) (config, error) {
 	return cfg, nil
 }
 
+func findDefaultConfig() string {
+	names := []string{"config.json", "config.yaml", "config.yml", "config.toml"}
+	dirs := []string{"."}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".thumbr"))
+	}
+
+	for _, dir := range dirs {
+		for _, name := range names {
+			path := filepath.Join(dir, name)
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+		}
+	}
+	return ""
+}
+
 func main() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -305,6 +323,10 @@ func main() {
 		borderCorner:       "",
 		borderH:            "",
 		borderV:            "",
+	}
+
+	if configPath == "" {
+		configPath = findDefaultConfig()
 	}
 
 	if configPath != "" {
