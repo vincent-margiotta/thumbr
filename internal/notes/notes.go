@@ -17,10 +17,11 @@ type Card struct {
 }
 
 type LoadOptions struct {
-	IncludeExts []string // e.g. []string{".txt", ".md"}; empty means default .txt
-	IgnoreGlobs []string // file/dir patterns to skip
-	SortMode    string   // "natural" (default) or "lexical"
-	SortPattern string   // regex to apply sort mode to; others fall back to lexical (default numeric-ish)
+	IncludeExts      []string // e.g. []string{".txt", ".md"}; empty means default .txt
+	IgnoreGlobs      []string // file/dir patterns to skip
+	SortMode         string   // "natural" (default) or "lexical"
+	SortPattern      string   // regex to apply sort mode to; others fall back to lexical (default numeric-ish)
+	SortPatternFirst *bool    // when true (default), names matching SortPattern come first; when false they come after
 }
 
 // LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
@@ -54,11 +55,15 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 
 		title := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 		contentBytes, _ := os.ReadFile(path) // ignore error; content not crucial yet
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			absPath = filepath.Clean(path)
+		}
 
 		card := Card{
 			ID:      "",
 			Title:   title,
-			Path:    path,
+			Path:    absPath,
 			Content: string(contentBytes),
 		}
 		cards = append(cards, card)
@@ -82,6 +87,10 @@ func applySort(cards []Card, opt LoadOptions) error {
 	mode := strings.ToLower(opt.SortMode)
 	if mode == "" {
 		mode = "natural"
+	}
+	patternFirst := false
+	if opt.SortPatternFirst != nil {
+		patternFirst = *opt.SortPatternFirst
 	}
 	pattern := opt.SortPattern
 	if pattern == "" {
@@ -116,10 +125,10 @@ func applySort(cards []Card, opt LoadOptions) error {
 		case matchA && matchB:
 			return useMode() < 0
 		case matchA && !matchB:
-			// Matched names come before unmatched to keep structured addresses grouped.
-			return true
+			// Matched names before/after based on config.
+			return patternFirst
 		case !matchA && matchB:
-			return false
+			return !patternFirst
 		default:
 			return strings.Compare(an, bn) < 0
 		}

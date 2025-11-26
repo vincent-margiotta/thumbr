@@ -68,6 +68,7 @@ type config struct {
 	BindOverlayDown  []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
 	SortMode         string   `json:"sortMode" yaml:"sortMode" toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
+	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
 }
 
 type int64Flag struct {
@@ -164,6 +165,7 @@ func main() {
 		borderVArg          string
 		sortModeArg         string
 		sortPatternArg      string
+		sortPatternFirstArg bool
 	)
 
 	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
@@ -197,6 +199,7 @@ func main() {
 	flagSet.StringVar(&borderVArg, "border-v", "", "single rune for vertical card borders (default '|')")
 	flagSet.StringVar(&sortModeArg, "sort-mode", "", "card sort mode: lexical or natural (default natural)")
 	flagSet.StringVar(&sortPatternArg, "sort-pattern", "", "regex for names to apply sort-mode to; others use lexical (default ^[0-9]+[A-Za-z0-9]*$)")
+	flagSet.BoolVar(&sortPatternFirstArg, "sort-pattern-first", false, "when true, names matching sort-pattern come before non-matching; when false, they come after")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg        string
@@ -248,6 +251,7 @@ func main() {
 		ignoreGlobs        []string
 		sortMode           string
 		sortPattern        string
+		sortPatternFirst   bool
 		colorMark          string
 		colorMuted         string
 		colorHi            string
@@ -278,6 +282,7 @@ func main() {
 		ignoreGlobs:        nil,
 		sortMode:           "",
 		sortPattern:        "",
+		sortPatternFirst:   false,
 		colorMark:          "",
 		colorMuted:         "",
 		colorHi:            "",
@@ -327,6 +332,9 @@ func main() {
 		}
 		if cfg.SortPattern != "" {
 			opts.sortPattern = cfg.SortPattern
+		}
+		if cfg.SortPatternFirst != nil {
+			opts.sortPatternFirst = *cfg.SortPatternFirst
 		}
 		if cfg.ColorMark != "" {
 			opts.colorMark = cfg.ColorMark
@@ -482,6 +490,7 @@ func main() {
 	if sortPatternArg != "" {
 		opts.sortPattern = sortPatternArg
 	}
+	opts.sortPatternFirst = sortPatternFirstArg
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
 	}
@@ -591,10 +600,11 @@ func main() {
 	rng := rand.New(rand.NewSource(opts.randomSeed))
 
 	loadOpts := notes.LoadOptions{
-		IncludeExts: opts.includeExts,
-		IgnoreGlobs: opts.ignoreGlobs,
-		SortMode:    opts.sortMode,
-		SortPattern: opts.sortPattern,
+		IncludeExts:      opts.includeExts,
+		IgnoreGlobs:      opts.ignoreGlobs,
+		SortMode:         opts.sortMode,
+		SortPattern:      opts.sortPattern,
+		SortPatternFirst: &opts.sortPatternFirst,
 	}
 
 	cards, err := notes.LoadCardsFromDir(opts.noteRoot, loadOpts)

@@ -214,8 +214,10 @@ type Model struct {
 	showHelp bool
 	// showDebug toggles the debug overlay.
 	showDebug bool
-	// marked tracks marked cards by absolute index in m.cards.
-	marked map[int]bool
+	// marked tracks marked cards by absolute file path (persists across box switches).
+	marked map[string]bool
+	// boxFilters remembers filter state per box/root.
+	boxFilters map[string]bool
 	// filterMarked toggles showing only marked cards.
 	filterMarked bool
 	// overlayPage is the current page offset when viewing overlay content.
@@ -279,7 +281,10 @@ func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, r
 		settings: DefaultSettings,
 		bindings: DefaultBindings(),
 		rng:      rng,
-		marked:   make(map[int]bool),
+		marked:   make(map[string]bool),
+		boxFilters: map[string]bool{
+			root: false,
+		},
 		noteRoot: root,
 		loadOpts: loadOpts,
 	}
@@ -511,15 +516,41 @@ func max(a, b int) int {
 	return b
 }
 
+func (m Model) isMarked(idx int) bool {
+	if idx < 0 || idx >= len(m.cards) {
+		return false
+	}
+	return m.marked[m.cards[idx].Path]
+}
+
+func (m Model) markedCountCurrent() int {
+	count := 0
+	for i := range m.cards {
+		if m.isMarked(i) {
+			count++
+		}
+	}
+	return count
+}
+
+func (m Model) setFilterForCurrent(state bool) Model {
+	if m.boxFilters == nil {
+		m.boxFilters = make(map[string]bool)
+	}
+	m.filterMarked = state
+	m.boxFilters[m.currentBox()] = state
+	return m
+}
+
 // visibleIndices returns the card indices respecting the current filter.
 func (m Model) visibleIndices() []int {
 	if m.filterMarked {
-		if len(m.marked) == 0 {
+		if m.markedCountCurrent() == 0 {
 			return nil
 		}
 		vis := make([]int, 0, len(m.marked))
 		for i := range m.cards {
-			if m.marked[i] {
+			if m.isMarked(i) {
 				vis = append(vis, i)
 			}
 		}
@@ -722,11 +753,22 @@ func (m Model) createFileCmd(boxRoot, userPath string) tea.Cmd {
 }
 
 func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
+	prev := m.currentBox()
+	if m.boxFilters == nil {
+		m.boxFilters = make(map[string]bool)
+	}
+	m.boxFilters[prev] = m.filterMarked
+
 	m = m.setActiveBox(root)
+	// Load previous filter state for this box (default false).
+	if state, ok := m.boxFilters[m.currentBox()]; ok {
+		m.filterMarked = state
+	} else {
+		m.filterMarked = false
+		m.boxFilters[m.currentBox()] = false
+	}
 	m.cards = cards
 	m.cursor = 0
-	m.marked = make(map[int]bool)
-	m.filterMarked = false
 	m.overlayPage = 0
 	m.state = StateBrowsing
 	return m.ensureCursorVisible()
@@ -773,17 +815,18 @@ func (m Model) toggleMark() Model {
 	if len(m.cards) == 0 {
 		return m
 	}
-	if m.marked[m.cursor] {
-		delete(m.marked, m.cursor)
+	path := m.cards[m.cursor].Path
+	if m.marked[path] {
+		delete(m.marked, path)
 	} else {
-		m.marked[m.cursor] = true
+		m.marked[path] = true
 	}
 
 	// If filtering and we just removed the last marked card, drop the filter.
 	if m.filterMarked {
 		vis := m.visibleIndices()
 		if len(vis) == 0 {
-			m.filterMarked = false
+			m = m.setFilterForCurrent(false)
 			return m.ensureCursorVisible()
 		}
 		if m.visibleCursorIndex(vis) == -1 {
@@ -795,14 +838,14 @@ func (m Model) toggleMark() Model {
 
 func (m Model) toggleFilter() Model {
 	if m.filterMarked {
-		m.filterMarked = false
+		m = m.setFilterForCurrent(false)
 		return m.ensureCursorVisible()
 	}
 	// Turn on filtering only if something is marked.
-	if len(m.marked) == 0 {
+	if m.markedCountCurrent() == 0 {
 		return m.setStatus("No marked cards to filter", 2*time.Second)
 	}
-	m.filterMarked = true
+	m = m.setFilterForCurrent(true)
 	m = m.ensureCursorVisible()
 	m.overlayPage = 0
 	return m

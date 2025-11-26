@@ -14,6 +14,7 @@ func newTestModel(totalCards, cursor int) Model {
 		cards[i] = notes.Card{
 			ID:    fmt.Sprintf("%d", i+1),
 			Title: fmt.Sprintf("Card %d", i+1),
+			Path:  fmt.Sprintf("/tmp/card-%d.txt", i+1),
 		}
 	}
 	m := Model{
@@ -21,7 +22,7 @@ func newTestModel(totalCards, cursor int) Model {
 		cursor:   cursor,
 		state:    StateBrowsing,
 		settings: DefaultSettings,
-		marked:   make(map[int]bool),
+		marked:   make(map[string]bool),
 		viewport: Viewport{
 			Width:  120,
 			Height: 40,

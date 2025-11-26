@@ -21,7 +21,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	// Style IDs (cached styles elsewhere)
 	borderID := styleCardDim
 	headerID := styleCardDim
-	isMarked := m.marked[g.index]
+	isMarked := m.isMarked(g.index)
 	if g.active {
 		borderID = styleCardHi
 		headerID = styleCardHi
@@ -109,7 +109,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	}
 
 	markerLen := len(markerRunes)
-	hasMarks := len(m.marked) > 0
+	hasMarks := m.markedCountCurrent() > 0
 	for i, r := range headerRunes {
 		x := g.x + 1 + i
 		if x < 0 || x >= maxX {
@@ -173,7 +173,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	borderID := styleOverlayBorder
 	headerID := styleOverlayHeader
 	bodyID := styleOverlayBody
-	isMarked := m.marked[m.cursor]
+	isMarked := m.isMarked(m.cursor)
 
 	// Draw border and clear interior
 	for dy := 0; dy < cardH; dy++ {
@@ -508,10 +508,11 @@ func (m Model) renderStatusBar() string {
 			}
 		}
 	}
-	if m.filterMarked && len(m.marked) > 0 {
+	markedCount := m.markedCountCurrent()
+	if m.filterMarked && markedCount > 0 {
 		leftParts = append(leftParts, statusStyle.Render("[Marked filter]"))
-	} else if len(m.marked) > 0 {
-		leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("%d marked", len(m.marked))))
+	} else if markedCount > 0 {
+		leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("%d marked", markedCount)))
 	}
 
 	// Ephemeral status message
@@ -697,7 +698,7 @@ func (m Model) renderDebug() string {
 	lines := []string{
 		fmt.Sprintf("Root: %s", m.noteRoot),
 		fmt.Sprintf("Boxes: %d (active: %d)", len(m.boxes), m.activeBox),
-		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), len(m.marked), m.filterMarked),
+		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), m.markedCountCurrent(), m.filterMarked),
 		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
 		fmt.Sprintf("Nav accel: %v, max step: %d", m.settings.NavAccelWindow, m.settings.NavMaxStep),
 		fmt.Sprintf("Cursor depth max: %d", m.settings.MaxCursorDepth),

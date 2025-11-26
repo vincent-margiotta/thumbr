@@ -19,8 +19,8 @@ These define what the application *must do* for the user.
 | ID | Requirement | Description |
 | :--- | :--- | :--- |
 | **FR01** | **Root Configuration** | Define a single root directory (the "box") containing notes (positional arg or config). |
-| **FR02** | **File Loading** | Recursively load files matching configurable extensions (default `.md`) on startup. |
-| **FR03** | **Data Structure** | Store files as `Card` objects, sorted by filename-derived ID/Title. |
+| **FR02** | **File Loading** | Recursively load files matching configurable extensions (default `.txt`) on startup. |
+| **FR03** | **Data Structure** | Store files as `Card` objects, ordered by the configured sort rules. |
 | **FR04** | **Ignore List** | Respect ignore globs to exclude files/directories from the index. |
 | **FR05** | **Real-time Reload** | Detect box changes (new/deleted/renamed) and reload without restarting. |
 | **FR06** | **File Opening** | From the overlay, open the source file in `$EDITOR` or system default. |
@@ -32,7 +32,7 @@ These define what the application *must do* for the user.
 | **FR07** | **Basic Movement** | Navigate the stack with single keypresses (`j/k` or arrows) one card at a time. |
 | **FR08** | **Velocity Skipping** | Rapid presses accelerate movement with configurable timing/step limits. |
 | **FR09** | **Random Jump (Serendipity)** | Jump to a random note with a single keypress. |
-| **FR10** | **Marking/Filtering** | Mark the current card; toggle a marked-only view for quick review. |
+| **FR10** | **Marking/Filtering** | Mark the current card; toggle a marked-only view for quick review; marks/filter state persist across box switches within a session. |
 | **FR11** | **Help Overlay** | Show current key bindings via a help overlay. |
 
 ### 2.3 Viewing and Rendering
@@ -55,6 +55,7 @@ These define what the application *must do* for the user.
 | **FR20** | **Random Seed Control** | Flag to set a random seed for reproducible random jumps. |
 | **FR21** | **Config File Formats** | `--config` accepts JSON/YAML/TOML; flags override config. |
 | **FR22** | **Version Output** | `-v/--version` prints the embedded build version. |
+| **FR23** | **Sorting Controls** | Configure lexical vs natural sort, regex for addressed names, and whether matched names appear before or after others. |
 
 ---
 

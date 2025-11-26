@@ -8,6 +8,7 @@
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
+- **Persistent Marks/Filters:** Marks and filter state stick to each box during a session (cleared when you quit).
 
 ## Requirements
 - **Go 1.24+**
@@ -92,6 +93,7 @@ Tip: copy `config.example.json` to `config.json` and adjust only the fields you 
 | **Layout** | `stackVisible`, `cardWidthFrac`, `stackOffsetX` | Adjust geometry of the stack and cards. |
 | **Navigation** | `pageStep`, `navAccelMs`, `navMaxStep` | Tune scrolling speed and acceleration physics. |
 | **Bindings** | `bindUp`, `bindDown`, `bindQuit`... | Remap keys. |
+| **Sorting** | `sortMode`, `sortPattern`, `sortPatternFirst` | Control natural vs lexical ordering and grouping of pattern matches. |
 
 See `config.example.json` for a full reference.
 
@@ -104,12 +106,13 @@ See `config.example.json` for a full reference.
   - **Rendering:**
       - Content is shown as plain text (no rendering or link rewriting).
       - Unreadable files are skipped gracefully.
+  - **Marks/Filters:** Marks and the marked-only filter are remembered per box within a session and clear when you exit Thumbr.
 
 ## Flags at a Glance
 
 - **Screen/behavior:** `--alt-screen` (default true) or `--no-alt-screen`; `--random-seed` for deterministic random jumps; `--page-step` to override half-page paging.
 - **File selection:** `--include-exts=.txt,.md`; `--ignore=Archive/*,**/*.tmp`.
-- **Sorting:** `--sort-mode=natural|lexical` (default natural) and `--sort-pattern` regex to apply that mode (default `^[0-9]+[A-Za-z0-9]*$`; non-matching names fall back to lexical).
+- **Sorting:** `--sort-mode=natural|lexical` (default natural), `--sort-pattern` regex to apply that mode (default `^[0-9]+[A-Za-z0-9]*$`; non-matching names fall back to lexical), and `--sort-pattern-first` (default false) to place matched names before/after others.
 - **Navigation feel:** `--nav-accel-ms` (default 350ms) and `--nav-max-step` (default 8) control thumbing acceleration.
 - **Layout:** `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth` (how deep the active card can sit in the visible stack), `--sticky-overlay-nav` to keep overlay navigation active when jumping.
 - **Styling:** `--color-*` for accents/status, `--border-corner`, `--border-h`, `--border-v`.

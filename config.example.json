@@ -6,6 +6,7 @@
   "ignoreGlobs": ["Archive/*", "**/*.tmp"],
   "sortMode": "natural",
   "sortPattern": "^[0-9]+[A-Za-z0-9]*$",
+  "sortPatternFirst": false,
   "colorMark": "#6CCB5F",
   "colorMuted": "#444444",
   "colorHi": "#FFD166",

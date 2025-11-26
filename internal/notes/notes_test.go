@@ -136,7 +136,7 @@ func TestApplySort_NaturalDefault(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cards := cardsFromNames(tc.input)
-			if err := applySort(cards, LoadOptions{}); err != nil {
+			if err := applySort(cards, LoadOptions{SortPatternFirst: boolPtr(true)}); err != nil {
 				t.Fatalf("applySort error: %v", err)
 			}
 			got := namesFromCards(cards)
@@ -149,7 +149,7 @@ func TestApplySort_LexicalFallback(t *testing.T) {
 	input := []string{"1", "1a", "1a10", "1a2"}
 	want := []string{"1", "1a", "1a10", "1a2"} // lexical puts 10 before 2
 	cards := cardsFromNames(input)
-	if err := applySort(cards, LoadOptions{SortMode: "lexical", SortPattern: ".*"}); err != nil {
+	if err := applySort(cards, LoadOptions{SortMode: "lexical", SortPattern: ".*", SortPatternFirst: boolPtr(true)}); err != nil {
 		t.Fatalf("applySort error: %v", err)
 	}
 	got := namesFromCards(cards)
@@ -160,7 +160,7 @@ func TestApplySort_PatternOnlyMatchesSome(t *testing.T) {
 	input := []string{"abc", "1", "10", "2"}
 	want := []string{"1", "2", "10", "abc"} // numeric matches come first sorted naturally; abc last via lexical
 	cards := cardsFromNames(input)
-	if err := applySort(cards, LoadOptions{SortMode: "natural", SortPattern: "^[0-9]+$"}); err != nil {
+	if err := applySort(cards, LoadOptions{SortMode: "natural", SortPattern: "^[0-9]+$", SortPatternFirst: boolPtr(true)}); err != nil {
 		t.Fatalf("applySort error: %v", err)
 	}
 	got := namesFromCards(cards)
@@ -171,6 +171,17 @@ func TestApplySort_InvalidRegex(t *testing.T) {
 	if err := applySort(cardsFromNames([]string{"1"}), LoadOptions{SortPattern: "("}); err == nil {
 		t.Fatalf("expected regex error")
 	}
+}
+
+func TestApplySort_PatternAfter(t *testing.T) {
+	input := []string{"abc", "1", "2"}
+	want := []string{"abc", "1", "2"} // pattern matches come after non-matching when configured
+	cards := cardsFromNames(input)
+	if err := applySort(cards, LoadOptions{SortMode: "natural", SortPattern: "^[0-9]+$", SortPatternFirst: boolPtr(false)}); err != nil {
+		t.Fatalf("applySort error: %v", err)
+	}
+	got := namesFromCards(cards)
+	assertSliceEquals(t, want, got)
 }
 
 func cardsFromNames(names []string) []Card {
@@ -199,3 +210,5 @@ func assertSliceEquals(t *testing.T, expect, got []string) {
 		}
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
