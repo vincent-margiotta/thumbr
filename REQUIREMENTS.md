@@ -18,11 +18,11 @@ These define what the application *must do* for the user.
 
 | ID | Requirement | Description |
 | :--- | :--- | :--- |
-| **FR01** | **Vault Configuration** | Define a single root directory (the "Vault") containing notes (positional arg or config). |
+| **FR01** | **Root Configuration** | Define a single root directory (the "box") containing notes (positional arg or config). |
 | **FR02** | **File Loading** | Recursively load files matching configurable extensions (default `.md`) on startup. |
 | **FR03** | **Data Structure** | Store files as `Card` objects, sorted by filename-derived ID/Title. |
 | **FR04** | **Ignore List** | Respect ignore globs to exclude files/directories from the index. |
-| **FR05** | **Real-time Reload** | Detect vault changes (new/deleted/renamed) and reload without restarting. |
+| **FR05** | **Real-time Reload** | Detect box changes (new/deleted/renamed) and reload without restarting. |
 | **FR06** | **File Opening** | From the overlay, open the source file in `$EDITOR` or system default. |
 
 ### 2.2 Navigation and Browsing (The Analog Experience)
@@ -41,7 +41,7 @@ These define what the application *must do* for the user.
 | :--- | :--- | :--- |
 | **FR12** | **Active Stack View** | Render a pseudo-3D stack with a configurable number of receding cards. |
 | **FR13** | **Overlay Detail View** | Open an overlay to read the active card’s content. |
-| **FR14** | **Markdown Cleaning** | Remove Obsidian-style links (`[[link]]` → `link`, `[[link\|alias]]` → `alias`) and handle basic styling best-effort. |
+| **FR14** | **Plaintext Rendering** | Show file content as-is (no formatting/rendering or link rewriting). |
 | **FR15** | **Content Wrapping** | Wrap text to overlay bounds. |
 | **FR16** | **Card Flipping/Pagination** | When content exceeds the card height, page through it (e.g., `n/p`) with edge cues to preserve the “flip” feel. |
 | **FR17** | **ID Sanitization** | Strip extraneous characters (e.g., brackets) from displayed ID/Title. |
@@ -50,7 +50,7 @@ These define what the application *must do* for the user.
 
 | ID | Requirement | Description |
 | :--- | :--- | :--- |
-| **FR18** | **Positional Vault Path** | Accept an optional positional path to the vault (defaults to CWD). |
+| **FR18** | **Positional Root Path** | Accept an optional positional path to the box root (defaults to CWD). |
 | **FR19** | **Alternate Screen Toggle** | Flag to enable/disable the terminal alternate screen. |
 | **FR20** | **Random Seed Control** | Flag to set a random seed for reproducible random jumps. |
 | **FR21** | **Config File Formats** | `--config` accepts JSON/YAML/TOML; flags override config. |
@@ -66,7 +66,7 @@ These define the quality and operational environment of the application.
 
 | ID | Requirement | Description |
 | :--- | :--- | :--- |
-| **NFR01** | **Startup Speed** | Initial load time for a vault containing up to **90,000** files **must** be under 2 seconds. |
+| **NFR01** | **Startup Speed** | Initial load time for a box containing up to **90,000** files **must** be under 2 seconds. |
 | **NFR02** | **TUI Responsiveness** | The user interface **must** be immediately responsive to all input and terminal resize events. |
 | **NFR03** | **Error Handling** | The application **must** gracefully handle corrupted or unreadable files and display an error message without crashing. |
 | **NFR04** | **Deterministic Randomness** | When a seed is provided, random navigation behavior **must** be deterministic and testable. |

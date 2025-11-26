@@ -565,29 +565,6 @@ func (m Model) setStatus(msg string, dur time.Duration) Model {
 	return m
 }
 
-func sanitizeContent(s string) string {
-	// Replace Obsidian-style links [[note]] or [[note|alias]] with visible text.
-	for {
-		start := strings.Index(s, "[[")
-		if start == -1 {
-			break
-		}
-		end := strings.Index(s[start:], "]]")
-		if end == -1 {
-			break
-		}
-		end += start
-		inner := s[start+2 : end]
-		parts := strings.SplitN(inner, "|", 2)
-		repl := parts[0]
-		if len(parts) == 2 && parts[1] != "" {
-			repl = parts[1]
-		}
-		s = s[:start] + repl + s[end+2:]
-	}
-	return s
-}
-
 func (m Model) isBinding(key string, set []string) bool {
 	for _, k := range set {
 		if key == k {
@@ -894,7 +871,7 @@ func (m Model) overlayLimits() (bodyH int, totalLines int) {
 	if bodyW <= 0 || bodyH <= 0 {
 		return bodyH, 0
 	}
-	content := sanitizeContent(m.cards[m.cursor].Content)
+	content := m.cards[m.cursor].Content
 	lines := wrapText(content, bodyW, -1)
 	return bodyH, len(lines)
 }

@@ -1,14 +1,13 @@
 # Thumbr
 
-**Thumbr** is a terminal note browser that lets you thumb through a stack of Markdown cards. It walks a directory of `.md` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading.
+**Thumbr** is a terminal note browser that lets you thumb through a stack of plain-text cards. It walks a directory of note files (`.txt` by default; add `.md` or others via config), renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content is shown as plain text—no rendering).
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
-- **Smart Parsing:** Automatically parses filenames (e.g., `ID Title.md`) and renders Markdown.
+- **Smart Parsing:** Automatically parses filenames (e.g., `ID Title.txt`) and displays the content.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
-- **Obsidian Friendly:** Handles Obsidian-style links (`[[note]]`) cleanly.
-- **Multi-Box Sessions:** Switch vaults on the fly and create new notes from inside Thumbr.
+- **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
 
 ## Requirements
 - **Go 1.24+**
@@ -98,20 +97,20 @@ See `config.example.json` for a full reference.
 
 ## Notes & Filename Parsing
 
-  - **Discovery:** Directories are walked recursively. Markdown files are loaded by default.
+  - **Discovery:** Directories are walked recursively. Files ending in `.txt` are loaded by default; add `.md` (or others) via `--include-exts` or config.
   - **Ignoring Files:** Use `--ignore` or `ignoreGlobs` to skip paths (globs match basename or full path).
     - Patterns ending in `/*` act as directory ignores (e.g., `Archive/*` skips that folder).
   - **Filename Parsing:**
-      - Files named `ID Title.md` (e.g., `1.1a Some idea.md`) are parsed into an **ID** and **Title**.
-      - Files like `Draft.md` are treated as having a Title only (ID is empty).
+      - Files named `ID Title.txt` (e.g., `1.1a Some idea.txt`) are parsed into an **ID** and **Title**.
+      - Files like `Draft.txt` are treated as having a Title only (ID is empty).
   - **Rendering:**
-      - Obsidian links (`[[Note]]` or `[[Note|Alias]]`) are cleaned and rendered as text.
+      - Content is shown as plain text (no rendering or link rewriting).
       - Unreadable files are skipped gracefully.
 
 ## Flags at a Glance
 
 - **Screen/behavior:** `--alt-screen` (default true) or `--no-alt-screen`; `--random-seed` for deterministic random jumps; `--page-step` to override half-page paging.
-- **File selection:** `--include-exts=.md,.txt`; `--ignore=Archive/*,**/*.tmp`.
+- **File selection:** `--include-exts=.txt,.md`; `--ignore=Archive/*,**/*.tmp`.
 - **Navigation feel:** `--nav-accel-ms` (default 350ms) and `--nav-max-step` (default 8) control thumbing acceleration.
 - **Layout:** `--stack-visible`, `--stack-offset-x/y`, `--card-width-frac`, `--card-height-frac`, `--active-lift-y`, `--max-cursor-depth` (how deep the active card can sit in the visible stack), `--sticky-overlay-nav` to keep overlay navigation active when jumping.
 - **Styling:** `--color-*` for accents/status, `--border-corner`, `--border-h`, `--border-v`.
@@ -162,6 +161,6 @@ docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
 
 ## Roadmap / Known Gaps
 
-  - Live vault/config reloading.
-  - Performance tuning for large vaults (target: 90k notes in \<2s).
+  - Live box/config reloading.
+  - Performance tuning for large boxes (target: 90k notes in \<2s).
   - Release pipelines (GoReleaser/Homebrew).

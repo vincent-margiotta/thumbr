@@ -2,7 +2,7 @@
   "noteRoot": "samples/notes",
   "randomSeed": 12345,
   "altScreen": true,
-  "includeExts": [".md", ".txt"],
+  "includeExts": [".txt", ".md"],
   "ignoreGlobs": ["Archive/*", "**/*.tmp"],
   "colorMark": "#6CCB5F",
   "colorMuted": "#444444",

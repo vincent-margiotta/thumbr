@@ -15,12 +15,12 @@ type Card struct {
 }
 
 type LoadOptions struct {
-	IncludeExts []string // e.g. []string{".md", ".txt"}; empty means default .md
+	IncludeExts []string // e.g. []string{".txt", ".md"}; empty means default .txt
 	IgnoreGlobs []string // file/dir patterns to skip
 }
 
-// LoadCardsFromDir walks the given root directory and returns all markdown (or configured)
-// files as Cards, parsing the ID and title from the filename.
+// LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
+// parsing the ID and title from the filename.
 func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 	var cards []Card
 	var opt LoadOptions
@@ -28,7 +28,7 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 		opt = opts[0]
 	}
 	if len(opt.IncludeExts) == 0 {
-		opt.IncludeExts = []string{".md"}
+		opt.IncludeExts = []string{".txt"}
 	}
 
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {

@@ -1,0 +1,4 @@
+Nested plain text
+-----------------
+
+This `.txt` note lives in a nested folder. It renders as-is—no formatting or link rewriting.

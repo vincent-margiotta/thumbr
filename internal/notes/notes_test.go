@@ -37,12 +37,12 @@ func TestParseCardFilename_TrimsExtraSpace(t *testing.T) {
 	}
 }
 
-func TestLoadCardsFromDir_DefaultsToMarkdown(t *testing.T) {
+func TestLoadCardsFromDir_DefaultsToTxtExtension(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
-		"keep.md":    "# md",
-		"skip.txt":   "# text",
-		".hidden.md": "# hidden ok",
+		"keep.txt":    "# txt",
+		"skip.md":     "# md",
+		".hidden.txt": "# hidden ok",
 	}
 	for name, content := range files {
 		path := filepath.Join(dir, name)
@@ -61,13 +61,13 @@ func TestLoadCardsFromDir_DefaultsToMarkdown(t *testing.T) {
 		got[filepath.Base(c.Path)] = true
 	}
 
-	for _, name := range []string{"keep.md", ".hidden.md"} {
+	for _, name := range []string{"keep.txt", ".hidden.txt"} {
 		if !got[name] {
 			t.Fatalf("expected to include %s", name)
 		}
 	}
-	if got["skip.txt"] {
-		t.Fatalf("did not expect to include skip.txt")
+	if got["skip.md"] {
+		t.Fatalf("did not expect to include skip.md")
 	}
 }
 

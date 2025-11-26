@@ -140,7 +140,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	}
 
 	card := m.cards[m.cursor]
-	content := sanitizeContent(card.Content)
+	content := card.Content
 
 	maxY := len(grid)
 	if maxY == 0 {
