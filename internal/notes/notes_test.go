@@ -7,36 +7,6 @@ import (
 	"testing"
 )
 
-func TestParseCardFilename_WithIDAndTitle(t *testing.T) {
-	id, title := parseCardFilename("1.1a Some title here.md")
-	if id != "1.1a" {
-		t.Fatalf("expected id '1.1a', got %q", id)
-	}
-	if title != "Some title here" {
-		t.Fatalf("expected title 'Some title here', got %q", title)
-	}
-}
-
-func TestParseCardFilename_TitleOnly(t *testing.T) {
-	id, title := parseCardFilename("JustATitle.md")
-	if id != "" {
-		t.Fatalf("expected empty id, got %q", id)
-	}
-	if title != "JustATitle" {
-		t.Fatalf("expected title 'JustATitle', got %q", title)
-	}
-}
-
-func TestParseCardFilename_TrimsExtraSpace(t *testing.T) {
-	id, title := parseCardFilename("2.0a   Spaced   Title.md")
-	if id != "2.0a" {
-		t.Fatalf("expected id '2.0a', got %q", id)
-	}
-	if title != "Spaced   Title" {
-		t.Fatalf("expected trimmed title 'Spaced   Title', got %q", title)
-	}
-}
-
 func TestLoadCardsFromDir_DefaultsToTxtExtension(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{

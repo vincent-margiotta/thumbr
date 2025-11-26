@@ -4,7 +4,7 @@
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
-- **Smart Parsing:** Automatically parses filenames (e.g., `ID Title.txt`) and displays the content.
+- **Simple Titles:** Uses the filename (minus extension) as the card title; order follows directory traversal.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
@@ -100,9 +100,7 @@ See `config.example.json` for a full reference.
   - **Discovery:** Directories are walked recursively. Files ending in `.txt` are loaded by default; add `.md` (or others) via `--include-exts` or config.
   - **Ignoring Files:** Use `--ignore` or `ignoreGlobs` to skip paths (globs match basename or full path).
     - Patterns ending in `/*` act as directory ignores (e.g., `Archive/*` skips that folder).
-  - **Filename Parsing:**
-      - Files named `ID Title.txt` (e.g., `1.1a Some idea.txt`) are parsed into an **ID** and **Title**.
-      - Files like `Draft.txt` are treated as having a Title only (ID is empty).
+  - **Filename Handling:** The filename without extension becomes the card title (IDs in names are not parsed separately).
   - **Rendering:**
       - Content is shown as plain text (no rendering or link rewriting).
       - Unreadable files are skipped gracefully.

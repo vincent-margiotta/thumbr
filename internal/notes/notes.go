@@ -20,7 +20,7 @@ type LoadOptions struct {
 }
 
 // LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
-// parsing the ID and title from the filename.
+// using the filename (sans extension) as the title.
 func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 	var cards []Card
 	var opt LoadOptions
@@ -48,11 +48,11 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 			return nil
 		}
 
-		id, title := parseCardFilename(d.Name())
+		title := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 		contentBytes, _ := os.ReadFile(path) // ignore error; content not crucial yet
 
 		card := Card{
-			ID:      id,
+			ID:      "",
 			Title:   title,
 			Path:    path,
 			Content: string(contentBytes),
@@ -66,16 +66,4 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 	}
 
 	return cards, nil
-}
-
-// parseCardFilename splits "ID Title.md" into ("ID", "Title").
-func parseCardFilename(name string) (string, string) {
-	base := strings.TrimSuffix(name, filepath.Ext(name))
-	parts := strings.SplitN(base, " ", 2)
-	if len(parts) == 1 {
-		return "", base
-	}
-	id := parts[0]
-	title := strings.TrimSpace(parts[1])
-	return id, title
 }
