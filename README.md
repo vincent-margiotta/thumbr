@@ -10,6 +10,7 @@
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
 - **Persistent Marks/Filters:** Marks and filter state stick to each box during a session (cleared when you quit).
 - **Highly Configurable:** Tune extensions, sorting, layout, colors, and keys via flags or config files.
+- **Fast Loads:** On an i7-4770HQ with SSD and warm cache, loading/sorting ~90k notes benchmarks at ~0.23s (`make bench`).
 
 ## Requirements
 - **Go 1.24+**
@@ -83,6 +84,7 @@ Precedence:
 4. Built-in defaults
 
 Tip: copy `config.example.json` to `config.json` and adjust only the fields you care about.
+If you prefer inline documentation, use `config.annotated.toml` as a commented reference and copy settings into your own config (JSON/YAML/TOML all supported).
 
 ### Configuration (quick scan)
 
