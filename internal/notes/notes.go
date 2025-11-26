@@ -10,10 +10,12 @@ import (
 
 // Card is the basic unit Thumbr browses over.
 type Card struct {
-	ID      string
-	Title   string
-	Path    string
-	Content string
+	ID            string
+	Title         string
+	Path          string
+	Content       string
+	ContentLoaded bool
+	ContentErr    error
 }
 
 type LoadOptions struct {
@@ -25,7 +27,8 @@ type LoadOptions struct {
 }
 
 // LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
-// using the filename (sans extension) as the title.
+// using the filename (sans extension) as the title. Content is not read; callers
+// should load it lazily when needed (e.g., when opening a card).
 func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 	var cards []Card
 	var opt LoadOptions
@@ -54,17 +57,15 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 		}
 
 		title := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
-		contentBytes, _ := os.ReadFile(path) // ignore error; content not crucial yet
 		absPath, err := filepath.Abs(path)
 		if err != nil {
 			absPath = filepath.Clean(path)
 		}
 
 		card := Card{
-			ID:      "",
-			Title:   title,
-			Path:    absPath,
-			Content: string(contentBytes),
+			ID:    "",
+			Title: title,
+			Path:  absPath,
 		}
 		cards = append(cards, card)
 		return nil
@@ -79,6 +80,22 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 	}
 
 	return cards, nil
+}
+
+// LoadContent reads the card's file into Content and marks it as loaded. On
+// error, Content is left empty and ContentErr is set.
+func (c *Card) LoadContent() error {
+	data, err := os.ReadFile(c.Path)
+	if err != nil {
+		c.Content = ""
+		c.ContentLoaded = true
+		c.ContentErr = err
+		return err
+	}
+	c.Content = string(data)
+	c.ContentLoaded = true
+	c.ContentErr = nil
+	return nil
 }
 
 const defaultSortPattern = `^[0-9]+[A-Za-z0-9]*$`

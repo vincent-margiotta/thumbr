@@ -626,6 +626,23 @@ func (m Model) defaultExt() string {
 	return ".md"
 }
 
+func (m Model) ensureCardContent(idx int) Model {
+	if idx < 0 || idx >= len(m.cards) {
+		return m
+	}
+	card := &m.cards[idx]
+	if card.ContentLoaded {
+		return m
+	}
+	if err := card.LoadContent(); err != nil {
+		msg := fmt.Sprintf("Read failed: %v", err)
+		card.Content = msg
+		m.err = err
+		m = m.setStatus(msg, 3*time.Second)
+	}
+	return m
+}
+
 func cleanBoxPath(path string) string {
 	if strings.TrimSpace(path) == "" {
 		path = "."

@@ -56,6 +56,7 @@ These define what the application *must do* for the user.
 | **FR21** | **Config File Formats** | `--config` accepts JSON/YAML/TOML; flags override config. |
 | **FR22** | **Version Output** | `-v/--version` prints the embedded build version. |
 | **FR23** | **Sorting Controls** | Configure lexical vs natural sort, regex for addressed names, and whether matched names appear before or after others. |
+| **FR24** | **Performance Benchmarking** | Provide a repeatable benchmark target to measure load/sort performance against the 90k/<2s goal (e.g., `make bench`, configurable note count). |
 
 ---
 

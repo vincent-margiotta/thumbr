@@ -149,6 +149,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
 				m.overlayPage = 0
+				m = m.ensureCardContent(m.cursor)
 			case m.isBinding(key, m.bindings.Down):
 				m = m.moveCursor(-1)
 			case m.isBinding(key, m.bindings.Up):
@@ -158,6 +159,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case StateViewing:
+			m = m.ensureCardContent(m.cursor)
 			switch {
 			case key == "esc" || m.isBinding(key, m.bindings.Quit):
 				// Drop back into stack browsing
@@ -177,6 +179,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.isBinding(key, m.bindings.Random):
 				if m.settings.StickyOverlayNav {
 					m = m.randomCursor()
+					m = m.ensureCardContent(m.cursor)
 				} else {
 					m.state = StateBrowsing
 					m.overlayPage = 0

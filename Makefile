@@ -17,16 +17,17 @@ LDFLAGS     := -X main.version=$(VERSION) -X main.buildDate=$(BUILD_DATE)
 GO            := go
 GOFLAGS       ?=
 GO_BUILD_FLAGS:= -trimpath $(GOFLAGS)
-GOCACHE       ?= $(CURDIR)/.gocache
-GO_TEST_FLAGS ?= -count=1
-TEST_PKGS     ?= ./...
+GOCACHE          ?= $(CURDIR)/.gocache
+GO_TEST_FLAGS    ?= -count=1
+TEST_PKGS        ?= ./...
+BENCH_NOTES_COUNT ?= 90000
 
 # Archive
 ARCHIVE_NAME := $(BINARY_NAME)-$(VERSION).tar.gz
 
 # --- Main Targets ---
 
-.PHONY: all build run fmt vet lint test race cover tidy deps clean clean-cache check archive help
+.PHONY: all build run fmt vet lint test race cover tidy deps clean clean-cache check archive bench help
 
 all: check build
 
@@ -92,6 +93,11 @@ clean:
 clean-cache:
 	@echo "Cleaning cache..."
 	@rm -rf "$(GOCACHE)"
+
+## bench: Run load benchmark (~90k notes; override BENCH_NOTES_COUNT=...)
+bench:
+	@echo "Benchmarking load (BENCH_NOTES_COUNT=$(BENCH_NOTES_COUNT))..."
+	GOCACHE="$(GOCACHE)" BENCH_NOTES_COUNT=$(BENCH_NOTES_COUNT) $(GO) test -run=^$$ -bench=BenchmarkLoadCardsFromDir90k -benchmem -benchtime=1x -count=1 ./internal/notes
 
 ## archive: Create a source archive using git
 archive:

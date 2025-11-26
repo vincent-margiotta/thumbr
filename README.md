@@ -112,6 +112,7 @@ Uses a local `.gocache` to keep your system clean.
   - `make build`: Compile binary (embeds `git describe` version).
   - `make check`: Run lint (`go vet`) and tests.
   - `make test`: Run unit tests.
+  - `make bench`: Run the 90k note load benchmark (override with `BENCH_NOTES_COUNT=...`; uses a local `.gocache`).
   - `make fmt`: Format code.
   - `make clean`: Remove artifacts.
 
