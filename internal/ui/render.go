@@ -651,6 +651,9 @@ func (m Model) renderHelp() string {
 	if m.enableDebug {
 		bindings = append(bindings, binding{keys: m.bindings.Debug, desc: "toggle debug overlay"})
 	}
+	if len(m.bindings.Reload) > 0 {
+		bindings = append(bindings, binding{keys: m.bindings.Reload, desc: "reload current box"})
+	}
 
 	leftWidth := 0
 	for _, b := range bindings {

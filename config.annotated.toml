@@ -65,6 +65,7 @@ bindPageNext = ["n"]
 bindPagePrev = ["p"]
 bindOverlayUp = ["k", "up"]
 bindOverlayDown = ["j", "down"]
+bindReload = ["R"]
 
 # Debug overlay: disabled by default. Set true to allow the Debug keybinding.
 enableDebugUI = false

@@ -124,6 +124,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isBinding(key, m.bindings.NewFile):
 			m = m.startNewFilePrompt()
 			return m.withUpdateSample(start), nil
+		case m.isBinding(key, m.bindings.Reload):
+			m = m.setStatus("Reloading…", 1*time.Second)
+			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
 		case m.isBinding(key, m.bindings.OpenEditor):
 			if len(m.cards) > 0 {
 				cmd := m.openInEditorCmd(m.cards[m.cursor].Path)

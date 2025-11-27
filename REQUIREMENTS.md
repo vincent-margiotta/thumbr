@@ -101,7 +101,7 @@ These define the quality and operational environment of the application.
 | **NFR15** | **CI/CD Pipeline** | Automated CI should run tests/lint and generate release binaries. | Not started |
 | **NFR16** | **Version Embedding** | Release builds **must** embed a semantic version or `git describe` string via ldflags. | Done |
 | **NFR17** | **Terminal Compatibility** | The TUI **must** function correctly across common terminal emulators. | Partial (not validated broadly) |
-| **NFR18** | **Benchmark Hygiene** | Benchmarks should clean up temp data or document cleanup steps. | Partial (manual cleanup; can add auto-clean) |
+| **NFR18** | **Benchmark Hygiene** | Benchmarks should clean up temp data or document cleanup steps. | Done (auto-clean) |
 
 ---
 

@@ -147,6 +147,7 @@ type KeyBindings struct {
 	PagePrev      []string
 	OverlayUp     []string
 	OverlayDown   []string
+	Reload        []string
 }
 
 func DefaultBindings() KeyBindings {
@@ -167,6 +168,7 @@ func DefaultBindings() KeyBindings {
 		PagePrev:      []string{"p"},
 		OverlayUp:     []string{"k", "up"},
 		OverlayDown:   []string{"j", "down"},
+		Reload:        []string{"R"},
 	}
 }
 

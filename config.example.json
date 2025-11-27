@@ -43,6 +43,7 @@
   "bindPagePrev": ["p"],
   "bindOverlayUp": ["k", "up"],
   "bindOverlayDown": ["j", "down"],
+  "bindReload": ["R"],
   "enableDebugUI": false,
   "crashLogPath": ""
 }

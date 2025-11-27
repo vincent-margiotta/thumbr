@@ -67,6 +67,7 @@ type config struct {
 	BindPagePrev     []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
 	BindOverlayUp    []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
 	BindOverlayDown  []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
+	BindReload       []string `json:"bindReload" yaml:"bindReload" toml:"bindReload"`
 	SortMode         string   `json:"sortMode" yaml:"sortMode" toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
@@ -240,6 +241,7 @@ func main() {
 		bindPagePrevArg  string
 		bindOverlayUpArg string
 		bindOverlayDnArg string
+		bindReloadArg    string
 	)
 	flagSet.StringVar(&bindUpArg, "bind-up", "", "comma-separated keys for up navigation")
 	flagSet.StringVar(&bindDownArg, "bind-down", "", "comma-separated keys for down navigation")
@@ -256,6 +258,7 @@ func main() {
 	flagSet.StringVar(&bindPagePrevArg, "bind-page-prev", "", "comma-separated keys for previous page")
 	flagSet.StringVar(&bindOverlayUpArg, "bind-overlay-up", "", "comma-separated keys to scroll overlay up")
 	flagSet.StringVar(&bindOverlayDnArg, "bind-overlay-down", "", "comma-separated keys to scroll overlay down")
+	flagSet.StringVar(&bindReloadArg, "bind-reload", "", "comma-separated keys to reload the current box")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -299,6 +302,7 @@ func main() {
 		borderV            string
 		enableDebugUI      bool
 		crashLogPath       string
+		reloadBindings     []string
 	}{
 		noteRoot:           ".",
 		randomSeed:         time.Now().UnixNano(),
@@ -332,6 +336,7 @@ func main() {
 		borderV:            "",
 		enableDebugUI:      false,
 		crashLogPath:       "",
+		reloadBindings:     nil,
 	}
 
 	if configPath == "" {
@@ -462,6 +467,7 @@ func main() {
 		mergeBinding(&opts.bindings.PagePrev, cfg.BindPagePrev)
 		mergeBinding(&opts.bindings.OverlayUp, cfg.BindOverlayUp)
 		mergeBinding(&opts.bindings.OverlayDown, cfg.BindOverlayDown)
+		mergeBinding(&opts.bindings.Reload, cfg.BindReload)
 	}
 
 	// Flags override config/defaults.
@@ -630,6 +636,13 @@ func main() {
 	}
 	if v := parseBinding(bindOverlayDnArg); len(v) > 0 {
 		opts.bindings.OverlayDown = v
+	}
+	if v := parseBinding(bindReloadArg); len(v) > 0 {
+		opts.bindings.Reload = v
+	}
+	if v := parseBinding(bindReloadArg); len(v) > 0 {
+		opts.bindings.Reload = v
+		opts.reloadBindings = v
 	}
 
 	// Positional path overrides everything else.
