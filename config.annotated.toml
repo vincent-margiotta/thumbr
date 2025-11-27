@@ -65,3 +65,9 @@ bindPageNext = ["n"]
 bindPagePrev = ["p"]
 bindOverlayUp = ["k", "up"]
 bindOverlayDown = ["j", "down"]
+
+# Debug overlay: disabled by default. Set true to allow the Debug keybinding.
+enableDebugUI = false
+
+# Crash log path; if empty, defaults to ~/.thumbr/crash.log. Written only on panic.
+crashLogPath = ""

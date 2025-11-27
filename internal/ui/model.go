@@ -205,6 +205,8 @@ type Model struct {
 	settings Settings
 	bindings KeyBindings
 
+	enableDebug bool
+
 	lastNavDir  int
 	lastNavTime time.Time
 	velocity    int
@@ -245,6 +247,16 @@ type Model struct {
 	statusMsgUntil time.Time
 
 	updateSamples []time.Duration
+	loadDuration  time.Duration
+	loadWalk      time.Duration
+	loadSort      time.Duration
+
+	keyCount      int
+	updateMax     time.Duration
+	updateOver16  int
+	updateOver33  int
+	contentErrors int
+	editorErrors  int
 }
 
 type promptState struct {
@@ -319,6 +331,14 @@ func (m *Model) ApplyColors(c Colors) {
 func (m *Model) SetPageStep(step int) {
 	if step > 0 {
 		m.overlayPageStep = step
+	}
+}
+
+// EnableDebugUI gates the debug overlay; when false, debug toggles are ignored.
+func (m *Model) EnableDebugUI(enabled bool) {
+	m.enableDebug = enabled
+	if !enabled {
+		m.showDebug = false
 	}
 }
 
@@ -615,8 +635,29 @@ func appendSample(samples []time.Duration, d time.Duration) []time.Duration {
 }
 
 func (m Model) withUpdateSample(start time.Time) Model {
-	m.updateSamples = appendSample(m.updateSamples, time.Since(start))
+	d := time.Since(start)
+	m.updateSamples = appendSample(m.updateSamples, d)
+	if d > m.updateMax {
+		m.updateMax = d
+	}
+	if d > 16*time.Millisecond {
+		m.updateOver16++
+	}
+	if d > 33*time.Millisecond {
+		m.updateOver33++
+	}
 	return m
+}
+
+// SetLoadDuration stores the initial load duration for debug view.
+func (m *Model) SetLoadDuration(d time.Duration) {
+	m.loadDuration = d
+}
+
+// SetLoadBreakdown stores optional walk/sort timings.
+func (m *Model) SetLoadBreakdown(walk, sort time.Duration) {
+	m.loadWalk = walk
+	m.loadSort = sort
 }
 
 func (m Model) defaultExt() string {
@@ -635,6 +676,7 @@ func (m Model) ensureCardContent(idx int) Model {
 		return m
 	}
 	if err := card.LoadContent(); err != nil {
+		m.contentErrors++
 		msg := fmt.Sprintf("Read failed: %v", err)
 		card.Content = msg
 		m.err = err

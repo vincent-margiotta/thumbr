@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Card is the basic unit Thumbr browses over.
@@ -24,6 +25,13 @@ type LoadOptions struct {
 	SortMode         string   // "natural" (default) or "lexical"
 	SortPattern      string   // regex to apply sort mode to; others fall back to lexical (default numeric-ish)
 	SortPatternFirst *bool    // when true (default), names matching SortPattern come first; when false they come after
+	Timings          *LoadTimings
+}
+
+// LoadTimings captures coarse timings for load phases.
+type LoadTimings struct {
+	Walk time.Duration
+	Sort time.Duration
 }
 
 // LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
@@ -39,6 +47,7 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 		opt.IncludeExts = []string{".txt"}
 	}
 
+	walkStart := time.Now()
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -75,8 +84,17 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 		return nil, err
 	}
 
+	walkDur := time.Since(walkStart)
+
+	sortStart := time.Now()
 	if err := applySort(cards, opt); err != nil {
 		return nil, err
+	}
+	sortDur := time.Since(sortStart)
+
+	if opt.Timings != nil {
+		opt.Timings.Walk = walkDur
+		opt.Timings.Sort = sortDur
 	}
 
 	return cards, nil

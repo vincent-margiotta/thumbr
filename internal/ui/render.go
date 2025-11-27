@@ -646,8 +646,10 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Quit, desc: "quit (from stack) / back (from overlay)"},
 		{keys: []string{"esc"}, desc: "close overlay or help"},
 		{keys: m.bindings.Help, desc: "toggle this help overlay"},
-		{keys: m.bindings.Debug, desc: "toggle debug overlay"},
 		{keys: []string{"ctrl+c"}, desc: "quit immediately"},
+	}
+	if m.enableDebug {
+		bindings = append(bindings, binding{keys: m.bindings.Debug, desc: "toggle debug overlay"})
 	}
 
 	leftWidth := 0
@@ -695,14 +697,30 @@ func (m Model) renderDebug() string {
 	sb.WriteString(title)
 	sb.WriteString("\n\n")
 
+	activeBox := 0
+	if m.activeBox >= 0 && m.activeBox < len(m.boxes) {
+		activeBox = m.activeBox + 1 // show 1-based for humans
+	}
+
 	lines := []string{
 		fmt.Sprintf("Root: %s", m.noteRoot),
-		fmt.Sprintf("Boxes: %d (active: %d)", len(m.boxes), m.activeBox),
+		fmt.Sprintf("Boxes: %d (active: %d)", len(m.boxes), activeBox),
 		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), m.markedCountCurrent(), m.filterMarked),
 		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
 		fmt.Sprintf("Nav accel: %v, max step: %d", m.settings.NavAccelWindow, m.settings.NavMaxStep),
 		fmt.Sprintf("Cursor depth max: %d", m.settings.MaxCursorDepth),
-		fmt.Sprintf("Update avg (last %d): %v", len(m.updateSamples), updateAvg),
+	}
+	if len(m.updateSamples) > 0 || m.updateMax > 0 {
+		lines = append(lines, fmt.Sprintf("Update: avg %v (last %d), max %v, >16ms: %d, >33ms: %d", updateAvg, len(m.updateSamples), m.updateMax, m.updateOver16, m.updateOver33))
+	}
+	if m.loadDuration > 0 {
+		lines = append(lines, fmt.Sprintf("Load: %v (walk %v, sort %v)", m.loadDuration, m.loadWalk, m.loadSort))
+	}
+	if m.keyCount > 0 {
+		lines = append(lines, fmt.Sprintf("Keys processed: %d", m.keyCount))
+	}
+	if m.contentErrors > 0 || m.editorErrors > 0 {
+		lines = append(lines, fmt.Sprintf("Errors: content %d, editor %d", m.contentErrors, m.editorErrors))
 	}
 	for _, line := range lines {
 		sb.WriteString(line)

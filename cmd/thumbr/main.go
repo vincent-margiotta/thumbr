@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -69,6 +70,8 @@ type config struct {
 	SortMode         string   `json:"sortMode" yaml:"sortMode" toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
+	EnableDebugUI    *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
+	CrashLogPath     string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
 }
 
 type int64Flag struct {
@@ -218,6 +221,8 @@ func main() {
 	flagSet.StringVar(&sortModeArg, "sort-mode", "", "card sort mode: lexical or natural (default natural)")
 	flagSet.StringVar(&sortPatternArg, "sort-pattern", "", "regex for names to apply sort-mode to; others use lexical (default ^[0-9]+[A-Za-z0-9]*$)")
 	flagSet.BoolVar(&sortPatternFirstArg, "sort-pattern-first", false, "when true, names matching sort-pattern come before non-matching; when false, they come after")
+	enableDebugUIArg := flagSet.Bool("enable-debug-ui", false, "enable in-app debug overlay (default disabled)")
+	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg        string
@@ -292,6 +297,8 @@ func main() {
 		borderCorner       string
 		borderH            string
 		borderV            string
+		enableDebugUI      bool
+		crashLogPath       string
 	}{
 		noteRoot:           ".",
 		randomSeed:         time.Now().UnixNano(),
@@ -323,6 +330,8 @@ func main() {
 		borderCorner:       "",
 		borderH:            "",
 		borderV:            "",
+		enableDebugUI:      false,
+		crashLogPath:       "",
 	}
 
 	if configPath == "" {
@@ -399,6 +408,12 @@ func main() {
 		}
 		if cfg.BorderV != "" {
 			opts.borderV = cfg.BorderV
+		}
+		if cfg.EnableDebugUI != nil {
+			opts.enableDebugUI = *cfg.EnableDebugUI
+		}
+		if cfg.CrashLogPath != "" {
+			opts.crashLogPath = cfg.CrashLogPath
 		}
 		if cfg.StackVisible > 0 {
 			opts.stackVisible = cfg.StackVisible
@@ -553,6 +568,10 @@ func main() {
 		opts.activeLiftY = activeLiftYArg
 	}
 	opts.stickyOverlayNav = stickyOverlayNavArg
+	opts.enableDebugUI = *enableDebugUIArg
+	if crashLogPathArg != nil && *crashLogPathArg != "" {
+		opts.crashLogPath = *crashLogPathArg
+	}
 	parseBinding := func(arg string) []string {
 		if arg == "" {
 			return nil
@@ -629,10 +648,14 @@ func main() {
 		SortPatternFirst: &opts.sortPatternFirst,
 	}
 
+	var loadTimings notes.LoadTimings
+	loadOpts.Timings = &loadTimings
+	loadStart := time.Now()
 	cards, err := notes.LoadCardsFromDir(opts.noteRoot, loadOpts)
 	if err != nil {
 		log.Printf("error loading cards from %s: %v", opts.noteRoot, err)
 	}
+	loadDuration := time.Since(loadStart)
 
 	colors := ui.Colors{
 		ColorMarkFG:    ui.DefaultSettings.ColorMarkFG,
@@ -666,6 +689,8 @@ func main() {
 	}
 
 	m := ui.NewModel(cards, opts.noteRoot, loadOpts, rng)
+	m.SetLoadDuration(loadDuration)
+	m.SetLoadBreakdown(loadTimings.Walk, loadTimings.Sort)
 	m.ApplyColors(colors)
 	m.ApplyBindings(opts.bindings)
 	if opts.pageStep > 0 {
@@ -694,6 +719,7 @@ func main() {
 		layout.BorderV = []rune(opts.borderV)[0]
 	}
 	m.ApplyLayout(layout)
+	m.EnableDebugUI(opts.enableDebugUI)
 
 	programOptions := []tea.ProgramOption{}
 	if opts.useAlternateScreen {
@@ -701,6 +727,30 @@ func main() {
 	}
 
 	p := tea.NewProgram(m, programOptions...)
+	runWithCrashLog(p, opts.crashLogPath)
+}
+
+func defaultCrashLogPath() string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".thumbr", "crash.log")
+	}
+	return "thumbr-crash.log"
+}
+
+// runWithCrashLog runs the program and writes a crash log if a panic occurs.
+func runWithCrashLog(p *tea.Program, path string) {
+	if path == "" {
+		path = defaultCrashLogPath()
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			_ = os.MkdirAll(filepath.Dir(path), 0o755)
+			msg := fmt.Sprintf("panic: %v\n%s", r, debug.Stack())
+			_ = os.WriteFile(path, []byte(msg), 0o644)
+			panic(r)
+		}
+	}()
+
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

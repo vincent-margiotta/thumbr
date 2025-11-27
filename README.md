@@ -86,6 +86,11 @@ Precedence:
 Tip: copy `config.example.json` to `config.json` and adjust only the fields you care about.
 If you prefer inline documentation, use `config.annotated.toml` as a commented reference and copy settings into your own config (JSON/YAML/TOML all supported).
 
+### Debug Overlay & Crash Logs
+
+- The debug overlay is gated: enable it via `--enable-debug-ui` or `enableDebugUI: true` in your config to use the `d` keybinding. Disabled by default.
+- On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--crash-log`). Only touched when a panic occurs.
+
 ### Configuration (quick scan)
 
 Common tweaks:

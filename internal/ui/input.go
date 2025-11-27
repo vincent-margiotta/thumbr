@@ -63,6 +63,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case editorResult:
 		if msg.err != nil {
 			m.err = msg.err
+			m.editorErrors++
 			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
 		} else {
 			m = m.setStatus("Opening in editor…", 2*time.Second)
@@ -71,6 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		key := msg.String()
+		m.keyCount++
 
 		// ctrl+c always quits
 		if key == "ctrl+c" {
@@ -81,7 +83,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handlePromptKey(msg, start)
 		}
 
-		if m.isBinding(key, m.bindings.Debug) {
+		if m.enableDebug && m.isBinding(key, m.bindings.Debug) {
 			m.showDebug = !m.showDebug
 			if m.showDebug {
 				m.showHelp = false
