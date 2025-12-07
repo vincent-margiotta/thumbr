@@ -259,6 +259,9 @@ type Model struct {
 	updateOver33  int
 	contentErrors int
 	editorErrors  int
+
+	pendingQuit      bool
+	pendingQuitUntil time.Time
 }
 
 type promptState struct {
@@ -420,6 +423,9 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) View() string {
+	if m.pendingQuit && time.Now().After(m.pendingQuitUntil) {
+		m.pendingQuit = false
+	}
 	if m.state == StatePrompting {
 		return m.renderPrompt()
 	}
@@ -685,6 +691,16 @@ func (m Model) ensureCardContent(idx int) Model {
 		m = m.setStatus(msg, 3*time.Second)
 	}
 	return m
+}
+
+func (m Model) attemptQuit() (Model, tea.Cmd) {
+	if m.pendingQuit && time.Now().Before(m.pendingQuitUntil) {
+		return m, tea.Quit
+	}
+	m.pendingQuit = true
+	m.pendingQuitUntil = time.Now().Add(3 * time.Second)
+	m = m.setStatus("Press quit again within 3s to exit", 3*time.Second)
+	return m, nil
 }
 
 func cleanBoxPath(path string) string {

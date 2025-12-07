@@ -11,11 +11,11 @@ import (
 )
 
 var benchData struct {
-	once  sync.Once
-	root  string
-	total int
-	err   error
-	clean func()
+	once      sync.Once
+	cleanOnce sync.Once
+	root      string
+	total     int
+	err       error
 }
 
 // prepareBenchData builds (or reuses) a synthetic tree of note files.
@@ -38,7 +38,6 @@ func prepareBenchData(b *testing.B) (string, int) {
 			return
 		}
 		benchData.root = root
-		benchData.clean = func() { os.RemoveAll(root) }
 
 		for i := 0; i < total; i++ {
 			dir := filepath.Join(root, fmt.Sprintf("dir-%03d", i/1000))
@@ -63,10 +62,6 @@ func prepareBenchData(b *testing.B) (string, int) {
 // BenchmarkLoadCardsFromDir90k measures discovery + sort time over a large tree.
 func BenchmarkLoadCardsFromDir90k(b *testing.B) {
 	root, total := prepareBenchData(b)
-
-	if benchData.clean != nil {
-		b.Cleanup(benchData.clean)
-	}
 
 	opts := LoadOptions{IncludeExts: []string{".txt"}}
 

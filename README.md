@@ -2,6 +2,10 @@
 
 **Thumbr** is a terminal card box emulator for plain-text notes. It walks a directory of note files (`.txt` by default; extensions are configurable), renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content is shown as plain text—no rendering).
 
+## Influence
+
+Thumbr favors the analog experience over digital workflow features. It emulates flipping through a physical card box: filename-as-title cards in a stack, rapid “thumbing” with acceleration, and an overlay that feels like pulling a card to the front. Navigation is biased toward serendipity (random jumps) and branching hub notes instead of rigid hierarchies or backlinks. The goal is to keep your notes as simple files while giving you an intuitive, tactile way to browse and continue ideas.
+
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
 - **Simple Titles:** Uses the filename (minus extension) as the card title; order follows directory traversal.

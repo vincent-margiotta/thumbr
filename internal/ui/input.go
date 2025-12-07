@@ -74,6 +74,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		key := msg.String()
 		m.keyCount++
 
+		// Reset pending quit on any non-quit key or if it expired.
+		if !m.isBinding(key, m.bindings.Quit) {
+			m.pendingQuit = false
+		}
+		if m.pendingQuit && time.Now().After(m.pendingQuitUntil) {
+			m.pendingQuit = false
+		}
+
 		// ctrl+c always quits
 		if key == "ctrl+c" {
 			return m.withUpdateSample(start), tea.Quit
@@ -149,7 +157,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case StateBrowsing:
 			switch {
 			case m.isBinding(key, m.bindings.Quit):
-				return m.withUpdateSample(start), tea.Quit
+				m, cmd := m.attemptQuit()
+				return m.withUpdateSample(start), cmd
 			case m.isBinding(key, m.bindings.OverlayToggle):
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
