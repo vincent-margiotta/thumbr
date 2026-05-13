@@ -67,8 +67,14 @@ type config struct {
 	BindPagePrev     []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
 	BindOverlayUp    []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
 	BindOverlayDown  []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
-	BindReload       []string `json:"bindReload" yaml:"bindReload" toml:"bindReload"`
-	SortMode         string   `json:"sortMode" yaml:"sortMode" toml:"sortMode"`
+	BindReload          []string `json:"bindReload"          yaml:"bindReload"          toml:"bindReload"`
+	BindContinue        []string `json:"bindContinue"        yaml:"bindContinue"        toml:"bindContinue"`
+	BindBranch          []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
+	ContinueNameCmd     string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
+	BranchNameCmd       string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
+	NewFileLinkTemplate string   `json:"newFileLinkTemplate" yaml:"newFileLinkTemplate" toml:"newFileLinkTemplate"`
+	NewFileSameDir      *bool    `json:"newFileSameDir"      yaml:"newFileSameDir"      toml:"newFileSameDir"`
+	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
 	EnableDebugUI    *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
@@ -242,6 +248,14 @@ func main() {
 		bindOverlayUpArg string
 		bindOverlayDnArg string
 		bindReloadArg    string
+		bindContinueArg  string
+		bindBranchArg    string
+	)
+	var (
+		continueNameCmdArg     string
+		branchNameCmdArg       string
+		newFileLinkTemplateArg string
+		newFileSameDirArg      bool
 	)
 	flagSet.StringVar(&bindUpArg, "bind-up", "", "comma-separated keys for up navigation")
 	flagSet.StringVar(&bindDownArg, "bind-down", "", "comma-separated keys for down navigation")
@@ -259,6 +273,12 @@ func main() {
 	flagSet.StringVar(&bindOverlayUpArg, "bind-overlay-up", "", "comma-separated keys to scroll overlay up")
 	flagSet.StringVar(&bindOverlayDnArg, "bind-overlay-down", "", "comma-separated keys to scroll overlay down")
 	flagSet.StringVar(&bindReloadArg, "bind-reload", "", "comma-separated keys to reload the current box")
+	flagSet.StringVar(&bindContinueArg, "bind-continue", "", "comma-separated keys for Luhmann continue")
+	flagSet.StringVar(&bindBranchArg, "bind-branch", "", "comma-separated keys for Luhmann branch")
+	flagSet.StringVar(&continueNameCmdArg, "continue-name-cmd", "", "shell command to derive continuation filename stem")
+	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
+	flagSet.StringVar(&newFileLinkTemplateArg, "new-file-link-template", "", "printf template for backwards link written to new files (default '--> %s\\n\\n'; empty to disable)")
+	flagSet.BoolVar(&newFileSameDirArg, "new-file-same-dir", true, "create linked files in the same directory as the focused card")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -300,43 +320,51 @@ func main() {
 		borderCorner       string
 		borderH            string
 		borderV            string
-		enableDebugUI      bool
-		crashLogPath       string
-		reloadBindings     []string
+		enableDebugUI       bool
+		crashLogPath        string
+		reloadBindings      []string
+		continueNameCmd     string
+		branchNameCmd       string
+		newFileLinkTemplate string
+		newFileSameDir      bool
 	}{
-		noteRoot:           ".",
-		randomSeed:         time.Now().UnixNano(),
-		useAlternateScreen: true,
-		includeExts:        nil,
-		ignoreGlobs:        nil,
-		sortMode:           "",
-		sortPattern:        "",
-		sortPatternFirst:   false,
-		colorMark:          "",
-		colorMuted:         "",
-		colorHi:            "",
-		colorDim:           "",
-		colorStatusBG:      "",
-		colorStatusFG:      "",
-		colorStatusDim:     "",
-		pageStep:           0,
-		navAccelMs:         0,
-		navMaxStep:         0,
-		bindings:           ui.DefaultBindings(),
-		stackVisible:       0,
-		stackOffsetX:       0,
-		stackOffsetY:       0,
-		cardWidthFrac:      0,
-		cardHeightFrac:     0,
-		activeLiftY:        0,
-		stickyOverlayNav:   ui.DefaultSettings.StickyOverlayNav,
-		maxCursorDepth:     0,
-		borderCorner:       "",
-		borderH:            "",
-		borderV:            "",
-		enableDebugUI:      false,
-		crashLogPath:       "",
-		reloadBindings:     nil,
+		noteRoot:            ".",
+		randomSeed:          time.Now().UnixNano(),
+		useAlternateScreen:  true,
+		includeExts:         nil,
+		ignoreGlobs:         nil,
+		sortMode:            "",
+		sortPattern:         "",
+		sortPatternFirst:    false,
+		colorMark:           "",
+		colorMuted:          "",
+		colorHi:             "",
+		colorDim:            "",
+		colorStatusBG:       "",
+		colorStatusFG:       "",
+		colorStatusDim:      "",
+		pageStep:            0,
+		navAccelMs:          0,
+		navMaxStep:          0,
+		bindings:            ui.DefaultBindings(),
+		stackVisible:        0,
+		stackOffsetX:        0,
+		stackOffsetY:        0,
+		cardWidthFrac:       0,
+		cardHeightFrac:      0,
+		activeLiftY:         0,
+		stickyOverlayNav:    ui.DefaultSettings.StickyOverlayNav,
+		maxCursorDepth:      0,
+		borderCorner:        "",
+		borderH:             "",
+		borderV:             "",
+		enableDebugUI:       false,
+		crashLogPath:        "",
+		reloadBindings:      nil,
+		continueNameCmd:     "",
+		branchNameCmd:       "",
+		newFileLinkTemplate: "",
+		newFileSameDir:      true,
 	}
 
 	if configPath == "" {
@@ -468,6 +496,20 @@ func main() {
 		mergeBinding(&opts.bindings.OverlayUp, cfg.BindOverlayUp)
 		mergeBinding(&opts.bindings.OverlayDown, cfg.BindOverlayDown)
 		mergeBinding(&opts.bindings.Reload, cfg.BindReload)
+		mergeBinding(&opts.bindings.Continue, cfg.BindContinue)
+		mergeBinding(&opts.bindings.Branch, cfg.BindBranch)
+		if cfg.ContinueNameCmd != "" {
+			opts.continueNameCmd = cfg.ContinueNameCmd
+		}
+		if cfg.BranchNameCmd != "" {
+			opts.branchNameCmd = cfg.BranchNameCmd
+		}
+		if cfg.NewFileLinkTemplate != "" {
+			opts.newFileLinkTemplate = cfg.NewFileLinkTemplate
+		}
+		if cfg.NewFileSameDir != nil {
+			opts.newFileSameDir = *cfg.NewFileSameDir
+		}
 	}
 
 	// Flags override config/defaults.
@@ -644,6 +686,22 @@ func main() {
 		opts.bindings.Reload = v
 		opts.reloadBindings = v
 	}
+	if v := parseBinding(bindContinueArg); len(v) > 0 {
+		opts.bindings.Continue = v
+	}
+	if v := parseBinding(bindBranchArg); len(v) > 0 {
+		opts.bindings.Branch = v
+	}
+	if continueNameCmdArg != "" {
+		opts.continueNameCmd = continueNameCmdArg
+	}
+	if branchNameCmdArg != "" {
+		opts.branchNameCmd = branchNameCmdArg
+	}
+	if newFileLinkTemplateArg != "" {
+		opts.newFileLinkTemplate = newFileLinkTemplateArg
+	}
+	opts.newFileSameDir = newFileSameDirArg
 
 	// Positional path overrides everything else.
 	if args := flagSet.Args(); len(args) > 0 {
@@ -732,6 +790,13 @@ func main() {
 		layout.BorderV = []rune(opts.borderV)[0]
 	}
 	m.ApplyLayout(layout)
+	fc := ui.FileCreation{
+		LinkTemplate: opts.newFileLinkTemplate,
+		SameDir:      &opts.newFileSameDir,
+		ContinueCmd:  opts.continueNameCmd,
+		BranchCmd:    opts.branchNameCmd,
+	}
+	m.ApplyFileCreation(fc)
 	m.EnableDebugUI(opts.enableDebugUI)
 
 	programOptions := []tea.ProgramOption{}

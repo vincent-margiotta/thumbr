@@ -635,6 +635,8 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
 		{keys: m.bindings.OpenBox, desc: "open/switch box"},
 		{keys: m.bindings.NewFile, desc: "create new file in selected box"},
+		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
+		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
 		{keys: m.bindings.OpenEditor, desc: "open current card in $EDITOR"},
 		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
 		{keys: nil, desc: ""},

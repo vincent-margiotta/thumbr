@@ -44,6 +44,12 @@
   "bindOverlayUp": ["k", "up"],
   "bindOverlayDown": ["j", "down"],
   "bindReload": ["R"],
+  "bindContinue": ["c"],
+  "bindBranch": ["C"],
+  "continueNameCmd": "",
+  "branchNameCmd": "",
+  "newFileLinkTemplate": "--> %s\n\n",
+  "newFileSameDir": true,
   "enableDebugUI": false,
   "crashLogPath": ""
 }

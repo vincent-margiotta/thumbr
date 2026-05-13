@@ -3,11 +3,14 @@ package ui
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"thumbr/internal/notes"
 )
 
 // Update and navigation-related methods live here.
@@ -57,6 +60,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.path != "" {
 			status = fmt.Sprintf("Opening %s", filepath.Base(msg.path))
 		}
+		m.pendingSeekPath = msg.seekPath
 		m = m.setStatus(status, 2*time.Second)
 		return m.withUpdateSample(start), m.loadBoxCmd(msg.box)
 
@@ -132,6 +136,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isBinding(key, m.bindings.NewFile):
 			m = m.startNewFilePrompt()
 			return m.withUpdateSample(start), nil
+		case m.isBinding(key, m.bindings.Continue):
+			return m.startContinueOrBranch(true, start)
+		case m.isBinding(key, m.bindings.Branch):
+			return m.startContinueOrBranch(false, start)
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
@@ -403,4 +411,86 @@ func (m Model) randomCursor() Model {
 	m.velocity = 1
 	m.lastNavDir = 0
 	return m
+}
+
+func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Model, tea.Cmd) {
+	if len(m.cards) == 0 {
+		return m.withUpdateSample(start), nil
+	}
+
+	card := m.cards[m.cursor]
+	base := filepath.Base(card.Path)
+	ext := filepath.Ext(base)
+	stem := strings.TrimSuffix(base, ext)
+	if ext == "" {
+		ext = m.defaultExt()
+	}
+
+	var newStem string
+	var ok bool
+
+	if isContinue {
+		if m.settings.ContinueNameCmd != "" {
+			if derived, err := deriveStemViaCmd(m.settings.ContinueNameCmd, stem); err == nil && derived != "" {
+				newStem, ok = derived, true
+			}
+		}
+		if !ok {
+			newStem, ok = notes.DeriveContinuation(stem)
+		}
+	} else {
+		if m.settings.BranchNameCmd != "" {
+			if derived, err := deriveStemViaCmd(m.settings.BranchNameCmd, stem); err == nil && derived != "" {
+				newStem, ok = derived, true
+			}
+		}
+		if !ok {
+			newStem, ok = notes.DeriveBranch(stem)
+		}
+	}
+
+	if !ok {
+		m = m.startNewFilePrompt()
+		return m.withUpdateSample(start), nil
+	}
+
+	var targetDir string
+	if m.settings.NewFileSameDir {
+		targetDir = filepath.Dir(card.Path)
+	} else {
+		targetDir = m.currentBox()
+	}
+
+	// Walk forward through DeriveBranch until we find a name that doesn't exist on disk.
+	for {
+		if _, err := os.Stat(filepath.Join(targetDir, newStem+ext)); os.IsNotExist(err) {
+			break
+		}
+		next, ok2 := notes.DeriveBranch(newStem)
+		if !ok2 {
+			m = m.startNewFilePrompt()
+			return m.withUpdateSample(start), nil
+		}
+		newStem = next
+	}
+
+	// For branch, the backwards link points to the parent (prefix), not the source card.
+	// For continue, the source card IS the parent.
+	linkStem := stem
+	if !isContinue {
+		if prefix, _, _, ok2 := notes.SplitLuhmannStem(stem); ok2 && prefix != "" {
+			linkStem = prefix
+		} else {
+			linkStem = ""
+		}
+	}
+
+	var linkContent string
+	if linkStem != "" && m.settings.NewFileLinkTemplate != "" {
+		linkContent = fmt.Sprintf(m.settings.NewFileLinkTemplate, linkStem)
+	}
+
+	cmd := m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, linkContent)
+	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
+	return m.withUpdateSample(start), cmd
 }

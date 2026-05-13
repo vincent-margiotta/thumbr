@@ -80,6 +80,11 @@ type Settings struct {
 	BorderCorner rune
 	BorderH      rune
 	BorderV      rune
+
+	NewFileLinkTemplate string
+	NewFileSameDir      bool
+	ContinueNameCmd     string
+	BranchNameCmd       string
 }
 
 var DefaultSettings = Settings{
@@ -104,6 +109,11 @@ var DefaultSettings = Settings{
 	BorderCorner: '+',
 	BorderH:      '-',
 	BorderV:      '|',
+
+	NewFileLinkTemplate: "--> %s\n\n",
+	NewFileSameDir:      true,
+	ContinueNameCmd:     "",
+	BranchNameCmd:       "",
 }
 
 type Colors struct {
@@ -138,6 +148,8 @@ type KeyBindings struct {
 	OpenEditor    []string
 	OpenBox       []string
 	NewFile       []string
+	Continue      []string
+	Branch        []string
 	Mark          []string
 	Filter        []string
 	Help          []string
@@ -159,6 +171,8 @@ func DefaultBindings() KeyBindings {
 		OpenEditor:    []string{"e"},
 		OpenBox:       []string{"b"},
 		NewFile:       []string{"a"},
+		Continue:      []string{"c"},
+		Branch:        []string{"C"},
 		Mark:          []string{"m"},
 		Filter:        []string{"t"},
 		Help:          []string{"?", "h"},
@@ -262,6 +276,10 @@ type Model struct {
 
 	pendingQuit      bool
 	pendingQuitUntil time.Time
+
+	// pendingSeekPath, when non-empty, causes the next resetAfterLoad to navigate
+	// to the card at this path instead of resetting to the top.
+	pendingSeekPath string
 }
 
 type promptState struct {
@@ -277,9 +295,10 @@ type boxLoadResult struct {
 }
 
 type newFileResult struct {
-	box  string
-	path string
-	err  error
+	box      string
+	path     string
+	seekPath string // if non-empty, navigate to this path after the box reloads
+	err      error
 }
 
 type editorResult struct {
@@ -366,6 +385,8 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.OpenEditor, b.OpenEditor)
 	override(&m.bindings.OpenBox, b.OpenBox)
 	override(&m.bindings.NewFile, b.NewFile)
+	override(&m.bindings.Continue, b.Continue)
+	override(&m.bindings.Branch, b.Branch)
 	override(&m.bindings.Up, b.Up)
 	override(&m.bindings.Down, b.Down)
 	override(&m.bindings.Random, b.Random)
@@ -415,6 +436,30 @@ func (m *Model) ApplyLayout(l Layout) {
 	}
 	if l.BorderV != 0 {
 		m.settings.BorderV = l.BorderV
+	}
+}
+
+// FileCreation holds configuration for the continue/branch file-creation feature.
+type FileCreation struct {
+	LinkTemplate string
+	SameDir      *bool
+	ContinueCmd  string
+	BranchCmd    string
+}
+
+// ApplyFileCreation overrides file-creation settings with non-zero values.
+func (m *Model) ApplyFileCreation(fc FileCreation) {
+	if fc.LinkTemplate != "" {
+		m.settings.NewFileLinkTemplate = fc.LinkTemplate
+	}
+	if fc.SameDir != nil {
+		m.settings.NewFileSameDir = *fc.SameDir
+	}
+	if fc.ContinueCmd != "" {
+		m.settings.ContinueNameCmd = fc.ContinueCmd
+	}
+	if fc.BranchCmd != "" {
+		m.settings.BranchNameCmd = fc.BranchCmd
 	}
 }
 
@@ -829,6 +874,38 @@ func (m Model) createFileCmd(boxRoot, userPath string) tea.Cmd {
 	}
 }
 
+// createLinkedFileCmd creates stem+ext in targetDir with initialContent, then
+// opens it in the external editor.
+func (m Model) createLinkedFileCmd(box, targetDir, stem, ext, initialContent string) tea.Cmd {
+	return func() tea.Msg {
+		target := filepath.Join(targetDir, stem+ext)
+		if err := os.MkdirAll(targetDir, 0o755); err != nil {
+			return newFileResult{box: box, path: target, err: fmt.Errorf("make dir: %w", err)}
+		}
+		if _, err := os.Stat(target); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return newFileResult{box: box, path: target, err: fmt.Errorf("stat: %w", err)}
+			}
+			if err := os.WriteFile(target, []byte(initialContent), 0o644); err != nil {
+				return newFileResult{box: box, path: target, err: fmt.Errorf("create: %w", err)}
+			}
+		}
+		if err := launchEditor(target); err != nil {
+			return newFileResult{box: box, path: target, err: fmt.Errorf("open: %w", err)}
+		}
+		return newFileResult{box: box, path: target, seekPath: target}
+	}
+}
+
+// deriveStemViaCmd runs shellCmd with stem as the sole argument and returns trimmed stdout.
+func deriveStemViaCmd(shellCmd, stem string) (string, error) {
+	out, err := exec.Command("sh", "-c", shellCmd+" "+strconv.Quote(stem)).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
 	prev := m.currentBox()
 	if m.boxFilters == nil {
@@ -846,6 +923,15 @@ func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
 	}
 	m.cards = cards
 	m.cursor = 0
+	if m.pendingSeekPath != "" {
+		for i, c := range cards {
+			if c.Path == m.pendingSeekPath {
+				m.cursor = i
+				break
+			}
+		}
+		m.pendingSeekPath = ""
+	}
 	m.overlayPage = 0
 	m.state = StateBrowsing
 	return m.ensureCursorVisible()
