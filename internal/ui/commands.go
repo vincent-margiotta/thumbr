@@ -26,15 +26,22 @@ type boxLoadResult struct {
 }
 
 type newFileResult struct {
-	box      string
-	path     string
-	seekPath string // if non-empty, navigate to this path after the box reloads
-	err      error
+	box       string
+	path      string
+	seekPath  string // if non-empty, navigate to this path after the box reloads
+	openInApp bool   // if true, open path in the in-app editor after reload
+	err       error
 }
 
 type editorResult struct {
 	path string
 	err  error
+}
+
+type openInAppResult struct {
+	path    string
+	content string
+	err     error
 }
 
 // ---------------------------------------------------------------------------
@@ -55,6 +62,15 @@ func (m Model) loadBoxCmd(path string) tea.Cmd {
 func (m Model) openInEditorCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		return editorResult{path: path, err: launchEditor(path)}
+	}
+}
+
+// openInAppCmd reads the file at path and returns an openInAppResult so the
+// caller can transition to StateEditing.
+func openInAppCmd(path string) tea.Cmd {
+	return func() tea.Msg {
+		content, err := os.ReadFile(path)
+		return openInAppResult{path: path, content: string(content), err: err}
 	}
 }
 
@@ -121,6 +137,26 @@ func (m Model) createLinkedFileCmd(box, targetDir, stem, ext, initialContent str
 			return newFileResult{box: box, path: target, err: fmt.Errorf("open: %w", err)}
 		}
 		return newFileResult{box: box, path: target, seekPath: target}
+	}
+}
+
+// createLinkedFileCmdNoEditor creates stem+ext in targetDir with initialContent
+// but does not open any editor. openInApp controls the newFileResult flag.
+func (m Model) createLinkedFileCmdNoEditor(box, targetDir, stem, ext, initialContent string, openInApp bool) tea.Cmd {
+	return func() tea.Msg {
+		target := filepath.Join(targetDir, stem+ext)
+		if err := os.MkdirAll(targetDir, 0o755); err != nil {
+			return newFileResult{box: box, path: target, err: fmt.Errorf("make dir: %w", err)}
+		}
+		if _, err := os.Stat(target); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return newFileResult{box: box, path: target, err: fmt.Errorf("stat: %w", err)}
+			}
+			if err := os.WriteFile(target, []byte(initialContent), 0o644); err != nil {
+				return newFileResult{box: box, path: target, err: fmt.Errorf("create: %w", err)}
+			}
+		}
+		return newFileResult{box: box, path: target, seekPath: target, openInApp: openInApp}
 	}
 }
 

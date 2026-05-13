@@ -32,7 +32,8 @@
   "bindDown": ["j", "down"],
   "bindRandom": ["r"],
   "bindOverlay": ["enter"],
-  "bindEdit": ["e"],
+  "bindEdit": ["E"],
+  "bindInApp": ["e"],
   "bindBox": ["b"],
   "bindNewFile": ["a"],
   "bindMark": ["m"],
@@ -50,6 +51,7 @@
   "branchNameCmd": "",
   "newFileLinkTemplate": "--> %s\n\n",
   "newFileSameDir": true,
+  "newFileEditor": "inapp",
   "enableDebugUI": false,
   "crashLogPath": ""
 }

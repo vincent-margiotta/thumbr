@@ -21,6 +21,7 @@ const (
 	StateBrowsing State = iota
 	StateViewing
 	StatePrompting
+	StateEditing
 )
 
 type promptKind int
@@ -39,6 +40,8 @@ func (s State) String() string {
 		return "Viewing"
 	case StatePrompting:
 		return "Prompting"
+	case StateEditing:
+		return "Editing"
 	default:
 		return "Unknown"
 	}
@@ -78,6 +81,7 @@ type Settings struct {
 
 	NewFileLinkTemplate string
 	NewFileSameDir      bool
+	NewFileEditor       string // "inapp" | "external" | "none"
 	ContinueNameCmd     string
 	BranchNameCmd       string
 }
@@ -107,6 +111,7 @@ var DefaultSettings = Settings{
 
 	NewFileLinkTemplate: "--> %s\n\n",
 	NewFileSameDir:      true,
+	NewFileEditor:       "inapp",
 	ContinueNameCmd:     "",
 	BranchNameCmd:       "",
 }
@@ -140,7 +145,8 @@ type KeyBindings struct {
 	Down          []string
 	Random        []string
 	OverlayToggle []string
-	OpenEditor    []string
+	OpenInApp     []string
+	OpenExternal  []string
 	OpenBox       []string
 	NewFile       []string
 	Continue      []string
@@ -163,7 +169,8 @@ func DefaultBindings() KeyBindings {
 		Down:          []string{"j", "down"},
 		Random:        []string{"r"},
 		OverlayToggle: []string{"enter"},
-		OpenEditor:    []string{"e"},
+		OpenInApp:     []string{"e"},
+		OpenExternal:  []string{"E"},
 		OpenBox:       []string{"b"},
 		NewFile:       []string{"a"},
 		Continue:      []string{"c"},
@@ -275,6 +282,14 @@ type Model struct {
 	// pendingSeekPath, when non-empty, causes the next resetAfterLoad to navigate
 	// to the card at this path instead of resetting to the top.
 	pendingSeekPath string
+
+	// editor holds the in-app vim editor state when state == StateEditing.
+	editor editorState
+	// pendingEditorPath, when non-empty, causes the next boxLoadResult to open
+	// the file at this path in the in-app editor.
+	pendingEditorPath string
+	// pendingEditorLine is the line the cursor should start on when the editor opens.
+	pendingEditorLine int
 }
 
 type promptState struct {
@@ -359,7 +374,8 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 			*dst = src
 		}
 	}
-	override(&m.bindings.OpenEditor, b.OpenEditor)
+	override(&m.bindings.OpenInApp, b.OpenInApp)
+	override(&m.bindings.OpenExternal, b.OpenExternal)
 	override(&m.bindings.OpenBox, b.OpenBox)
 	override(&m.bindings.NewFile, b.NewFile)
 	override(&m.bindings.Continue, b.Continue)
@@ -418,10 +434,11 @@ func (m *Model) ApplyLayout(l Layout) {
 
 // FileCreation holds configuration for the continue/branch file-creation feature.
 type FileCreation struct {
-	LinkTemplate string
-	SameDir      *bool
-	ContinueCmd  string
-	BranchCmd    string
+	LinkTemplate  string
+	SameDir       *bool
+	NewFileEditor string
+	ContinueCmd   string
+	BranchCmd     string
 }
 
 // ApplyFileCreation overrides file-creation settings with non-zero values.
@@ -431,6 +448,9 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 	if fc.SameDir != nil {
 		m.settings.NewFileSameDir = *fc.SameDir
+	}
+	if fc.NewFileEditor != "" {
+		m.settings.NewFileEditor = fc.NewFileEditor
 	}
 	if fc.ContinueCmd != "" {
 		m.settings.ContinueNameCmd = fc.ContinueCmd
@@ -450,6 +470,9 @@ func (m Model) View() string {
 	}
 	if m.state == StatePrompting {
 		return m.renderPrompt()
+	}
+	if m.state == StateEditing {
+		return m.renderEditor()
 	}
 	if m.showDebug {
 		return m.renderDebug()

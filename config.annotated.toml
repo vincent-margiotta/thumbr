@@ -54,7 +54,8 @@ bindUp = ["k", "up"]
 bindDown = ["j", "down"]
 bindRandom = ["r"]
 bindOverlay = ["enter"]
-bindEdit = ["e"]
+bindEdit = ["E"]           # open card in external $EDITOR
+bindInApp = ["e"]         # open card in in-app vim editor
 bindBox = ["b"]
 bindNewFile = ["a"]
 bindMark = ["m"]
@@ -91,6 +92,9 @@ newFileLinkTemplate = "--> %s\n\n"
 # When true, linked files are created in the same directory as the focused card.
 # When false, they are always created in the box root.
 newFileSameDir = true
+
+# What to open when c/C creates a new card: "inapp" (default), "external" ($EDITOR), "none".
+newFileEditor = "inapp"
 
 # Debug overlay: disabled by default. Set true to allow the Debug keybinding.
 enableDebugUI = false

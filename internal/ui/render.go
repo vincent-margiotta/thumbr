@@ -9,6 +9,46 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+func (m Model) renderEditor() string {
+	es := m.editor
+
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	// Header: filename [*]   MODE
+	filename := filepath.Base(es.path)
+	dirtyFlag := ""
+	if es.dirty {
+		dirtyFlag = " [*]"
+	}
+	var modeLabel string
+	switch es.mode {
+	case vimNormal:
+		modeLabel = "NORMAL"
+	case vimInsert:
+		modeLabel = "INSERT"
+	case vimCommand:
+		modeLabel = "COMMAND"
+	}
+	modeStr := hi.Render("[" + modeLabel + "]")
+	headerLeft := hi.Render(filename + dirtyFlag)
+	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
+	header := headerLeft + strings.Repeat(" ", padLen) + modeStr
+
+	// Body: textarea
+	body := es.ta.View()
+
+	// Footer: command input line or hint
+	var footer string
+	if es.mode == vimCommand {
+		footer = hi.Render(":") + es.cmdLine + "█"
+	} else {
+		footer = dim.Render("ctrl+s save  :w save  :wq save+quit  :q quit  :q! discard")
+	}
+
+	return header + "\n" + body + "\n" + footer + "\n" + m.renderStatusBar()
+}
+
 // Rendering-related methods: drawing cards, overlay, status bar, etc.
 
 func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
@@ -637,7 +677,8 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.NewFile, desc: "create new file in selected box"},
 		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
 		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
-		{keys: m.bindings.OpenEditor, desc: "open current card in $EDITOR"},
+		{keys: m.bindings.OpenInApp, desc: "open card in in-app editor"},
+		{keys: m.bindings.OpenExternal, desc: "open card in $EDITOR"},
 		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
 		{keys: nil, desc: ""},
 		{keys: []string{"(overlay only)"}, desc: ""},

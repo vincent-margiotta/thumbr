@@ -74,6 +74,8 @@ type config struct {
 	BranchNameCmd       string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
 	NewFileLinkTemplate string   `json:"newFileLinkTemplate" yaml:"newFileLinkTemplate" toml:"newFileLinkTemplate"`
 	NewFileSameDir      *bool    `json:"newFileSameDir"      yaml:"newFileSameDir"      toml:"newFileSameDir"`
+	NewFileEditor       string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
+	BindInApp           []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
 	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
@@ -250,12 +252,14 @@ func main() {
 		bindReloadArg    string
 		bindContinueArg  string
 		bindBranchArg    string
+		bindInAppArg     string
 	)
 	var (
 		continueNameCmdArg     string
 		branchNameCmdArg       string
 		newFileLinkTemplateArg string
 		newFileSameDirArg      bool
+		newFileEditorArg       string
 	)
 	flagSet.StringVar(&bindUpArg, "bind-up", "", "comma-separated keys for up navigation")
 	flagSet.StringVar(&bindDownArg, "bind-down", "", "comma-separated keys for down navigation")
@@ -279,6 +283,8 @@ func main() {
 	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
 	flagSet.StringVar(&newFileLinkTemplateArg, "new-file-link-template", "", "printf template for backwards link written to new files (default '--> %s\\n\\n'; empty to disable)")
 	flagSet.BoolVar(&newFileSameDirArg, "new-file-same-dir", true, "create linked files in the same directory as the focused card")
+	flagSet.StringVar(&newFileEditorArg, "new-file-editor", "", "editor to open after c/C creates a file: inapp, external, or none (default inapp)")
+	flagSet.StringVar(&bindInAppArg, "bind-inapp", "", "comma-separated keys to open card in in-app editor")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -327,6 +333,7 @@ func main() {
 		branchNameCmd       string
 		newFileLinkTemplate string
 		newFileSameDir      bool
+		newFileEditor       string
 	}{
 		noteRoot:            ".",
 		randomSeed:          time.Now().UnixNano(),
@@ -365,6 +372,7 @@ func main() {
 		branchNameCmd:       "",
 		newFileLinkTemplate: "",
 		newFileSameDir:      true,
+		newFileEditor:       "",
 	}
 
 	if configPath == "" {
@@ -484,7 +492,8 @@ func main() {
 		mergeBinding(&opts.bindings.Down, cfg.BindDown)
 		mergeBinding(&opts.bindings.Random, cfg.BindRandom)
 		mergeBinding(&opts.bindings.OverlayToggle, cfg.BindOverlay)
-		mergeBinding(&opts.bindings.OpenEditor, cfg.BindEdit)
+		mergeBinding(&opts.bindings.OpenExternal, cfg.BindEdit)
+		mergeBinding(&opts.bindings.OpenInApp, cfg.BindInApp)
 		mergeBinding(&opts.bindings.OpenBox, cfg.BindBox)
 		mergeBinding(&opts.bindings.NewFile, cfg.BindNewFile)
 		mergeBinding(&opts.bindings.Mark, cfg.BindMark)
@@ -509,6 +518,9 @@ func main() {
 		}
 		if cfg.NewFileSameDir != nil {
 			opts.newFileSameDir = *cfg.NewFileSameDir
+		}
+		if cfg.NewFileEditor != "" {
+			opts.newFileEditor = cfg.NewFileEditor
 		}
 	}
 
@@ -647,7 +659,10 @@ func main() {
 		opts.bindings.OverlayToggle = v
 	}
 	if v := parseBinding(bindEditArg); len(v) > 0 {
-		opts.bindings.OpenEditor = v
+		opts.bindings.OpenExternal = v
+	}
+	if v := parseBinding(bindInAppArg); len(v) > 0 {
+		opts.bindings.OpenInApp = v
 	}
 	if v := parseBinding(bindBoxArg); len(v) > 0 {
 		opts.bindings.OpenBox = v
@@ -702,6 +717,9 @@ func main() {
 		opts.newFileLinkTemplate = newFileLinkTemplateArg
 	}
 	opts.newFileSameDir = newFileSameDirArg
+	if newFileEditorArg != "" {
+		opts.newFileEditor = newFileEditorArg
+	}
 
 	// Positional path overrides everything else.
 	if args := flagSet.Args(); len(args) > 0 {
@@ -791,10 +809,11 @@ func main() {
 	}
 	m.ApplyLayout(layout)
 	fc := ui.FileCreation{
-		LinkTemplate: opts.newFileLinkTemplate,
-		SameDir:      &opts.newFileSameDir,
-		ContinueCmd:  opts.continueNameCmd,
-		BranchCmd:    opts.branchNameCmd,
+		LinkTemplate:  opts.newFileLinkTemplate,
+		SameDir:       &opts.newFileSameDir,
+		NewFileEditor: opts.newFileEditor,
+		ContinueCmd:   opts.continueNameCmd,
+		BranchCmd:     opts.branchNameCmd,
 	}
 	m.ApplyFileCreation(fc)
 	m.EnableDebugUI(opts.enableDebugUI)

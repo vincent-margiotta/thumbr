@@ -36,6 +36,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.prompt.input.Width = width
 		}
+		if m.state == StateEditing {
+			m.editor.ta.SetWidth(msg.Width)
+			h := msg.Height - 3
+			if h < 1 {
+				h = 1
+			}
+			m.editor.ta.SetHeight(h)
+		}
 		m.ready = true
 		return m.withUpdateSample(start), nil
 
@@ -47,6 +55,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = m.resetAfterLoad(msg.cards, msg.path)
 		m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
+		if m.pendingEditorPath != "" {
+			path := m.pendingEditorPath
+			m.pendingEditorPath = ""
+			return m.withUpdateSample(start), openInAppCmd(path)
+		}
 		return m.withUpdateSample(start), nil
 
 	case newFileResult:
@@ -61,8 +74,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			status = fmt.Sprintf("Opening %s", filepath.Base(msg.path))
 		}
 		m.pendingSeekPath = msg.seekPath
+		if msg.openInApp && msg.path != "" {
+			m.pendingEditorPath = msg.path
+			status = fmt.Sprintf("Created %s", filepath.Base(msg.path))
+		}
 		m = m.setStatus(status, 2*time.Second)
 		return m.withUpdateSample(start), m.loadBoxCmd(msg.box)
+
+	case openInAppResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		cursorLine := m.pendingEditorLine
+		m.pendingEditorLine = 0
+		es, cmd := newEditorState(msg.path, msg.content, m.viewport, cursorLine)
+		m.editor = es
+		m.state = StateEditing
+		return m.withUpdateSample(start), cmd
 
 	case editorResult:
 		if msg.err != nil {
@@ -93,6 +123,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.state == StatePrompting {
 			return m.handlePromptKey(msg, start)
+		}
+
+		// When editing, all keys go to the editor — no global actions should fire.
+		if m.state == StateEditing {
+			return m.handleEditorKey(msg, start)
 		}
 
 		if m.enableDebug && m.isBinding(key, m.bindings.Debug) {
@@ -143,7 +178,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
-		case m.isBinding(key, m.bindings.OpenEditor):
+		case m.isBinding(key, m.bindings.OpenInApp):
+			if len(m.cards) > 0 {
+				return m.withUpdateSample(start), openInAppCmd(m.cards[m.cursor].Path)
+			}
+			return m.withUpdateSample(start), nil
+		case m.isBinding(key, m.bindings.OpenExternal):
 			if len(m.cards) > 0 {
 				cmd := m.openInEditorCmd(m.cards[m.cursor].Path)
 				m = m.setStatus("Opening in editor…", 2*time.Second)
@@ -490,7 +530,21 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 		linkContent = fmt.Sprintf(m.settings.NewFileLinkTemplate, linkStem)
 	}
 
-	cmd := m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, linkContent)
+	var cmd tea.Cmd
+	switch m.settings.NewFileEditor {
+	case "external":
+		cmd = m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, linkContent)
+	case "none":
+		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, linkContent, false)
+	default: // "inapp" or ""
+		// Layout: \n[cursor]\n\n[reference]\n — cursor at line 1, above the link.
+		inAppContent := linkContent
+		if inAppContent != "" {
+			inAppContent = "\n\n\n" + strings.TrimSuffix(inAppContent, "\n")
+			m.pendingEditorLine = 1
+		}
+		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, inAppContent, true)
+	}
 	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
 	return m.withUpdateSample(start), cmd
 }
