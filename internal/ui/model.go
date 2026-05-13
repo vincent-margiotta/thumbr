@@ -75,9 +75,12 @@ type Settings struct {
 	ActiveLiftY      int
 	StickyOverlayNav bool
 
-	BorderCorner rune
-	BorderH      rune
-	BorderV      rune
+	BorderTL rune
+	BorderTR rune
+	BorderBL rune
+	BorderBR rune
+	BorderH  rune
+	BorderV  rune
 
 	NewFileLinkTemplate string
 	NewFileSameDir      bool
@@ -105,9 +108,12 @@ var DefaultSettings = Settings{
 	ActiveLiftY:       2,
 	StickyOverlayNav:  false,
 
-	BorderCorner: '+',
-	BorderH:      '-',
-	BorderV:      '|',
+	BorderTL: '╭',
+	BorderTR: '╮',
+	BorderBL: '╰',
+	BorderBR: '╯',
+	BorderH:  '─',
+	BorderV:  '│',
 
 	NewFileLinkTemplate: "--> %s\n\n",
 	NewFileSameDir:      true,
@@ -422,7 +428,10 @@ func (m *Model) ApplyLayout(l Layout) {
 		m.settings.MaxCursorDepth = l.MaxCursorDepth
 	}
 	if l.BorderCorner != 0 {
-		m.settings.BorderCorner = l.BorderCorner
+		m.settings.BorderTL = l.BorderCorner
+		m.settings.BorderTR = l.BorderCorner
+		m.settings.BorderBL = l.BorderCorner
+		m.settings.BorderBR = l.BorderCorner
 	}
 	if l.BorderH != 0 {
 		m.settings.BorderH = l.BorderH

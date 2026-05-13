@@ -45,9 +45,9 @@ stickyOverlayNav = false  # keep overlay nav active when toggling?
 maxCursorDepth = 2        # how deep the active card can sit in stack
 
 # Border characters (single rune each).
-borderCorner = "+"
-borderH = "-"
-borderV = "|"
+borderCorner = "+"  # overrides all four corners to the same char; leave blank to use defaults
+borderH = "─"
+borderV = "│"
 
 # Keybindings (strings as used by Bubble Tea). Comma-separated in flags; arrays here.
 bindUp = ["k", "up"]

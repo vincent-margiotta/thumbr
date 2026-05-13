@@ -100,7 +100,16 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 
 			var ch rune
 			if isBorderY && isBorderX {
-				ch = m.settings.BorderCorner
+				switch {
+				case dy == 0 && dx == 0:
+					ch = m.settings.BorderTL
+				case dy == 0:
+					ch = m.settings.BorderTR
+				case dx == 0:
+					ch = m.settings.BorderBL
+				default:
+					ch = m.settings.BorderBR
+				}
 			} else if isBorderY {
 				ch = m.settings.BorderH
 			} else if isBorderX {
@@ -231,7 +240,16 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 			styleID := borderID
 
 			if isBorderY && isBorderX {
-				ch = m.settings.BorderCorner
+				switch {
+				case dy == 0 && dx == 0:
+					ch = m.settings.BorderTL
+				case dy == 0:
+					ch = m.settings.BorderTR
+				case dx == 0:
+					ch = m.settings.BorderBL
+				default:
+					ch = m.settings.BorderBR
+				}
 			} else if isBorderY {
 				ch = m.settings.BorderH
 			} else if isBorderX {
