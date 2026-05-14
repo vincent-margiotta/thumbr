@@ -112,6 +112,11 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 	key := msg.String()
 	es := m.editor
 
+	if m.isBinding(key, m.bindings.SuspendEditor) {
+		m.state = StateBrowsing
+		return m.withUpdateSample(start), nil
+	}
+
 	if key == "ctrl+s" {
 		if err := es.save(); err != nil {
 			m.editor = es
@@ -214,9 +219,9 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "k":
 		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
 	case "w":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlRight})
+		es = es.moveWordForward()
 	case "b":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlLeft})
+		es = es.moveWordBackward()
 	case "0":
 		es.ta.CursorStart()
 	case "$":
@@ -461,6 +466,93 @@ func wordBoundary(runes []rune, col int) (start, end int) {
 		end++
 	}
 	return start, end
+}
+
+// moveWordForward implements vim `w`: jump to the start of the next word,
+// crossing lines if the current word runs to the end of the line.
+func (es editorState) moveWordForward() editorState {
+	lines := strings.Split(es.ta.Value(), "\n")
+	lineIdx := es.ta.Line()
+	col := es.ta.LineInfo().CharOffset
+	if lineIdx >= len(lines) {
+		return es
+	}
+	runes := []rune(lines[lineIdx])
+	newCol := wordForwardEnd(runes, col)
+	if newCol < len(runes) {
+		for i := col; i < newCol; i++ {
+			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+		}
+	} else if lineIdx+1 < len(lines) {
+		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+		es.ta.CursorStart()
+		nextRunes := []rune(lines[lineIdx+1])
+		i := 0
+		for i < len(nextRunes) && (nextRunes[i] == ' ' || nextRunes[i] == '\t') {
+			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+			i++
+		}
+	}
+	return es
+}
+
+// moveWordBackward implements vim `b`: jump to the start of the current or
+// previous word, crossing lines when already at column 0.
+func (es editorState) moveWordBackward() editorState {
+	lines := strings.Split(es.ta.Value(), "\n")
+	lineIdx := es.ta.Line()
+	col := es.ta.LineInfo().CharOffset
+	if lineIdx >= len(lines) {
+		return es
+	}
+	runes := []rune(lines[lineIdx])
+	newCol := prevWordStart(runes, col)
+	if newCol >= 0 {
+		for i := col; i > newCol; i-- {
+			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+		}
+	} else if lineIdx > 0 {
+		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
+		prevRunes := []rune(lines[lineIdx-1])
+		es.ta.CursorEnd()
+		if len(prevRunes) > 0 {
+			i := len(prevRunes) - 1
+			isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+			for i >= 0 && isSpace(prevRunes[i]) {
+				i--
+			}
+			if i >= 0 {
+				start, _ := wordBoundary(prevRunes, i)
+				for j := len(prevRunes); j > start; j-- {
+					es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+				}
+			}
+		}
+	}
+	return es
+}
+
+// prevWordStart returns the column of the start of the previous/current word
+// relative to col. Returns -1 when the motion should cross to the previous line.
+func prevWordStart(runes []rune, col int) int {
+	if col <= 0 {
+		return -1
+	}
+	isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+	start, _ := wordBoundary(runes, col)
+	if start < col {
+		return start
+	}
+	// Already at start of a token — skip whitespace leftward then find prev token.
+	i := col - 1
+	for i >= 0 && isSpace(runes[i]) {
+		i--
+	}
+	if i < 0 {
+		return -1
+	}
+	start, _ = wordBoundary(runes, i)
+	return start
 }
 
 // wordForwardEnd returns the rune index just past the end of the word/token
