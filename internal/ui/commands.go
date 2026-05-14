@@ -71,6 +71,29 @@ func (m Model) openInEditorCmd(path string) tea.Cmd {
 	}
 }
 
+// preloadVisibleCmd returns a preload command for the cards currently visible
+// in the stack, centered on the cursor. Already-loaded cards are skipped.
+func (m Model) preloadVisibleCmd() tea.Cmd {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return nil
+	}
+	pos := m.visibleCursorIndex(vis)
+	if pos < 0 {
+		pos = 0
+	}
+	n := m.settings.StackVisibleCount + 2
+	start := pos - 1
+	if start < 0 {
+		start = 0
+	}
+	end := start + n
+	if end > len(vis) {
+		end = len(vis)
+	}
+	return preloadCardsCmd(m.cards, vis[start:end])
+}
+
 // preloadCardsCmd returns a batch of commands that read content for the given
 // card paths in the background. Already-loaded cards are skipped.
 func preloadCardsCmd(cards []notes.Card, indices []int) tea.Cmd {
@@ -139,7 +162,7 @@ func (m Model) createFileCmd(boxRoot, userPath string) tea.Cmd {
 			return newFileResult{box: root, path: target, err: fmt.Errorf("open: %w", err)}
 		}
 
-		return newFileResult{box: root, path: target}
+		return newFileResult{box: root, path: target, seekPath: target}
 	}
 }
 

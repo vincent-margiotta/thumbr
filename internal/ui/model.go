@@ -470,7 +470,15 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 }
 
 func (m Model) Init() tea.Cmd {
-	return nil
+	if len(m.cards) == 0 {
+		return nil
+	}
+	vis := m.visibleIndices()
+	n := m.settings.StackVisibleCount + 2
+	if n > len(vis) {
+		n = len(vis)
+	}
+	return preloadCardsCmd(m.cards, vis[:n])
 }
 
 func (m Model) View() string {

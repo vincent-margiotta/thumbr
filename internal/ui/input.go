@@ -216,6 +216,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		var navCmd tea.Cmd
+
 		switch m.state {
 
 		case StateBrowsing:
@@ -230,10 +232,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.ensureCardContent(m.cursor)
 			case m.isBinding(key, m.bindings.Down):
 				m = m.moveCursor(-1)
+				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.Up):
 				m = m.moveCursor(1)
+				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.Random):
 				m = m.randomCursor()
+				navCmd = m.preloadVisibleCmd()
 			}
 
 		case StateViewing:
@@ -270,7 +275,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		return m.withUpdateSample(start), nil
+		return m.withUpdateSample(start), navCmd
 	}
 
 	return m.withUpdateSample(start), nil

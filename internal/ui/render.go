@@ -177,7 +177,9 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 		}
 	}
 
-	// Content preview: first non-empty content line, shown when already loaded.
+	// Content preview: first non-empty, non-link line of the card's content.
+	// Inner cards only expose a narrow left edge so just their first character
+	// will be visible; depth-0 shows the full truncated line.
 	previewY := g.y + 2
 	if g.h > 3 && previewY >= 0 && previewY < maxY && card.ContentLoaded && card.Content != "" {
 		previewWidth := g.w - 2
