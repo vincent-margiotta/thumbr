@@ -176,6 +176,38 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 			styleID: style,
 		}
 	}
+
+	// Content preview: first non-empty content line, shown when already loaded.
+	previewY := g.y + 2
+	if g.h > 3 && previewY >= 0 && previewY < maxY && card.ContentLoaded && card.Content != "" {
+		previewWidth := g.w - 2
+		if previewWidth > 0 {
+			previewText := ""
+			for _, line := range strings.SplitN(card.Content, "\n", 20) {
+				if t := strings.TrimSpace(line); t != "" {
+					previewText = t
+					break
+				}
+			}
+			if previewText != "" {
+				runes := []rune(previewText)
+				if len(runes) > previewWidth {
+					if previewWidth > 1 {
+						runes = append(runes[:previewWidth-1], '…')
+					} else {
+						runes = runes[:previewWidth]
+					}
+				}
+				for i, r := range runes {
+					x := g.x + 1 + i
+					if x < 0 || x >= maxX {
+						continue
+					}
+					grid[previewY][x] = cell{ch: r, styleID: styleCardDim}
+				}
+			}
+		}
+	}
 }
 
 // drawOverlayCardOntoGrid draws the currently active card as a larger,
