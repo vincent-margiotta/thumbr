@@ -561,31 +561,35 @@ func (m Model) renderGrid(grid [][]cell, styles []lipgloss.Style) string {
 }
 
 func (m Model) renderStatusBar() string {
-	statusStyle := lipgloss.NewStyle().
+	hi := lipgloss.NewStyle().
 		Background(m.settings.ColorStatusBG).
 		Foreground(m.settings.ColorStatusFG)
 
-	dimStyle := lipgloss.NewStyle().
+	dim := lipgloss.NewStyle().
 		Background(m.settings.ColorStatusBG).
 		Foreground(m.settings.ColorStatusDim)
 
-	var leftParts []string
-	leftParts = append(leftParts, statusStyle.Render(" Thumbr "))
+	bg := lipgloss.NewStyle().
+		Background(m.settings.ColorStatusBG)
+
+	// ---- Left: box name · position · marks ----
+
 	boxLabel := filepath.Base(m.noteRoot)
 	if boxLabel == "" || boxLabel == "." || boxLabel == "/" {
 		boxLabel = m.noteRoot
 	}
-	leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("Box: %s", boxLabel)))
+
+	left := hi.Render(" " + boxLabel + " ")
+
 	vis := m.visibleIndices()
 	if len(vis) == 0 {
-		leftParts = append(leftParts, dimStyle.Render("no cards"))
+		left += dim.Render(" · no cards")
 	} else {
 		posIdx := m.visibleCursorIndex(vis)
 		if posIdx < 0 {
 			posIdx = 0
 		}
-		pos := fmt.Sprintf("Card %d/%d", posIdx+1, len(vis))
-		leftParts = append(leftParts, dimStyle.Render(pos))
+		left += dim.Render(fmt.Sprintf(" · %d/%d", posIdx+1, len(vis)))
 		if m.state == StateViewing {
 			bodyH, total := m.overlayLimits()
 			if bodyH > 0 && total > bodyH {
@@ -594,44 +598,44 @@ func (m Model) renderStatusBar() string {
 				if pageIdx > pages {
 					pageIdx = pages
 				}
-				leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("Page %d/%d", pageIdx, pages)))
+				left += dim.Render(fmt.Sprintf(" · p%d/%d", pageIdx, pages))
 			}
 		}
 	}
+
 	markedCount := m.markedCountCurrent()
 	if m.filterMarked && markedCount > 0 {
-		leftParts = append(leftParts, statusStyle.Render("[Marked filter]"))
+		left += hi.Render(" [filtered] ")
 	} else if markedCount > 0 {
-		leftParts = append(leftParts, dimStyle.Render(fmt.Sprintf("%d marked", markedCount)))
+		left += dim.Render(fmt.Sprintf(" · %d marked", markedCount))
 	}
 
-	// Ephemeral status message
-	var rightParts []string
+	// ---- Right: ephemeral message or context hints ----
+
+	var right string
 	if m.statusMsg != "" && time.Now().Before(m.statusMsgUntil) {
-		rightParts = append(rightParts, statusStyle.Render(m.statusMsg))
+		right = hi.Render(" " + m.statusMsg + " ")
+	} else {
+		var hint string
+		switch {
+		case m.showHelp:
+			hint = "esc close · ?/h toggle"
+		case m.state == StatePrompting:
+			hint = "enter confirm · esc cancel · tab cycle"
+		case m.state == StateEditing:
+			hint = "ctrl+s save · :wq quit"
+		case m.state == StateViewing:
+			hint = "j/k scroll · n/p page · esc back"
+		default:
+			hint = "j/k · r random · ? help · q quit"
+		}
+		right = dim.Render(hint + " ")
 	}
 
-	modeStr := m.state.String()
-	if m.showHelp {
-		modeStr = "Help"
-	}
+	// ---- Pad the gap with background so the bar fills the full width ----
 
-	navHint := " [j/k] move  [r] random  [q] quit"
-	if m.showHelp {
-		navHint = " [esc] close help  [?/h] toggle"
-	} else if m.state == StatePrompting {
-		navHint = " [enter] confirm  [esc] cancel  [tab] box history"
-	}
-
-	rightText := modeStr + navHint
-	if len(rightParts) > 0 {
-		rightText = rightText + "  " + strings.Join(rightParts, " | ")
-	}
-	right := dimStyle.Render(rightText)
-	left := strings.Join(leftParts, " ")
-
-	line := left + strings.Repeat(" ", max(0, m.viewport.Width-len(stripANSI(left))-len(stripANSI(right)))) + right
-	return line
+	padN := max(0, m.viewport.Width-len(stripANSI(left))-len(stripANSI(right)))
+	return left + bg.Render(strings.Repeat(" ", padN)) + right
 }
 
 func (m Model) renderEmpty() string {
