@@ -60,7 +60,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pendingEditorPath = ""
 			return m.withUpdateSample(start), openInAppCmd(path)
 		}
-		return m.withUpdateSample(start), nil
+		vis := m.visibleIndices()
+		n := m.settings.StackVisibleCount + 2
+		if n > len(vis) {
+			n = len(vis)
+		}
+		return m.withUpdateSample(start), preloadCardsCmd(m.cards, vis[:n])
 
 	case newFileResult:
 		if msg.err != nil {
@@ -93,6 +98,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.editor = es
 		m.state = StateEditing
 		return m.withUpdateSample(start), cmd
+
+	case cardContentResult:
+		for i := range m.cards {
+			if m.cards[i].Path == msg.path && !m.cards[i].ContentLoaded {
+				m.cards[i].Content = msg.content
+				m.cards[i].ContentLoaded = true
+				m.cards[i].ContentErr = msg.err
+				break
+			}
+		}
+		return m.withUpdateSample(start), nil
 
 	case editorResult:
 		if msg.err != nil {

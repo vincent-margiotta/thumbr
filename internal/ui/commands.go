@@ -44,6 +44,12 @@ type openInAppResult struct {
 	err     error
 }
 
+type cardContentResult struct {
+	path    string
+	content string
+	err     error
+}
+
 // ---------------------------------------------------------------------------
 // Async command methods
 // ---------------------------------------------------------------------------
@@ -63,6 +69,26 @@ func (m Model) openInEditorCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		return editorResult{path: path, err: launchEditor(path)}
 	}
+}
+
+// preloadCardsCmd returns a batch of commands that read content for the given
+// card paths in the background. Already-loaded cards are skipped.
+func preloadCardsCmd(cards []notes.Card, indices []int) tea.Cmd {
+	var cmds []tea.Cmd
+	for _, i := range indices {
+		if i < 0 || i >= len(cards) || cards[i].ContentLoaded {
+			continue
+		}
+		path := cards[i].Path
+		cmds = append(cmds, func() tea.Msg {
+			data, err := os.ReadFile(path)
+			return cardContentResult{path: path, content: string(data), err: err}
+		})
+	}
+	if len(cmds) == 0 {
+		return nil
+	}
+	return tea.Batch(cmds...)
 }
 
 // openInAppCmd reads the file at path and returns an openInAppResult so the
