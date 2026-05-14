@@ -70,6 +70,8 @@ type config struct {
 	BindReload          []string `json:"bindReload"          yaml:"bindReload"          toml:"bindReload"`
 	BindContinue        []string `json:"bindContinue"        yaml:"bindContinue"        toml:"bindContinue"`
 	BindBranch          []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
+	BindNextRoot        []string `json:"bindNextRoot"        yaml:"bindNextRoot"        toml:"bindNextRoot"`
+	BindSuspendEditor   []string `json:"bindSuspendEditor"   yaml:"bindSuspendEditor"   toml:"bindSuspendEditor"`
 	ContinueNameCmd     string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
 	BranchNameCmd       string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
 	NewFileLinkTemplate string   `json:"newFileLinkTemplate" yaml:"newFileLinkTemplate" toml:"newFileLinkTemplate"`
@@ -252,6 +254,8 @@ func main() {
 		bindReloadArg    string
 		bindContinueArg  string
 		bindBranchArg    string
+		bindNextRootArg     string
+		bindSuspendEditorArg string
 		bindInAppArg     string
 	)
 	var (
@@ -279,6 +283,8 @@ func main() {
 	flagSet.StringVar(&bindReloadArg, "bind-reload", "", "comma-separated keys to reload the current box")
 	flagSet.StringVar(&bindContinueArg, "bind-continue", "", "comma-separated keys for Luhmann continue")
 	flagSet.StringVar(&bindBranchArg, "bind-branch", "", "comma-separated keys for Luhmann branch")
+	flagSet.StringVar(&bindNextRootArg, "bind-next-root", "", "comma-separated keys to create the next integer root card")
+	flagSet.StringVar(&bindSuspendEditorArg, "bind-suspend-editor", "", "comma-separated keys to suspend the in-app editor and return to browse")
 	flagSet.StringVar(&continueNameCmdArg, "continue-name-cmd", "", "shell command to derive continuation filename stem")
 	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
 	flagSet.StringVar(&newFileLinkTemplateArg, "new-file-link-template", "", "printf template for backwards link written to new files (default '--> %s\\n\\n'; empty to disable)")
@@ -507,6 +513,8 @@ func main() {
 		mergeBinding(&opts.bindings.Reload, cfg.BindReload)
 		mergeBinding(&opts.bindings.Continue, cfg.BindContinue)
 		mergeBinding(&opts.bindings.Branch, cfg.BindBranch)
+		mergeBinding(&opts.bindings.NextRoot, cfg.BindNextRoot)
+		mergeBinding(&opts.bindings.SuspendEditor, cfg.BindSuspendEditor)
 		if cfg.ContinueNameCmd != "" {
 			opts.continueNameCmd = cfg.ContinueNameCmd
 		}
@@ -706,6 +714,12 @@ func main() {
 	}
 	if v := parseBinding(bindBranchArg); len(v) > 0 {
 		opts.bindings.Branch = v
+	}
+	if v := parseBinding(bindNextRootArg); len(v) > 0 {
+		opts.bindings.NextRoot = v
+	}
+	if v := parseBinding(bindSuspendEditorArg); len(v) > 0 {
+		opts.bindings.SuspendEditor = v
 	}
 	if continueNameCmdArg != "" {
 		opts.continueNameCmd = continueNameCmdArg

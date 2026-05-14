@@ -157,6 +157,8 @@ type KeyBindings struct {
 	NewFile       []string
 	Continue      []string
 	Branch        []string
+	NextRoot      []string
+	SuspendEditor []string
 	Mark          []string
 	Filter        []string
 	Help          []string
@@ -181,6 +183,8 @@ func DefaultBindings() KeyBindings {
 		NewFile:       []string{"a"},
 		Continue:      []string{"c"},
 		Branch:        []string{"C"},
+		NextRoot:      []string{"N"},
+		SuspendEditor: []string{"ctrl+b"},
 		Mark:          []string{"m"},
 		Filter:        []string{"t"},
 		Help:          []string{"?", "h"},
@@ -386,6 +390,8 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.NewFile, b.NewFile)
 	override(&m.bindings.Continue, b.Continue)
 	override(&m.bindings.Branch, b.Branch)
+	override(&m.bindings.NextRoot, b.NextRoot)
+	override(&m.bindings.SuspendEditor, b.SuspendEditor)
 	override(&m.bindings.Up, b.Up)
 	override(&m.bindings.Down, b.Down)
 	override(&m.bindings.Random, b.Random)

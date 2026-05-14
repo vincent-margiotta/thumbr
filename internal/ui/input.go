@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,10 +192,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.startContinueOrBranch(true, start)
 		case m.isBinding(key, m.bindings.Branch):
 			return m.startContinueOrBranch(false, start)
+		case m.isBinding(key, m.bindings.NextRoot):
+			return m.startNextRoot(start)
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
 		case m.isBinding(key, m.bindings.OpenInApp):
+			if m.editor.path != "" {
+				// Resume suspended editor. If it's dirty and the user is on a
+				// different card, warn rather than silently discarding their work.
+				if m.editor.dirty && len(m.cards) > 0 && m.cards[m.cursor].Path != m.editor.path {
+					m = m.setStatus(fmt.Sprintf("Suspended editor has unsaved changes — press e on %s to resume, or :q! to discard", filepath.Base(m.editor.path)), 4*time.Second)
+					return m.withUpdateSample(start), nil
+				}
+				m.state = StateEditing
+				return m.withUpdateSample(start), nil
+			}
 			if len(m.cards) > 0 {
 				return m.withUpdateSample(start), openInAppCmd(m.cards[m.cursor].Path)
 			}
@@ -565,6 +578,49 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 			m.pendingEditorLine = 1
 		}
 		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, inAppContent, true)
+	}
+	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
+	return m.withUpdateSample(start), cmd
+}
+
+func (m Model) startNextRoot(start time.Time) (tea.Model, tea.Cmd) {
+	stems := make([]string, 0, len(m.cards))
+	for _, card := range m.cards {
+		base := filepath.Base(card.Path)
+		stem := strings.TrimSuffix(base, filepath.Ext(base))
+		stems = append(stems, stem)
+	}
+
+	newStem, ok := notes.NextRootInteger(stems)
+	if !ok {
+		m = m.startNewFilePrompt()
+		return m.withUpdateSample(start), nil
+	}
+
+	ext := m.defaultExt()
+	if len(m.cards) > 0 {
+		if e := filepath.Ext(filepath.Base(m.cards[m.cursor].Path)); e != "" {
+			ext = e
+		}
+	}
+
+	targetDir := m.currentBox()
+	for {
+		if _, err := os.Stat(filepath.Join(targetDir, newStem+ext)); os.IsNotExist(err) {
+			break
+		}
+		n, _ := strconv.Atoi(newStem)
+		newStem = strconv.Itoa(n + 1)
+	}
+
+	var cmd tea.Cmd
+	switch m.settings.NewFileEditor {
+	case "external":
+		cmd = m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, "")
+	case "none":
+		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, "", false)
+	default:
+		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, "", true)
 	}
 	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
 	return m.withUpdateSample(start), cmd

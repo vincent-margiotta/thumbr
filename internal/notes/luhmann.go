@@ -50,6 +50,23 @@ func DeriveBranch(stem string) (string, bool) {
 	return prefix + string(next), true
 }
 
+// NextRootInteger scans a list of stems for pure-integer names, returns the
+// next integer (max+1) as a string. ok is false when no integer stems exist,
+// signalling the caller should fall back to the new-file prompt.
+func NextRootInteger(stems []string) (string, bool) {
+	max := -1
+	for _, s := range stems {
+		n, err := strconv.Atoi(s)
+		if err == nil && n > max {
+			max = n
+		}
+	}
+	if max < 0 {
+		return "", false
+	}
+	return strconv.Itoa(max + 1), true
+}
+
 // SplitLuhmannStem splits stem into prefix and a trailing run of uniform type.
 // The trailing run is either all-digits or all-letters (not mixed).
 // Returns (prefix, lastRun, isDigit, ok); ok=false means no valid trailing run.

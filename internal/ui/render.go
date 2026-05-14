@@ -614,6 +614,10 @@ func (m Model) renderStatusBar() string {
 		left += dim.Render(fmt.Sprintf(" · %d marked", markedCount))
 	}
 
+	if m.editor.path != "" && m.state != StateEditing {
+		left += dim.Render(fmt.Sprintf(" · ↩ %s", filepath.Base(m.editor.path)))
+	}
+
 	// ---- Right: ephemeral message or context hints ----
 
 	var right string
@@ -627,7 +631,7 @@ func (m Model) renderStatusBar() string {
 		case m.state == StatePrompting:
 			hint = "enter confirm · esc cancel · tab cycle"
 		case m.state == StateEditing:
-			hint = "ctrl+s save · :wq quit"
+			hint = "ctrl+s save · :wq quit · ctrl+b browse"
 		case m.state == StateViewing:
 			hint = "j/k scroll · n/p page · esc back"
 		default:
@@ -735,7 +739,9 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.NewFile, desc: "create new file in selected box"},
 		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
 		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
+		{keys: m.bindings.NextRoot, desc: "create next integer root card"},
 		{keys: m.bindings.OpenInApp, desc: "open card in in-app editor"},
+		{keys: m.bindings.SuspendEditor, desc: "suspend editor, return to browse"},
 		{keys: m.bindings.OpenExternal, desc: "open card in $EDITOR"},
 		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
 		{keys: nil, desc: ""},

@@ -55,7 +55,8 @@ bindDown = ["j", "down"]
 bindRandom = ["r"]
 bindOverlay = ["enter"]
 bindEdit = ["E"]           # open card in external $EDITOR
-bindInApp = ["e"]         # open card in in-app vim editor
+bindInApp = ["e"]         # open card in in-app vim editor; resumes a suspended editor if one exists
+bindSuspendEditor = ["ctrl+b"]  # suspend in-app editor and return to browse (press e to resume)
 bindBox = ["b"]
 bindNewFile = ["a"]
 bindMark = ["m"]
@@ -76,6 +77,10 @@ bindContinue = ["c"]
 # Luhmann-style card branching: increments the last component as a sibling.
 # e.g. "16a" → "16b", "16a1" → "16a2". Falls back to new-file prompt on mismatch.
 bindBranch = ["C"]
+
+# Create the next integer root card (e.g. 17 if 16 is the highest integer stem).
+# Falls back to the new-file prompt if no integer-named cards exist.
+bindNextRoot = ["N"]
 
 # Shell command to derive the continuation filename stem instead of the built-in
 # Luhmann algorithm. Receives the source card stem as the first argument and must
