@@ -395,72 +395,8 @@ func (m Model) moveCursor(dir int) Model {
 	m.lastNavDir = dir
 	m.lastNavTime = now
 
-	v := m.velocity
-	const fastThreshold = 7 // how many rapid taps before we start "thumbing"
-
-	step := 1
-
-	// --- Thumbr behavior for sustained rapid presses ---
-
-	if v > fastThreshold {
-		// How many cards remain in the direction we're moving?
-		var remaining int
-		if dir > 0 {
-			remaining = len(vis) - 1 - pos
-		} else {
-			remaining = pos
-		}
-
-		if remaining > 0 {
-			// Velocity 7..NavMaxStep gets mapped to (0,1]
-			maxExtra := m.settings.NavMaxStep - fastThreshold
-			if maxExtra < 1 {
-				maxExtra = 1
-			}
-			speedFactor := float64(v-fastThreshold) / float64(maxExtra)
-
-			// Base fraction of remaining we jump by when "thumbing".
-			baseFraction := 0.18
-			frac := baseFraction * speedFactor
-
-			// Keep it in a sane band.
-			if frac < 0.10 {
-				frac = 0.10
-			}
-			if frac > 0.45 {
-				frac = 0.45
-			}
-
-			raw := int(float64(remaining)*frac + 0.5)
-
-			// Near the ends, automatically take smaller bites.
-			switch {
-			case remaining <= 10:
-				// Fine control close to the end.
-				step = 1
-			case remaining <= 20:
-				// A bit chunkier, but never huge.
-				if raw < 2 {
-					step = 2
-				} else if raw > 3 {
-					step = 3
-				} else {
-					step = raw
-				}
-			default:
-				// In the fat middle of the stack, allow larger jumps.
-				if raw < 2 {
-					step = 2
-				} else {
-					step = raw
-				}
-			}
-		}
-	}
-
-	// --- Apply step ---
-
-	newPos := pos + dir*step
+	// Step equals velocity directly: smooth linear acceleration the user can feel.
+	newPos := pos + dir*m.velocity
 	if newPos < 0 {
 		newPos = 0
 	}
