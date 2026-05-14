@@ -184,10 +184,12 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 		if previewWidth > 0 {
 			previewText := ""
 			for _, line := range strings.SplitN(card.Content, "\n", 20) {
-				if t := strings.TrimSpace(line); t != "" {
-					previewText = t
-					break
+				t := strings.TrimSpace(line)
+				if t == "" || strings.HasPrefix(t, "-->") {
+					continue
 				}
+				previewText = t
+				break
 			}
 			if previewText != "" {
 				runes := []rune(previewText)
