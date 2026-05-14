@@ -18,15 +18,24 @@ const (
 	vimCommand
 )
 
+type undoEntry struct {
+	content string
+	line    int
+	col     int
+}
+
 type editorState struct {
-	ta      textarea.Model
-	mode    vimMode
-	path    string
-	dirty   bool
-	pending string // partial multi-char sequence: "g", "d", "y", "r"
-	yankBuf string
-	cmdLine string // content after : in command mode
-	saveErr error
+	ta             textarea.Model
+	mode           vimMode
+	path           string
+	dirty          bool
+	pending        string // partial multi-char sequence: "g", "d", "y", "r", "c"
+	yankBuf        string
+	cmdLine        string // content after : in command mode
+	saveErr        error
+	undoStack      []undoEntry
+	redoStack      []undoEntry
+	insertSnapshot *undoEntry // state captured on insert-mode entry
 }
 
 type editorAction int
@@ -78,6 +87,21 @@ func (es *editorState) save() error {
 	es.dirty = false
 	es.saveErr = nil
 	return nil
+}
+
+func (es editorState) snapshot() undoEntry {
+	return undoEntry{
+		content: es.ta.Value(),
+		line:    es.ta.Line(),
+		col:     es.ta.LineInfo().CharOffset,
+	}
+}
+
+// pushUndo saves the current state onto the undo stack and clears the redo stack.
+func (es editorState) pushUndo() editorState {
+	es.undoStack = append(es.undoStack, es.snapshot())
+	es.redoStack = nil
+	return es
 }
 
 // ---------------------------------------------------------------------------
@@ -200,33 +224,61 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "G":
 		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlEnd})
 	case "x":
+		es = es.pushUndo()
 		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDelete})
 		es.dirty = true
 	case "u":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlZ})
+		if len(es.undoStack) > 0 {
+			es.redoStack = append(es.redoStack, es.snapshot())
+			entry := es.undoStack[len(es.undoStack)-1]
+			es.undoStack = es.undoStack[:len(es.undoStack)-1]
+			es.ta.SetValue(entry.content)
+			es = es.setCursorToLineCol(entry.line, entry.col)
+			es.dirty = true
+		}
 	case "ctrl+r":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlY})
+		if len(es.redoStack) > 0 {
+			es.undoStack = append(es.undoStack, es.snapshot())
+			entry := es.redoStack[len(es.redoStack)-1]
+			es.redoStack = es.redoStack[:len(es.redoStack)-1]
+			es.ta.SetValue(entry.content)
+			es = es.setCursorToLineCol(entry.line, entry.col)
+			es.dirty = true
+		}
 	case "i":
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
 		es.mode = vimInsert
 	case "a":
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
 		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
 		es.mode = vimInsert
 	case "A":
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
 		es.ta.CursorEnd()
 		es.mode = vimInsert
 	case "o":
+		es = es.pushUndo()
 		es.ta.CursorEnd()
 		es.ta.InsertString("\n")
 		es.dirty = true
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
 		es.mode = vimInsert
 	case "O":
+		es = es.pushUndo()
 		es.ta.CursorStart()
 		es.ta.InsertString("\n")
 		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
 		es.dirty = true
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
 		es.mode = vimInsert
 	case "p":
 		if es.yankBuf != "" {
+			es = es.pushUndo()
 			es.ta.CursorEnd()
 			es.ta.InsertString("\n" + es.yankBuf)
 			es.dirty = true
@@ -236,7 +288,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es.cmdLine = ""
 	case "esc", "ctrl+[":
 		es.pending = ""
-	case "g", "d", "y", "r":
+	case "g", "d", "y", "r", "c":
 		es.pending = key
 	}
 	return es, editorActionNone
@@ -251,16 +303,52 @@ func (es editorState) handlePending(key string) editorState {
 		if key == "g" {
 			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
 		}
+
 	case "d":
-		if key == "d" {
+		switch key {
+		case "d":
+			es = es.pushUndo()
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				newLines := append(lines[:lineIdx:lineIdx], lines[lineIdx+1:]...)
 				es.ta.SetValue(strings.Join(newLines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, 0)
+				es.dirty = true
+			}
+		case "w":
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				end := wordForwardEnd(runes, col)
+				lines[lineIdx] = string(runes[:col]) + string(runes[end:])
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, col)
+				es.dirty = true
+			}
+		case "i":
+			es.pending = "di"
+		}
+
+	case "di":
+		if key == "w" {
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				start, end := wordBoundary(runes, col)
+				lines[lineIdx] = string(runes[:start]) + string(runes[end:])
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, start)
 				es.dirty = true
 			}
 		}
+
 	case "y":
 		if key == "y" {
 			lines := strings.Split(es.ta.Value(), "\n")
@@ -269,21 +357,156 @@ func (es editorState) handlePending(key string) editorState {
 				es.yankBuf = lines[lineIdx]
 			}
 		}
+
 	case "r":
 		if len([]rune(key)) == 1 {
+			es = es.pushUndo()
 			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDelete})
 			es.ta.InsertString(key)
 			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
 			es.dirty = true
 		}
+
+	case "c":
+		switch key {
+		case "w":
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				end := wordForwardEnd(runes, col)
+				lines[lineIdx] = string(runes[:col]) + string(runes[end:])
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, col)
+				es.dirty = true
+			}
+			snap := es.snapshot()
+			es.insertSnapshot = &snap
+			es.mode = vimInsert
+		case "i":
+			es.pending = "ci"
+		}
+
+	case "ci":
+		if key == "w" {
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				start, end := wordBoundary(runes, col)
+				lines[lineIdx] = string(runes[:start]) + string(runes[end:])
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, start)
+				es.dirty = true
+			}
+			snap := es.snapshot()
+			es.insertSnapshot = &snap
+			es.mode = vimInsert
+		}
 	}
 	return es
+}
+
+// setCursorToLineCol navigates the textarea cursor to the given line and column
+// after a SetValue call that resets cursor position.
+func (es editorState) setCursorToLineCol(line, col int) editorState {
+	es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
+	for i := 0; i < line; i++ {
+		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+	}
+	es.ta.CursorStart()
+	for i := 0; i < col; i++ {
+		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+	}
+	return es
+}
+
+// wordBoundary returns the [start, end) rune range of the word/token under col.
+// Words are runs of word-chars (letters/digits/_); punctuation runs form their
+// own tokens; whitespace forms its own runs.
+func wordBoundary(runes []rune, col int) (start, end int) {
+	n := len(runes)
+	if n == 0 {
+		return 0, 0
+	}
+	if col >= n {
+		col = n - 1
+	}
+	isWord := func(r rune) bool {
+		return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+	}
+	isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+
+	cur := runes[col]
+	var same func(rune) bool
+	switch {
+	case isWord(cur):
+		same = isWord
+	case isSpace(cur):
+		same = isSpace
+	default:
+		same = func(r rune) bool { return !isWord(r) && !isSpace(r) }
+	}
+
+	start = col
+	for start > 0 && same(runes[start-1]) {
+		start--
+	}
+	end = col + 1
+	for end < n && same(runes[end]) {
+		end++
+	}
+	return start, end
+}
+
+// wordForwardEnd returns the rune index just past the end of the word/token
+// motion from col — matching vim's `w` / `dw` target (skips trailing spaces).
+func wordForwardEnd(runes []rune, col int) int {
+	n := len(runes)
+	if col >= n {
+		return n
+	}
+	isWord := func(r rune) bool {
+		return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+	}
+	isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+
+	i := col
+	if isSpace(runes[i]) {
+		for i < n && isSpace(runes[i]) {
+			i++
+		}
+	} else if isWord(runes[i]) {
+		for i < n && isWord(runes[i]) {
+			i++
+		}
+		for i < n && isSpace(runes[i]) {
+			i++
+		}
+	} else {
+		for i < n && !isWord(runes[i]) && !isSpace(runes[i]) {
+			i++
+		}
+		for i < n && isSpace(runes[i]) {
+			i++
+		}
+	}
+	return i
 }
 
 func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
 	key := msg.String()
 	switch key {
 	case "esc", "ctrl+[":
+		if es.insertSnapshot != nil && es.ta.Value() != es.insertSnapshot.content {
+			es.undoStack = append(es.undoStack, *es.insertSnapshot)
+			es.redoStack = nil
+		}
+		es.insertSnapshot = nil
 		es.mode = vimNormal
 		return es, nil
 	}
