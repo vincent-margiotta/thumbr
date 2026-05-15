@@ -395,8 +395,17 @@ func (m Model) moveCursor(dir int) Model {
 	m.lastNavDir = dir
 	m.lastNavTime = now
 
-	// Step equals velocity directly: smooth linear acceleration the user can feel.
-	newPos := pos + dir*m.velocity
+	// Step equals velocity, clamped to the cards remaining in that direction so
+	// the cursor decelerates naturally as it approaches either end of the stack.
+	remaining := pos
+	if dir > 0 {
+		remaining = len(vis) - 1 - pos
+	}
+	step := m.velocity
+	if step > remaining {
+		step = remaining
+	}
+	newPos := pos + dir*step
 	if newPos < 0 {
 		newPos = 0
 	}
