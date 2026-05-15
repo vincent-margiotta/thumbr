@@ -375,6 +375,39 @@ func (m Model) promptTargetBox() string {
 
 // ==== Navigation ====
 
+// navStep computes the next momentum state and step count for a single directional
+// keypress. avgInterval is the current momentum value (higher = slower); dt is
+// milliseconds since the last press; sameDir is false when the direction reversed;
+// maxStep caps the returned step. Swap this function to try a different nav feel.
+//
+// Current algorithm: physics-based momentum. Each same-direction press multiplies
+// avgInterval by a growth factor; elapsed time decays it exponentially. Pressing
+// faster than ~160 ms/press accelerates; slower causes gradual decay.
+func navStep(avgInterval, dt float64, sameDir bool, maxStep int) (newAvg float64, step int) {
+	const growth = 1.6 // multiplier applied each press
+	const decay = 0.75 // fraction remaining per 100 ms elapsed
+	const initV = 1.0 / growth // ensures the first press always yields step=1
+
+	if !sameDir || avgInterval == 0 {
+		avgInterval = initV
+	} else if dt > 0 {
+		avgInterval *= math.Pow(decay, dt/100.0)
+		if avgInterval < initV {
+			avgInterval = initV
+		}
+	}
+	avgInterval *= growth
+
+	step = int(avgInterval)
+	if step < 1 {
+		step = 1
+	}
+	if step > maxStep {
+		step = maxStep
+	}
+	return avgInterval, step
+}
+
 func (m Model) moveCursor(dir int) Model {
 	vis := m.visibleIndices()
 	if dir == 0 || len(vis) == 0 {
@@ -394,35 +427,13 @@ func (m Model) moveCursor(dir int) Model {
 	m.lastNavDir = dir
 	m.lastNavTime = now
 
-	// Physics-based momentum: each same-direction press multiplies navVelocity by
-	// a growth factor; elapsed time decays it exponentially. Pressing faster than
-	// ~160ms/press accelerates; slower causes gradual decay. Direction change resets.
-	const growth = 1.6  // multiplier per press
-	const decay = 0.75  // fraction remaining per 100ms of elapsed time
-	const initV = 1.0 / growth // so first press always yields step=1
-
-	if !sameDir || m.avgInterval == 0 {
-		m.avgInterval = initV
-	} else if dt > 0 {
-		m.avgInterval *= math.Pow(decay, dt/100.0)
-		if m.avgInterval < initV {
-			m.avgInterval = initV
-		}
-	}
-	m.avgInterval *= growth
-
 	maxStep := len(vis) / 10
 	if maxStep < m.settings.NavMaxStep {
 		maxStep = m.settings.NavMaxStep
 	}
 
-	step := int(m.avgInterval)
-	if step < 1 {
-		step = 1
-	}
-	if step > maxStep {
-		step = maxStep
-	}
+	var step int
+	m.avgInterval, step = navStep(m.avgInterval, dt, sameDir, maxStep)
 
 	remaining := pos
 	if dir > 0 {
