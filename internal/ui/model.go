@@ -169,6 +169,8 @@ type KeyBindings struct {
 	OverlayUp     []string
 	OverlayDown   []string
 	Reload        []string
+	NavFirst      []string
+	NavLast       []string
 }
 
 func DefaultBindings() KeyBindings {
@@ -195,6 +197,8 @@ func DefaultBindings() KeyBindings {
 		OverlayUp:     []string{"k", "up"},
 		OverlayDown:   []string{"j", "down"},
 		Reload:        []string{"R"},
+		NavFirst:      []string{"g"},
+		NavLast:       []string{"G"},
 	}
 }
 
@@ -237,7 +241,7 @@ type Model struct {
 
 	lastNavDir  int
 	lastNavTime time.Time
-	velocity    int
+	avgInterval float64 // exponential moving average of ms between presses
 
 	rng *rand.Rand
 	// showHelp toggles the keybinding overlay.
@@ -405,6 +409,8 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.PagePrev, b.PagePrev)
 	override(&m.bindings.OverlayUp, b.OverlayUp)
 	override(&m.bindings.OverlayDown, b.OverlayDown)
+	override(&m.bindings.NavFirst, b.NavFirst)
+	override(&m.bindings.NavLast, b.NavLast)
 }
 
 // ApplyLayout overrides layout-related settings.

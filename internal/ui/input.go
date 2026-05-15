@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -252,6 +253,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.isBinding(key, m.bindings.Random):
 				m = m.randomCursor()
 				navCmd = m.preloadVisibleCmd()
+			case m.isBinding(key, m.bindings.NavFirst):
+				m = m.jumpToEdge(-1)
+				navCmd = m.preloadVisibleCmd()
+			case m.isBinding(key, m.bindings.NavLast):
+				m = m.jumpToEdge(1)
+				navCmd = m.preloadVisibleCmd()
 			}
 
 		case StateViewing:
@@ -381,27 +388,46 @@ func (m Model) moveCursor(dir int) Model {
 	}
 
 	now := time.Now()
-
-	// --- Velocity update (same idea as before) ---
-
-	if dir == m.lastNavDir && now.Sub(m.lastNavTime) < m.settings.NavAccelWindow {
-		if m.velocity < m.settings.NavMaxStep {
-			m.velocity++
-		}
-	} else {
-		m.velocity = 1
-	}
+	dt := float64(now.Sub(m.lastNavTime).Milliseconds())
+	sameDir := dir == m.lastNavDir
 
 	m.lastNavDir = dir
 	m.lastNavTime = now
 
-	// Step equals velocity, clamped to the cards remaining in that direction so
-	// the cursor decelerates naturally as it approaches either end of the stack.
+	// Physics-based momentum: each same-direction press multiplies navVelocity by
+	// a growth factor; elapsed time decays it exponentially. Pressing faster than
+	// ~160ms/press accelerates; slower causes gradual decay. Direction change resets.
+	const growth = 1.6  // multiplier per press
+	const decay = 0.75  // fraction remaining per 100ms of elapsed time
+	const initV = 1.0 / growth // so first press always yields step=1
+
+	if !sameDir || m.avgInterval == 0 {
+		m.avgInterval = initV
+	} else if dt > 0 {
+		m.avgInterval *= math.Pow(decay, dt/100.0)
+		if m.avgInterval < initV {
+			m.avgInterval = initV
+		}
+	}
+	m.avgInterval *= growth
+
+	maxStep := len(vis) / 10
+	if maxStep < m.settings.NavMaxStep {
+		maxStep = m.settings.NavMaxStep
+	}
+
+	step := int(m.avgInterval)
+	if step < 1 {
+		step = 1
+	}
+	if step > maxStep {
+		step = maxStep
+	}
+
 	remaining := pos
 	if dir > 0 {
 		remaining = len(vis) - 1 - pos
 	}
-	step := m.velocity
 	if step > remaining {
 		step = remaining
 	}
@@ -417,6 +443,22 @@ func (m Model) moveCursor(dir int) Model {
 	return m
 }
 
+// jumpToEdge moves to the first (dir>0) or last (dir<0) visible card and resets momentum.
+func (m Model) jumpToEdge(dir int) Model {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return m
+	}
+	if dir > 0 {
+		m.cursor = vis[len(vis)-1]
+	} else {
+		m.cursor = vis[0]
+	}
+	m.avgInterval = 0
+	m.lastNavDir = 0
+	return m
+}
+
 func (m Model) randomCursor() Model {
 	vis := m.visibleIndices()
 	if len(vis) == 0 {
@@ -427,7 +469,7 @@ func (m Model) randomCursor() Model {
 	} else {
 		m.cursor = vis[rand.Intn(len(vis))]
 	}
-	m.velocity = 1
+	m.avgInterval = 0
 	m.lastNavDir = 0
 	return m
 }

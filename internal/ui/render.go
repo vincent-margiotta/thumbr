@@ -177,24 +177,31 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 		}
 	}
 
-	// Content preview: first non-empty, non-link line of the card's content.
-	// Inner cards only expose a narrow left edge so just their first character
-	// will be visible; depth-0 shows the full truncated line.
-	previewY := g.y + 2
-	if g.h > 3 && previewY >= 0 && previewY < maxY && card.ContentLoaded && card.Content != "" {
+	// Content preview. Depth-0 (frontmost) fills all available interior rows;
+	// inner cards only expose their left edge so one line is enough.
+	if g.h > 3 && card.ContentLoaded && card.Content != "" {
 		previewWidth := g.w - 2
-		if previewWidth > 0 {
-			previewText := ""
-			for _, line := range strings.SplitN(card.Content, "\n", 20) {
+		maxRows := 1
+		if g.depth == 0 {
+			maxRows = g.h - 3 // header row + content rows + bottom border
+		}
+		if previewWidth > 0 && maxRows > 0 {
+			row := 0
+			for _, line := range strings.SplitN(card.Content, "\n", 200) {
+				if row >= maxRows {
+					break
+				}
 				t := strings.TrimSpace(line)
 				if t == "" || strings.HasPrefix(t, "-->") {
 					continue
 				}
-				previewText = t
-				break
-			}
-			if previewText != "" {
-				runes := []rune(previewText)
+				// Strip leading markdown heading markers so headers read cleanly.
+				t = strings.TrimLeft(t, "# ")
+				py := g.y + 2 + row
+				if py < 0 || py >= maxY {
+					break
+				}
+				runes := []rune(t)
 				if len(runes) > previewWidth {
 					if previewWidth > 1 {
 						runes = append(runes[:previewWidth-1], '…')
@@ -207,8 +214,9 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 					if x < 0 || x >= maxX {
 						continue
 					}
-					grid[previewY][x] = cell{ch: r, styleID: styleCardDim}
+					grid[py][x] = cell{ch: r, styleID: styleCardDim}
 				}
+				row++
 			}
 		}
 	}
@@ -732,6 +740,8 @@ func (m Model) renderHelp() string {
 	bindings := []binding{
 		{keys: m.bindings.Up, desc: "move into stack"},
 		{keys: m.bindings.Down, desc: "move back/out"},
+		{keys: m.bindings.NavFirst, desc: "jump to first card"},
+		{keys: m.bindings.NavLast, desc: "jump to last card"},
 		{keys: m.bindings.Random, desc: "jump to random card"},
 		{keys: m.bindings.Mark, desc: "mark/unmark card"},
 		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
