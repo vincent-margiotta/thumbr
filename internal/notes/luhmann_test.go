@@ -57,3 +57,25 @@ func TestDeriveBranch(t *testing.T) {
 		}
 	}
 }
+
+func TestNextRootInteger(t *testing.T) {
+	cases := []struct {
+		stems []string
+		want  string
+		ok    bool
+	}{
+		{[]string{"1", "2", "3"}, "4", true},
+		{[]string{"3", "1", "2"}, "4", true},   // order-independent
+		{[]string{"5"}, "6", true},
+		{[]string{"1", "2", "foo", "3a"}, "3", true}, // non-integers ignored
+		{[]string{"a", "b", "1a"}, "", false},         // no pure integers
+		{[]string{}, "", false},
+		{nil, "", false},
+	}
+	for _, tc := range cases {
+		got, ok := NextRootInteger(tc.stems)
+		if ok != tc.ok || got != tc.want {
+			t.Errorf("NextRootInteger(%v) = (%q, %v), want (%q, %v)", tc.stems, got, ok, tc.want, tc.ok)
+		}
+	}
+}
