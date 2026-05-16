@@ -12,6 +12,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// taKey sends a synthetic key event to ta and returns the updated model.
+// The tea.Cmd return from textarea.Update is discarded because textarea key
+// messages never produce commands that need to be dispatched.
+func taKey(ta textarea.Model, key tea.KeyType) textarea.Model {
+	ta, _ = ta.Update(tea.KeyMsg{Type: key})
+	return ta
+}
+
 type vimMode int
 
 const (
@@ -65,13 +73,13 @@ func newEditorState(path, content string, vp Viewport, cursorLine int) (editorSt
 	// SetValue leaves cursor at end; always go to top first, then to cursorLine.
 	for i := 0; i < 1000; i++ {
 		prev := ta.Line()
-		ta, _ = ta.Update(tea.KeyMsg{Type: tea.KeyUp})
+		ta = taKey(ta, tea.KeyUp)
 		if ta.Line() >= prev {
 			break
 		}
 	}
 	for i := 0; i < cursorLine; i++ {
-		ta, _ = ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+		ta = taKey(ta, tea.KeyDown)
 	}
 	return editorState{
 		ta:   ta,
@@ -213,13 +221,13 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	switch key {
 	case "h":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+		es.ta = taKey(es.ta, tea.KeyLeft)
 	case "l":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+		es.ta = taKey(es.ta, tea.KeyRight)
 	case "j":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+		es.ta = taKey(es.ta, tea.KeyDown)
 	case "k":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
+		es.ta = taKey(es.ta, tea.KeyUp)
 	case "w":
 		es = es.moveWordForward()
 	case "b":
@@ -229,10 +237,10 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "$":
 		es.ta.CursorEnd()
 	case "G":
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlEnd})
+		es.ta = taKey(es.ta, tea.KeyCtrlEnd)
 	case "x":
 		es = es.pushUndo()
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDelete})
+		es.ta = taKey(es.ta, tea.KeyDelete)
 		es.dirty = true
 	case "u":
 		if len(es.undoStack) > 0 {
@@ -259,7 +267,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "a":
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+		es.ta = taKey(es.ta, tea.KeyRight)
 		es.mode = vimInsert
 	case "A":
 		snap := es.snapshot()
@@ -278,7 +286,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es = es.pushUndo()
 		es.ta.CursorStart()
 		es.ta.InsertString("\n")
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
+		es.ta = taKey(es.ta, tea.KeyUp)
 		es.dirty = true
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
@@ -308,7 +316,7 @@ func (es editorState) handlePending(key string) editorState {
 	switch prev {
 	case "g":
 		if key == "g" {
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
+			es.ta = taKey(es.ta, tea.KeyCtrlHome)
 		}
 
 	case "d":
@@ -368,9 +376,9 @@ func (es editorState) handlePending(key string) editorState {
 	case "r":
 		if len([]rune(key)) == 1 {
 			es = es.pushUndo()
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDelete})
+			es.ta = taKey(es.ta, tea.KeyDelete)
 			es.ta.InsertString(key)
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+			es.ta = taKey(es.ta, tea.KeyLeft)
 			es.dirty = true
 		}
 
@@ -421,13 +429,13 @@ func (es editorState) handlePending(key string) editorState {
 // setCursorToLineCol navigates the textarea cursor to the given line and column
 // after a SetValue call that resets cursor position.
 func (es editorState) setCursorToLineCol(line, col int) editorState {
-	es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyCtrlHome})
+	es.ta = taKey(es.ta, tea.KeyCtrlHome)
 	for i := 0; i < line; i++ {
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+		es.ta = taKey(es.ta, tea.KeyDown)
 	}
 	es.ta.CursorStart()
 	for i := 0; i < col; i++ {
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+		es.ta = taKey(es.ta, tea.KeyRight)
 	}
 	return es
 }
@@ -483,15 +491,15 @@ func (es editorState) moveWordForward() editorState {
 	newCol := wordForwardEnd(runes, col)
 	if newCol < len(runes) {
 		for i := col; i < newCol; i++ {
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+			es.ta = taKey(es.ta, tea.KeyRight)
 		}
 	} else if lineIdx+1 < len(lines) {
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyDown})
+		es.ta = taKey(es.ta, tea.KeyDown)
 		es.ta.CursorStart()
 		nextRunes := []rune(lines[lineIdx+1])
 		i := 0
 		for i < len(nextRunes) && (nextRunes[i] == ' ' || nextRunes[i] == '\t') {
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyRight})
+			es.ta = taKey(es.ta, tea.KeyRight)
 			i++
 		}
 	}
@@ -511,10 +519,10 @@ func (es editorState) moveWordBackward() editorState {
 	newCol := prevWordStart(runes, col)
 	if newCol >= 0 {
 		for i := col; i > newCol; i-- {
-			es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+			es.ta = taKey(es.ta, tea.KeyLeft)
 		}
 	} else if lineIdx > 0 {
-		es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyUp})
+		es.ta = taKey(es.ta, tea.KeyUp)
 		prevRunes := []rune(lines[lineIdx-1])
 		es.ta.CursorEnd()
 		if len(prevRunes) > 0 {
@@ -526,7 +534,7 @@ func (es editorState) moveWordBackward() editorState {
 			if i >= 0 {
 				start, _ := wordBoundary(prevRunes, i)
 				for j := len(prevRunes); j > start; j-- {
-					es.ta, _ = es.ta.Update(tea.KeyMsg{Type: tea.KeyLeft})
+					es.ta = taKey(es.ta, tea.KeyLeft)
 				}
 			}
 		}

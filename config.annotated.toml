@@ -82,6 +82,13 @@ bindBranch = ["C"]
 # Falls back to the new-file prompt if no integer-named cards exist.
 bindNextRoot = ["N"]
 
+# Jump to the first card in the deck. Also acts as a prefix: gg = first card,
+# g1–g9 = jump to 10%–90% through the deck.
+bindNavFirst = ["g"]
+
+# Jump to the last card in the deck.
+bindNavLast = ["G"]
+
 # Shell command to derive the continuation filename stem instead of the built-in
 # Luhmann algorithm. Receives the source card stem as the first argument and must
 # output the new stem on stdout. Falls back to the prompt on error.
