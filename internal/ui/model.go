@@ -15,6 +15,10 @@ import (
 	"thumbr/internal/notes"
 )
 
+// ---------------------------------------------------------------------------
+// State machine types
+// ---------------------------------------------------------------------------
+
 type State int
 
 const (
@@ -22,14 +26,6 @@ const (
 	StateViewing
 	StatePrompting
 	StateEditing
-)
-
-type promptKind int
-
-const (
-	promptNone promptKind = iota
-	promptBox
-	promptNewFile
 )
 
 func (s State) String() string {
@@ -47,160 +43,17 @@ func (s State) String() string {
 	}
 }
 
-type Viewport struct {
-	Width  int
-	Height int
-}
+type promptKind int
 
-type Settings struct {
-	StackVisibleCount int
-	StackOffsetX      int
-	StackOffsetY      int
+const (
+	promptNone promptKind = iota
+	promptBox
+	promptNewFile
+)
 
-	CardWidthFrac  float64
-	CardHeightFrac float64
-
-	ColorHiFG      lipgloss.Color
-	ColorMutFG     lipgloss.Color
-	ColorMarkFG    lipgloss.Color
-	ColorDimFG     lipgloss.Color
-	ColorStatusBG  lipgloss.Color
-	ColorStatusFG  lipgloss.Color
-	ColorStatusDim lipgloss.Color
-
-	NavAccelWindow time.Duration
-	NavMaxStep     int
-
-	MaxCursorDepth   int
-	ActiveLiftY      int
-	StickyOverlayNav bool
-
-	BorderTL rune
-	BorderTR rune
-	BorderBL rune
-	BorderBR rune
-	BorderH  rune
-	BorderV  rune
-
-	NewFileLinkTemplate string
-	NewFileSameDir      bool
-	NewFileEditor       string // "inapp" | "external" | "none"
-	ContinueNameCmd     string
-	BranchNameCmd       string
-}
-
-var DefaultSettings = Settings{
-	StackVisibleCount: 7,
-	StackOffsetX:      2,
-	StackOffsetY:      1,
-	CardWidthFrac:     0.6,
-	CardHeightFrac:    0.6,
-	ColorHiFG:         lipgloss.Color("#FFD166"), // warm highlight
-	ColorMutFG:        lipgloss.Color("#444444"), // muted for unmarked when marks exist
-	ColorMarkFG:       lipgloss.Color("#6CCB5F"), // distinct mark indicator
-	ColorDimFG:        lipgloss.Color("#666666"),
-	ColorStatusBG:     lipgloss.Color("#222222"),
-	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
-	ColorStatusDim:    lipgloss.Color("#999999"),
-	NavAccelWindow:    350 * time.Millisecond,
-	NavMaxStep:        8,
-	MaxCursorDepth:    2,
-	ActiveLiftY:       2,
-	StickyOverlayNav:  false,
-
-	BorderTL: '╭',
-	BorderTR: '╮',
-	BorderBL: '╰',
-	BorderBR: '╯',
-	BorderH:  '─',
-	BorderV:  '│',
-
-	NewFileLinkTemplate: "--> %s\n\n",
-	NewFileSameDir:      true,
-	NewFileEditor:       "inapp",
-	ContinueNameCmd:     "",
-	BranchNameCmd:       "",
-}
-
-type Colors struct {
-	ColorHiFG      lipgloss.Color
-	ColorMutFG     lipgloss.Color
-	ColorMarkFG    lipgloss.Color
-	ColorDimFG     lipgloss.Color
-	ColorStatusBG  lipgloss.Color
-	ColorStatusFG  lipgloss.Color
-	ColorStatusDim lipgloss.Color
-}
-
-type Layout struct {
-	StackVisibleCount int
-	StackOffsetX      int
-	StackOffsetY      int
-	CardWidthFrac     float64
-	CardHeightFrac    float64
-	ActiveLiftY       int
-	StickyOverlayNav  *bool
-	MaxCursorDepth    int
-	BorderCorner      rune
-	BorderH           rune
-	BorderV           rune
-}
-
-type KeyBindings struct {
-	Up            []string
-	Down          []string
-	Random        []string
-	OverlayToggle []string
-	OpenInApp     []string
-	OpenExternal  []string
-	OpenBox       []string
-	NewFile       []string
-	Continue      []string
-	Branch        []string
-	NextRoot      []string
-	SuspendEditor []string
-	Mark          []string
-	Filter        []string
-	Help          []string
-	Debug         []string
-	Quit          []string
-	PageNext      []string
-	PagePrev      []string
-	OverlayUp     []string
-	OverlayDown   []string
-	Reload        []string
-	NavFirst      []string
-	NavLast       []string
-}
-
-func DefaultBindings() KeyBindings {
-	return KeyBindings{
-		Up:            []string{"k", "up"},
-		Down:          []string{"j", "down"},
-		Random:        []string{"r"},
-		OverlayToggle: []string{"enter"},
-		OpenInApp:     []string{"e"},
-		OpenExternal:  []string{"E"},
-		OpenBox:       []string{"b"},
-		NewFile:       []string{"a"},
-		Continue:      []string{"c"},
-		Branch:        []string{"C"},
-		NextRoot:      []string{"N"},
-		SuspendEditor: []string{"ctrl+b"},
-		Mark:          []string{"m"},
-		Filter:        []string{"t"},
-		Help:          []string{"?", "h"},
-		Debug:         []string{"d"},
-		Quit:          []string{"q"},
-		PageNext:      []string{"n"},
-		PagePrev:      []string{"p"},
-		OverlayUp:     []string{"k", "up"},
-		OverlayDown:   []string{"j", "down"},
-		Reload:        []string{"R"},
-		NavFirst:      []string{"g"},
-		NavLast:       []string{"G"},
-	}
-}
+// ---------------------------------------------------------------------------
+// Rendering internals
+// ---------------------------------------------------------------------------
 
 type cardGeom struct {
 	index  int
@@ -228,6 +81,10 @@ type cell struct {
 	styleID styleID
 }
 
+// ---------------------------------------------------------------------------
+// Model
+// ---------------------------------------------------------------------------
+
 // Model is the Bubble Tea model for Thumbr.
 type Model struct {
 	cards    []notes.Card
@@ -242,33 +99,22 @@ type Model struct {
 	lastNavDir  int
 	lastNavTime time.Time
 	avgInterval float64 // exponential moving average of ms between presses
-	navPending  string  // pending nav prefix key ("g" waits for second key)
+	navPending  string  // pending nav prefix key ("g" waits for a second key)
 
-	rng *rand.Rand
-	// showHelp toggles the keybinding overlay.
-	showHelp bool
-	// showDebug toggles the debug overlay.
-	showDebug bool
-	// marked tracks marked cards by absolute file path (persists across box switches).
-	marked map[string]bool
-	// boxFilters remembers filter state per box/root.
-	boxFilters map[string]bool
-	// filterMarked toggles showing only marked cards.
+	rng          *rand.Rand
+	showHelp     bool
+	showDebug    bool
+	marked       map[string]bool // absolute file paths of marked cards
+	boxFilters   map[string]bool // per-box filter state
 	filterMarked bool
-	// overlayPage is the current page offset when viewing overlay content.
-	overlayPage int
-	// overlayPageStep overrides computed half-page step when >0.
-	overlayPageStep int
+	overlayPage     int
+	overlayPageStep int // overrides computed half-page step when > 0
 
-	// loadOpts keeps the include/ignore globs so we can reload boxes in-session.
-	loadOpts notes.LoadOptions
-	// boxes tracks visited roots; activeBox indexes boxes.
+	loadOpts  notes.LoadOptions
 	boxes     []string
 	activeBox int
 
-	// Prompt UI state
-	prompt promptState
-	// stateBeforePrompt lets us restore browsing/viewing after prompt dismissal.
+	prompt            promptState
 	stateBeforePrompt State
 
 	err       error
@@ -284,26 +130,24 @@ type Model struct {
 	loadWalk      time.Duration
 	loadSort      time.Duration
 
-	keyCount      int
-	updateMax     time.Duration
-	updateOver16  int
-	updateOver33  int
+	keyCount     int
+	updateMax    time.Duration
+	updateOver16 int
+	updateOver33 int
+
 	contentErrors int
 	editorErrors  int
 
 	pendingQuit      bool
 	pendingQuitUntil time.Time
 
-	// pendingSeekPath, when non-empty, causes the next resetAfterLoad to navigate
-	// to the card at this path instead of resetting to the top.
+	// pendingSeekPath causes the next resetAfterLoad to navigate to this path.
 	pendingSeekPath string
 
-	// editor holds the in-app vim editor state when state == StateEditing.
+	// editor holds in-app vim editor state when state == StateEditing.
 	editor editorState
-	// pendingEditorPath, when non-empty, causes the next boxLoadResult to open
-	// the file at this path in the in-app editor.
+	// pendingEditorPath causes the next boxLoadResult to open this file in-app.
 	pendingEditorPath string
-	// pendingEditorLine is the line the cursor should start on when the editor opens.
 	pendingEditorLine int
 }
 
@@ -313,8 +157,12 @@ type promptState struct {
 	selectedBox int
 }
 
-// NewModel constructs the initial UI model. The RNG controls random jumps; pass
-// nil to use the global math/rand instance.
+// ---------------------------------------------------------------------------
+// Constructor
+// ---------------------------------------------------------------------------
+
+// NewModel constructs the initial UI model. Pass nil for rng to use the
+// global math/rand instance.
 func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, rng *rand.Rand) Model {
 	root := cleanBoxPath(noteRoot)
 	m := Model{
@@ -335,152 +183,9 @@ func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, r
 	return m
 }
 
-func (m *Model) ApplyColors(c Colors) {
-	if c.ColorHiFG != "" {
-		m.settings.ColorHiFG = c.ColorHiFG
-	}
-	if c.ColorMutFG != "" {
-		m.settings.ColorMutFG = c.ColorMutFG
-	}
-	if c.ColorMarkFG != "" {
-		m.settings.ColorMarkFG = c.ColorMarkFG
-	}
-	if c.ColorDimFG != "" {
-		m.settings.ColorDimFG = c.ColorDimFG
-	}
-	if c.ColorStatusBG != "" {
-		m.settings.ColorStatusBG = c.ColorStatusBG
-	}
-	if c.ColorStatusFG != "" {
-		m.settings.ColorStatusFG = c.ColorStatusFG
-	}
-	if c.ColorStatusDim != "" {
-		m.settings.ColorStatusDim = c.ColorStatusDim
-	}
-}
-
-func (m *Model) SetPageStep(step int) {
-	if step > 0 {
-		m.overlayPageStep = step
-	}
-}
-
-// EnableDebugUI gates the debug overlay; when false, debug toggles are ignored.
-func (m *Model) EnableDebugUI(enabled bool) {
-	m.enableDebug = enabled
-	if !enabled {
-		m.showDebug = false
-	}
-}
-
-func (m *Model) ApplyNav(navAccelMs, navMaxStep int) {
-	if navAccelMs > 0 {
-		m.settings.NavAccelWindow = time.Duration(navAccelMs) * time.Millisecond
-	}
-	if navMaxStep > 0 {
-		m.settings.NavMaxStep = navMaxStep
-	}
-}
-
-// ApplyBindings overrides default keybindings with provided values (non-empty slices).
-func (m *Model) ApplyBindings(b KeyBindings) {
-	override := func(dst *[]string, src []string) {
-		if len(src) > 0 {
-			*dst = src
-		}
-	}
-	override(&m.bindings.OpenInApp, b.OpenInApp)
-	override(&m.bindings.OpenExternal, b.OpenExternal)
-	override(&m.bindings.OpenBox, b.OpenBox)
-	override(&m.bindings.NewFile, b.NewFile)
-	override(&m.bindings.Continue, b.Continue)
-	override(&m.bindings.Branch, b.Branch)
-	override(&m.bindings.NextRoot, b.NextRoot)
-	override(&m.bindings.SuspendEditor, b.SuspendEditor)
-	override(&m.bindings.Up, b.Up)
-	override(&m.bindings.Down, b.Down)
-	override(&m.bindings.Random, b.Random)
-	override(&m.bindings.OverlayToggle, b.OverlayToggle)
-	override(&m.bindings.Mark, b.Mark)
-	override(&m.bindings.Filter, b.Filter)
-	override(&m.bindings.Help, b.Help)
-	override(&m.bindings.Debug, b.Debug)
-	override(&m.bindings.Quit, b.Quit)
-	override(&m.bindings.PageNext, b.PageNext)
-	override(&m.bindings.PagePrev, b.PagePrev)
-	override(&m.bindings.OverlayUp, b.OverlayUp)
-	override(&m.bindings.OverlayDown, b.OverlayDown)
-	override(&m.bindings.NavFirst, b.NavFirst)
-	override(&m.bindings.NavLast, b.NavLast)
-}
-
-// ApplyLayout overrides layout-related settings.
-func (m *Model) ApplyLayout(l Layout) {
-	if l.StackVisibleCount > 0 {
-		m.settings.StackVisibleCount = l.StackVisibleCount
-	}
-	if l.StackOffsetX != 0 {
-		m.settings.StackOffsetX = l.StackOffsetX
-	}
-	if l.StackOffsetY != 0 {
-		m.settings.StackOffsetY = l.StackOffsetY
-	}
-	if l.CardWidthFrac > 0 {
-		m.settings.CardWidthFrac = l.CardWidthFrac
-	}
-	if l.CardHeightFrac > 0 {
-		m.settings.CardHeightFrac = l.CardHeightFrac
-	}
-	if l.ActiveLiftY != 0 {
-		m.settings.ActiveLiftY = l.ActiveLiftY
-	}
-	if l.StickyOverlayNav != nil {
-		m.settings.StickyOverlayNav = *l.StickyOverlayNav
-	}
-	if l.MaxCursorDepth > 0 {
-		m.settings.MaxCursorDepth = l.MaxCursorDepth
-	}
-	if l.BorderCorner != 0 {
-		m.settings.BorderTL = l.BorderCorner
-		m.settings.BorderTR = l.BorderCorner
-		m.settings.BorderBL = l.BorderCorner
-		m.settings.BorderBR = l.BorderCorner
-	}
-	if l.BorderH != 0 {
-		m.settings.BorderH = l.BorderH
-	}
-	if l.BorderV != 0 {
-		m.settings.BorderV = l.BorderV
-	}
-}
-
-// FileCreation holds configuration for the continue/branch file-creation feature.
-type FileCreation struct {
-	LinkTemplate  string
-	SameDir       *bool
-	NewFileEditor string
-	ContinueCmd   string
-	BranchCmd     string
-}
-
-// ApplyFileCreation overrides file-creation settings with non-zero values.
-func (m *Model) ApplyFileCreation(fc FileCreation) {
-	if fc.LinkTemplate != "" {
-		m.settings.NewFileLinkTemplate = fc.LinkTemplate
-	}
-	if fc.SameDir != nil {
-		m.settings.NewFileSameDir = *fc.SameDir
-	}
-	if fc.NewFileEditor != "" {
-		m.settings.NewFileEditor = fc.NewFileEditor
-	}
-	if fc.ContinueCmd != "" {
-		m.settings.ContinueNameCmd = fc.ContinueCmd
-	}
-	if fc.BranchCmd != "" {
-		m.settings.BranchNameCmd = fc.BranchCmd
-	}
-}
+// ---------------------------------------------------------------------------
+// Bubble Tea interface
+// ---------------------------------------------------------------------------
 
 func (m Model) Init() tea.Cmd {
 	if len(m.cards) == 0 {
@@ -510,7 +215,6 @@ func (m Model) View() string {
 	if !m.ready || m.viewport.Width == 0 || m.viewport.Height == 0 {
 		return "Thumbr – initializing…\n"
 	}
-
 	if m.showHelp {
 		return m.renderHelp()
 	}
@@ -520,9 +224,6 @@ func (m Model) View() string {
 		return m.renderEmpty()
 	}
 
-	// ---- Build style palette for this frame ----
-
-	// Background base (slightly dimmed when viewing).
 	baseFG := lipgloss.Color("#CCCCCC")
 	if m.state == StateViewing {
 		baseFG = m.settings.ColorDimFG
@@ -547,31 +248,22 @@ func (m Model) View() string {
 		styleOverlayBody:   overlayBodyStyle,
 	}
 
-	// ---- Build grid with style IDs ----
-
 	grid := make([][]cell, m.viewport.Height)
 	for y := range grid {
 		grid[y] = make([]cell, m.viewport.Width)
 		for x := range grid[y] {
-			grid[y][x] = cell{
-				ch:      ' ',
-				styleID: styleBase,
-			}
+			grid[y][x] = cell{ch: ' ', styleID: styleBase}
 		}
 	}
 
 	geoms := m.computeStackGeometry()
 
-	// In Viewing mode, the stack behind the overlay should be fully dim;
-	// only the overlay card should be highlighted. So we clear "active"
-	// on all stack geoms.
 	if m.state == StateViewing {
 		for i := range geoms {
 			geoms[i].active = false
 		}
 	}
 
-	// Draw stack from back to front based on depth
 	sort.Slice(geoms, func(i, j int) bool {
 		return geoms[i].depth > geoms[j].depth
 	})
@@ -579,45 +271,16 @@ func (m Model) View() string {
 		m.drawCardOntoGrid(grid, g)
 	}
 
-	// If we're in Viewing mode, pull the active card out on top
 	if m.state == StateViewing {
 		m.drawOverlayCardOntoGrid(grid)
 	}
 
-	body := m.renderGrid(grid, styles)
-	status := m.renderStatusBar()
-
-	return body + "\n" + status
+	return m.renderGrid(grid, styles) + "\n" + m.renderStatusBar()
 }
 
-// ==== Utilities ====
-
-func stripANSI(s string) string {
-	// crude but sufficient for computing padding length
-	var b strings.Builder
-	inEscape := false
-	for _, r := range s {
-		if r == '\x1b' {
-			inEscape = true
-			continue
-		}
-		if inEscape {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-				inEscape = false
-			}
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
+// ---------------------------------------------------------------------------
+// Pure state helpers
+// ---------------------------------------------------------------------------
 
 func (m Model) isMarked(idx int) bool {
 	if idx < 0 || idx >= len(m.cards) {
@@ -645,7 +308,7 @@ func (m Model) setFilterForCurrent(state bool) Model {
 	return m
 }
 
-// visibleIndices returns the card indices respecting the current filter.
+// visibleIndices returns card indices respecting the current filter.
 func (m Model) visibleIndices() []int {
 	if m.filterMarked {
 		if m.markedCountCurrent() == 0 {
@@ -659,7 +322,6 @@ func (m Model) visibleIndices() []int {
 		}
 		return vis
 	}
-
 	vis := make([]int, len(m.cards))
 	for i := range m.cards {
 		vis[i] = i
@@ -667,8 +329,8 @@ func (m Model) visibleIndices() []int {
 	return vis
 }
 
-// visibleCursorIndex returns the cursor's position within the visible list.
-// If not present, returns -1.
+// visibleCursorIndex returns the cursor's position within the visible list,
+// or -1 if the cursor is not visible.
 func (m Model) visibleCursorIndex(vis []int) int {
 	for i, idx := range vis {
 		if idx == m.cursor {
@@ -678,7 +340,7 @@ func (m Model) visibleCursorIndex(vis []int) int {
 	return -1
 }
 
-// ensureCursorVisible snaps the cursor to a valid visible index if needed.
+// ensureCursorVisible snaps the cursor to the first visible index if needed.
 func (m Model) ensureCursorVisible() Model {
 	vis := m.visibleIndices()
 	if len(vis) == 0 {
@@ -732,17 +394,6 @@ func (m Model) withUpdateSample(start time.Time) Model {
 	return m
 }
 
-// SetLoadDuration stores the initial load duration for debug view.
-func (m *Model) SetLoadDuration(d time.Duration) {
-	m.loadDuration = d
-}
-
-// SetLoadBreakdown stores optional walk/sort timings.
-func (m *Model) SetLoadBreakdown(walk, sort time.Duration) {
-	m.loadWalk = walk
-	m.loadSort = sort
-}
-
 func (m Model) defaultExt() string {
 	if len(m.loadOpts.IncludeExts) > 0 {
 		return m.loadOpts.IncludeExts[0]
@@ -776,17 +427,6 @@ func (m Model) attemptQuit() (Model, tea.Cmd) {
 	m.pendingQuitUntil = time.Now().Add(3 * time.Second)
 	m = m.setStatus("Press quit again within 3s to exit", 3*time.Second)
 	return m, nil
-}
-
-func cleanBoxPath(path string) string {
-	if strings.TrimSpace(path) == "" {
-		path = "."
-	}
-	path = filepath.Clean(path)
-	if abs, err := filepath.Abs(path); err == nil {
-		path = abs
-	}
-	return path
 }
 
 func (m Model) setActiveBox(path string) Model {
@@ -852,7 +492,6 @@ func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
 	m.boxFilters[prev] = m.filterMarked
 
 	m = m.setActiveBox(root)
-	// Load previous filter state for this box (default false).
 	if state, ok := m.boxFilters[m.currentBox()]; ok {
 		m.filterMarked = state
 	} else {
@@ -893,8 +532,6 @@ func (m Model) toggleMark() Model {
 	} else {
 		m.marked[path] = true
 	}
-
-	// If filtering and we just removed the last marked card, drop the filter.
 	if m.filterMarked {
 		vis := m.visibleIndices()
 		if len(vis) == 0 {
@@ -913,7 +550,6 @@ func (m Model) toggleFilter() Model {
 		m = m.setFilterForCurrent(false)
 		return m.ensureCursorVisible()
 	}
-	// Turn on filtering only if something is marked.
 	if m.markedCountCurrent() == 0 {
 		return m.setStatus("No marked cards to filter", 2*time.Second)
 	}
@@ -927,16 +563,14 @@ func (m Model) nextPage() Model {
 	if m.state != StateViewing {
 		return m
 	}
-	step := m.pageStep()
-	return m.scrollOverlayLines(step)
+	return m.scrollOverlayLines(m.pageStep())
 }
 
 func (m Model) prevPage() Model {
 	if m.state != StateViewing {
 		return m
 	}
-	step := m.pageStep()
-	return m.scrollOverlayLines(-step)
+	return m.scrollOverlayLines(-m.pageStep())
 }
 
 func (m Model) pageStep() int {
@@ -944,7 +578,7 @@ func (m Model) pageStep() int {
 		return m.overlayPageStep
 	}
 	_, cardH := m.cardSize()
-	bodyH := cardH - 4 // header + borders
+	bodyH := cardH - 4
 	if bodyH < 1 {
 		return 1
 	}
@@ -963,7 +597,6 @@ func (m Model) scrollOverlayLines(delta int) Model {
 	if maxStart < 0 {
 		maxStart = 0
 	}
-
 	offset := m.overlayPage + delta
 	if offset < 0 {
 		offset = 0
@@ -975,7 +608,7 @@ func (m Model) scrollOverlayLines(delta int) Model {
 	return m
 }
 
-// overlayLimits computes body height and total wrapped lines for the current card.
+// overlayLimits returns body height and total wrapped lines for the current card.
 func (m Model) overlayLimits() (bodyH int, totalLines int) {
 	if len(m.cards) == 0 {
 		return 0, 0
@@ -986,7 +619,40 @@ func (m Model) overlayLimits() (bodyH int, totalLines int) {
 	if bodyW <= 0 || bodyH <= 0 {
 		return bodyH, 0
 	}
-	content := m.cards[m.cursor].Content
-	lines := wrapText(content, bodyW, -1)
+	lines := wrapText(m.cards[m.cursor].Content, bodyW, -1)
 	return bodyH, len(lines)
+}
+
+// ---------------------------------------------------------------------------
+// Low-level utilities
+// ---------------------------------------------------------------------------
+
+func stripANSI(s string) string {
+	var b strings.Builder
+	inEscape := false
+	for _, r := range s {
+		if r == '\x1b' {
+			inEscape = true
+			continue
+		}
+		if inEscape {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+			}
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func cleanBoxPath(path string) string {
+	if strings.TrimSpace(path) == "" {
+		path = "."
+	}
+	path = filepath.Clean(path)
+	if abs, err := filepath.Abs(path); err == nil {
+		path = abs
+	}
+	return path
 }
