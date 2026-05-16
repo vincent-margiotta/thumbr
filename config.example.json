@@ -49,11 +49,15 @@
   "bindContinue": ["c"],
   "bindBranch": ["C"],
   "bindNextRoot": ["N"],
+  "bindNavFirst": ["g"],
+  "bindNavLast": ["G"],
+  "bindSwitchPane": ["ctrl+w"],
   "continueNameCmd": "",
   "branchNameCmd": "",
   "newFileLinkTemplate": "--> %s\n\n",
   "newFileSameDir": true,
   "newFileEditor": "inapp",
+  "autoSplitOnLink": true,
   "enableDebugUI": false,
   "crashLogPath": ""
 }
