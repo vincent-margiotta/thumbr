@@ -254,11 +254,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.randomCursor()
 				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.NavFirst):
-				m = m.jumpToEdge(-1)
-				navCmd = m.preloadVisibleCmd()
+				// g enters pending mode; gg resolves to first card.
+				if m.navPending == "g" {
+					m.navPending = ""
+					m = m.jumpToEdge(-1)
+					navCmd = m.preloadVisibleCmd()
+				} else {
+					m.navPending = "g"
+				}
 			case m.isBinding(key, m.bindings.NavLast):
+				m.navPending = ""
 				m = m.jumpToEdge(1)
 				navCmd = m.preloadVisibleCmd()
+			case m.navPending == "g" && len(key) == 1 && key[0] >= '1' && key[0] <= '9':
+				m.navPending = ""
+				m = m.jumpToPercent(int(key[0]-'0') * 10)
+				navCmd = m.preloadVisibleCmd()
+			default:
+				// Any unrecognised key cancels a pending prefix.
+				m.navPending = ""
 			}
 
 		case StateViewing:
@@ -465,6 +479,25 @@ func (m Model) jumpToEdge(dir int) Model {
 	} else {
 		m.cursor = vis[0]
 	}
+	m.avgInterval = 0
+	m.lastNavDir = 0
+	return m
+}
+
+// jumpToPercent moves to pct% through the visible deck (pct in range 0–100).
+func (m Model) jumpToPercent(pct int) Model {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return m
+	}
+	idx := pct * len(vis) / 100
+	if idx >= len(vis) {
+		idx = len(vis) - 1
+	}
+	if idx < 0 {
+		idx = 0
+	}
+	m.cursor = vis[idx]
 	m.avgInterval = 0
 	m.lastNavDir = 0
 	return m

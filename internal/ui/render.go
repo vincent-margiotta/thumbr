@@ -629,7 +629,9 @@ func (m Model) renderStatusBar() string {
 	// ---- Right: ephemeral message or context hints ----
 
 	var right string
-	if m.statusMsg != "" && time.Now().Before(m.statusMsgUntil) {
+	if m.navPending != "" {
+		right = hi.Render(" " + m.navPending + "… ")
+	} else if m.statusMsg != "" && time.Now().Before(m.statusMsgUntil) {
 		right = hi.Render(" " + m.statusMsg + " ")
 	} else {
 		var hint string
@@ -740,7 +742,7 @@ func (m Model) renderHelp() string {
 	bindings := []binding{
 		{keys: m.bindings.Up, desc: "move into stack"},
 		{keys: m.bindings.Down, desc: "move back/out"},
-		{keys: m.bindings.NavFirst, desc: "jump to first card"},
+		{keys: m.bindings.NavFirst, desc: "jump to first card (gg), or g1–g9 for 10–90%"},
 		{keys: m.bindings.NavLast, desc: "jump to last card"},
 		{keys: m.bindings.Random, desc: "jump to random card"},
 		{keys: m.bindings.Mark, desc: "mark/unmark card"},
