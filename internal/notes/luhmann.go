@@ -1,3 +1,5 @@
+// luhmann.go — Luhmann address derivation: continuation, branching, and root-integer scanning.
+
 package notes
 
 import (

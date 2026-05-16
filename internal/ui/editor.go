@@ -1,3 +1,5 @@
+// editor.go — modal in-app vim-style text editor state and key handling.
+
 package ui
 
 import (

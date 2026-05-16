@@ -1,3 +1,4 @@
+// Package notes handles loading, sorting, and addressing Zettelkasten note cards.
 package notes
 
 import (

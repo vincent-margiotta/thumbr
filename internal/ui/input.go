@@ -1,3 +1,5 @@
+// input.go — Bubble Tea Update method and key dispatch for all states.
+
 package ui
 
 import (

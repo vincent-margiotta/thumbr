@@ -1,3 +1,5 @@
+// render.go — grid rendering, card drawing, overlays, status bar, and help screen.
+
 package ui
 
 import (

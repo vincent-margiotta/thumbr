@@ -1,3 +1,5 @@
+// commands.go — async tea.Cmd factories, result message types, and OS-level helpers.
+
 package ui
 
 import (

@@ -72,6 +72,8 @@ type config struct {
 	BindBranch          []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
 	BindNextRoot        []string `json:"bindNextRoot"        yaml:"bindNextRoot"        toml:"bindNextRoot"`
 	BindSuspendEditor   []string `json:"bindSuspendEditor"   yaml:"bindSuspendEditor"   toml:"bindSuspendEditor"`
+	BindNavFirst        []string `json:"bindNavFirst"        yaml:"bindNavFirst"        toml:"bindNavFirst"`
+	BindNavLast         []string `json:"bindNavLast"         yaml:"bindNavLast"         toml:"bindNavLast"`
 	ContinueNameCmd     string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
 	BranchNameCmd       string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
 	NewFileLinkTemplate string   `json:"newFileLinkTemplate" yaml:"newFileLinkTemplate" toml:"newFileLinkTemplate"`
@@ -254,9 +256,11 @@ func main() {
 		bindReloadArg    string
 		bindContinueArg  string
 		bindBranchArg    string
-		bindNextRootArg     string
+		bindNextRootArg      string
 		bindSuspendEditorArg string
-		bindInAppArg     string
+		bindInAppArg         string
+		bindNavFirstArg      string
+		bindNavLastArg       string
 	)
 	var (
 		continueNameCmdArg     string
@@ -285,6 +289,8 @@ func main() {
 	flagSet.StringVar(&bindBranchArg, "bind-branch", "", "comma-separated keys for Luhmann branch")
 	flagSet.StringVar(&bindNextRootArg, "bind-next-root", "", "comma-separated keys to create the next integer root card")
 	flagSet.StringVar(&bindSuspendEditorArg, "bind-suspend-editor", "", "comma-separated keys to suspend the in-app editor and return to browse")
+	flagSet.StringVar(&bindNavFirstArg, "bind-nav-first", "", "comma-separated keys to jump to the first card")
+	flagSet.StringVar(&bindNavLastArg, "bind-nav-last", "", "comma-separated keys to jump to the last card")
 	flagSet.StringVar(&continueNameCmdArg, "continue-name-cmd", "", "shell command to derive continuation filename stem")
 	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
 	flagSet.StringVar(&newFileLinkTemplateArg, "new-file-link-template", "", "printf template for backwards link written to new files (default '--> %s\\n\\n'; empty to disable)")
@@ -334,7 +340,8 @@ func main() {
 		borderV            string
 		enableDebugUI       bool
 		crashLogPath        string
-		reloadBindings      []string
+		bindNavFirstArg     string
+		bindNavLastArg      string
 		continueNameCmd     string
 		branchNameCmd       string
 		newFileLinkTemplate string
@@ -373,7 +380,8 @@ func main() {
 		borderV:             "",
 		enableDebugUI:       false,
 		crashLogPath:        "",
-		reloadBindings:      nil,
+		bindNavFirstArg:     "",
+		bindNavLastArg:      "",
 		continueNameCmd:     "",
 		branchNameCmd:       "",
 		newFileLinkTemplate: "",
@@ -515,6 +523,8 @@ func main() {
 		mergeBinding(&opts.bindings.Branch, cfg.BindBranch)
 		mergeBinding(&opts.bindings.NextRoot, cfg.BindNextRoot)
 		mergeBinding(&opts.bindings.SuspendEditor, cfg.BindSuspendEditor)
+		mergeBinding(&opts.bindings.NavFirst, cfg.BindNavFirst)
+		mergeBinding(&opts.bindings.NavLast, cfg.BindNavLast)
 		if cfg.ContinueNameCmd != "" {
 			opts.continueNameCmd = cfg.ContinueNameCmd
 		}
@@ -705,10 +715,6 @@ func main() {
 	if v := parseBinding(bindReloadArg); len(v) > 0 {
 		opts.bindings.Reload = v
 	}
-	if v := parseBinding(bindReloadArg); len(v) > 0 {
-		opts.bindings.Reload = v
-		opts.reloadBindings = v
-	}
 	if v := parseBinding(bindContinueArg); len(v) > 0 {
 		opts.bindings.Continue = v
 	}
@@ -720,6 +726,12 @@ func main() {
 	}
 	if v := parseBinding(bindSuspendEditorArg); len(v) > 0 {
 		opts.bindings.SuspendEditor = v
+	}
+	if v := parseBinding(bindNavFirstArg); len(v) > 0 {
+		opts.bindings.NavFirst = v
+	}
+	if v := parseBinding(bindNavLastArg); len(v) > 0 {
+		opts.bindings.NavLast = v
 	}
 	if continueNameCmdArg != "" {
 		opts.continueNameCmd = continueNameCmdArg

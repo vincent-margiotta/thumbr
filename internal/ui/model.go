@@ -1,3 +1,4 @@
+// Package ui provides the Bubble Tea model, key handling, and rendering for Thumbr.
 package ui
 
 import (
@@ -117,10 +118,9 @@ type Model struct {
 	prompt            promptState
 	stateBeforePrompt State
 
-	err       error
-	noteRoot  string
-	ready     bool
-	lastWidth int
+	err      error
+	noteRoot string
+	ready    bool
 
 	statusMsg      string
 	statusMsgUntil time.Time

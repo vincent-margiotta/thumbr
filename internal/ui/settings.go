@@ -137,6 +137,7 @@ type KeyBindings struct {
 	NavLast       []string
 }
 
+// DefaultBindings returns the out-of-the-box keybinding set.
 func DefaultBindings() KeyBindings {
 	return KeyBindings{
 		Up:            []string{"k", "up"},
@@ -179,6 +180,7 @@ type FileCreation struct {
 // Apply* methods — merge configuration into the model.
 // ---------------------------------------------------------------------------
 
+// ApplyColors overrides colour settings with any non-zero values in c.
 func (m *Model) ApplyColors(c Colors) {
 	if c.ColorHiFG != "" {
 		m.settings.ColorHiFG = c.ColorHiFG
@@ -203,6 +205,7 @@ func (m *Model) ApplyColors(c Colors) {
 	}
 }
 
+// ApplyLayout overrides layout settings with any non-zero values in l.
 func (m *Model) ApplyLayout(l Layout) {
 	if l.StackVisibleCount > 0 {
 		m.settings.StackVisibleCount = l.StackVisibleCount
@@ -293,6 +296,7 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 }
 
+// ApplyNav overrides navigation acceleration settings with any positive values.
 func (m *Model) ApplyNav(navAccelMs, navMaxStep int) {
 	if navAccelMs > 0 {
 		m.settings.NavAccelWindow = time.Duration(navAccelMs) * time.Millisecond

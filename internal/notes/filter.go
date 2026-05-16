@@ -1,3 +1,5 @@
+// filter.go — include/ignore glob filtering for card loading.
+
 package notes
 
 import (
