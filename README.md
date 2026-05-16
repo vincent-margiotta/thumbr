@@ -10,6 +10,8 @@ Thumbr favors the analog experience over digital workflow features. It emulates 
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
 - **Simple Titles:** Uses the filename (minus extension) as the card title; order follows directory traversal.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
+- **In-App Editor:** Browse, create, and edit notes without leaving Thumbr. Built-in vim-style editing (normal/insert/command modes) with `:w`/`ctrl+s` to save and `:q`/`:wq` to exit.
+- **Luhmann Addressing:** Continue (`c`), branch (`C`), and create the next integer root (`N`) using Luhmann-style alphanumeric addressing. Custom shell commands can override the derivation.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
 - **Persistent Marks/Filters:** Marks and filter state stick to each box during a session (cleared when you quit).
@@ -51,28 +53,55 @@ thumbr [options] [path]
 
 ## Controls
 
-Thumbr has two main interaction modes: the **Stack** (browsing files) and the **Overlay** (reading content).
+Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (reading), and the **Editor** (editing in-app).
 
-### Navigation & Actions
+### Stack
 
-| Context | Action | Keybindings | Notes |
-| :--- | :--- | :--- | :--- |
-| **Stack** | **Forward/In** | `k` / `Up` | Moves deeper into the stack. Accelerates with rapid presses. |
-| **Stack** | **Back/Out** | `j` / `Down` | Moves back out of the stack. |
-| **Stack** | **Random** | `r` | Jump to a random card. |
-| **Stack** | **Mark Card** | `m` | Toggles mark (`*`). Unmarked cards dim if others are marked. |
-| **Stack** | **Filter** | `t` | Toggle "Marked-Only" view. |
-| **Overlay** | **Open/Close** | `Enter` | Opens active card / Closes overlay. |
-| **Overlay** | **Scroll** | `j` / `k` | Scroll content line-by-line. |
-| **Overlay** | **Page** | `n` / `p` | Next/Previous page (if content overflows). |
-| **System** | **Help** | `?` / `h` | Shows current keybindings. |
-| **System** | **Debug** | `d` | Toggle debug stats (counts, paging, nav metrics). |
-| **System** | **Switch Box** | `b` | Open a different root (box) within the same session. |
-| **System** | **New File** | `a` | Create a new file in a box and open it in your editor. |
-| **System** | **Open in Editor** | `e` | Open the active card in `$EDITOR` (or system default). |
-| **System** | **Quit** | `q` / `Ctrl+c` | Quit app. (`Esc` also quits, or closes overlay if open). |
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
+| **Forward** | `k` / `Up` | Move deeper into the stack. Accelerates with rapid presses. |
+| **Back** | `j` / `Down` | Move back toward the front. |
+| **First card** | `g` `g` | Jump to the first card in the deck. |
+| **Last card** | `G` | Jump to the last card. |
+| **Jump to ~%** | `g` `1`–`9` | Jump to 10%–90% through the deck. |
+| **Random** | `r` | Jump to a random card. |
+| **Open overlay** | `Enter` | Pull the active card into the reading overlay. |
+| **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. |
+| **Edit (external)** | `E` | Open the active card in `$EDITOR`. |
+| **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). |
+| **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). |
+| **Next root** | `N` | Create the next integer root card (e.g. `17` if `16` is highest). |
+| **New file** | `a` | Prompt for a new filename and create it. |
+| **Mark card** | `m` | Toggle mark (`*`). Unmarked cards dim when any are marked. |
+| **Filter** | `t` | Toggle "Marked-Only" view. |
+| **Switch box** | `b` | Open a different note root within the same session. |
+| **Reload** | `R` | Reload the current box from disk. |
+| **Help** | `?` / `h` | Show current keybindings. |
+| **Quit** | `q` / `Ctrl+c` | Quit. |
 
-> **Note:** Keybindings can be customized via the configuration file.
+### Overlay
+
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
+| **Close** | `Enter` | Return to the stack. |
+| **Scroll** | `j` / `k` | Scroll content line-by-line. |
+| **Page** | `n` / `p` | Next / previous page (when content overflows). |
+
+### Editor
+
+The in-app editor uses vim-style modes.
+
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
+| **Insert mode** | `i` / `a` | Enter insert mode before / after cursor. |
+| **Normal mode** | `Esc` / `Ctrl+c` | Return to normal mode. |
+| **Save** | `:w` / `Ctrl+s` | Save without exiting. |
+| **Quit** | `:q` | Quit (blocked if unsaved changes). |
+| **Discard & quit** | `:q!` | Discard changes and return to browse. |
+| **Save & quit** | `:wq` | Save, then return to browse. |
+| **Suspend editor** | `Ctrl+b` | Suspend editor and return to browse; press `e` to resume. |
+
+> Keybindings can be customized via the configuration file. The debug overlay (`d`) is disabled by default; enable it with `enableDebugUI: true`.
 
 ## Configuration
 
@@ -90,11 +119,6 @@ Precedence:
 Tip: copy `config.example.json` to `config.json` and adjust only the fields you care about.
 If you prefer inline documentation, use `config.annotated.toml` as a commented reference and copy settings into your own config (JSON/YAML/TOML all supported).
 
-### Debug Overlay & Crash Logs
-
-- The debug overlay is gated: enable it via `--enable-debug-ui` or `enableDebugUI: true` in your config to use the `d` keybinding. Disabled by default.
-- On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--crash-log`). Only touched when a panic occurs.
-
 ### Configuration (quick scan)
 
 Common tweaks:
@@ -104,6 +128,8 @@ Common tweaks:
 - **Bindings:** `bind*` keys to remap navigation, overlay, marks, etc.
 
 Full reference lives in `config.example.json` (JSON) and is supported via YAML/TOML too.
+
+On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--crash-log`).
 
 
 ## Development
@@ -152,6 +178,5 @@ docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
 
 ## Roadmap / Known Gaps
 
-  - Live box/config reloading.
-  - Performance tuning for large boxes (target: 90k notes in \<2s).
+  - Live auto-reload (watch for file changes; `R` provides manual reload today).
   - Release pipelines (GoReleaser/Homebrew).
