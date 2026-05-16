@@ -58,6 +58,36 @@ const (
 	editorActionForceQuit
 )
 
+// splitViewports returns per-pane Viewports for a 35/65 split.
+// Heights are inflated by 3 so newEditorState's (vp.Height − 3) formula
+// yields the correct textarea row count.
+// Reserved lines: 2 pane headers + divider + footer + status bar = 5.
+func splitViewports(vp Viewport) (top, bottom Viewport) {
+	usable := vp.Height - 5
+	if usable < 4 {
+		usable = 4
+	}
+	topH := int(float64(usable) * 0.35)
+	if topH < 1 {
+		topH = 1
+	}
+	botH := usable - topH
+	return Viewport{Width: vp.Width, Height: topH + 3},
+		Viewport{Width: vp.Width, Height: botH + 3}
+}
+
+// modeLabel returns the display string for the given vim mode.
+func modeLabel(mode vimMode) string {
+	switch mode {
+	case vimInsert:
+		return "INSERT"
+	case vimCommand:
+		return "COMMAND"
+	default:
+		return "NORMAL"
+	}
+}
+
 func newEditorState(path, content string, vp Viewport, cursorLine int) (editorState, tea.Cmd) {
 	ta := textarea.New()
 	ta.CharLimit = 0
@@ -120,19 +150,25 @@ func (es editorState) pushUndo() editorState {
 
 func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
 	key := msg.String()
-	es := m.editor
+
+	if m.isBinding(key, m.bindings.SwitchPane) && m.paneCount == 2 {
+		m.activePane = 1 - m.activePane
+		return m.withUpdateSample(start), nil
+	}
 
 	if m.isBinding(key, m.bindings.SuspendEditor) {
 		m.state = StateBrowsing
 		return m.withUpdateSample(start), nil
 	}
 
+	es := m.editors[m.activePane]
+
 	if key == "ctrl+s" {
 		if err := es.save(); err != nil {
-			m.editor = es
+			m.editors[m.activePane] = es
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 		} else {
-			m.editor = es
+			m.editors[m.activePane] = es
 			m = m.setStatus("Saved", 2*time.Second)
 		}
 		return m.withUpdateSample(start), nil
@@ -142,12 +178,12 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 	case vimNormal:
 		if es.pending != "" {
 			es = es.handlePending(key)
-			m.editor = es
+			m.editors[m.activePane] = es
 			return m.withUpdateSample(start), nil
 		}
 		var action editorAction
 		es, action = es.handleNormal(key)
-		m.editor = es
+		m.editors[m.activePane] = es
 		if action != editorActionNone {
 			return m.applyEditorAction(action, start)
 		}
@@ -156,13 +192,13 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 	case vimInsert:
 		var cmd tea.Cmd
 		es, cmd = es.handleInsert(msg)
-		m.editor = es
+		m.editors[m.activePane] = es
 		return m.withUpdateSample(start), cmd
 
 	case vimCommand:
 		var action editorAction
 		es, action = es.handleCommand(key)
-		m.editor = es
+		m.editors[m.activePane] = es
 		if action != editorActionNone {
 			return m.applyEditorAction(action, start)
 		}
@@ -173,44 +209,63 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 }
 
 func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Model, tea.Cmd) {
-	es := m.editor
+	es := m.editors[m.activePane]
 	switch action {
 	case editorActionSave:
 		if err := es.save(); err != nil {
-			m.editor = es
+			m.editors[m.activePane] = es
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		m.editor = es
+		m.editors[m.activePane] = es
 		m = m.setStatus("Saved", 2*time.Second)
 		return m.withUpdateSample(start), nil
 
 	case editorActionQuit:
 		if es.dirty {
-			m.editor = es
+			m.editors[m.activePane] = es
 			m = m.setStatus("Unsaved changes — use :q! to discard", 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		m.state = StateBrowsing
-		m.editor = editorState{}
-		return m.withUpdateSample(start), nil
+		return m.closeFocusedPane(start)
 
 	case editorActionForceQuit:
-		m.state = StateBrowsing
-		m.editor = editorState{}
-		return m.withUpdateSample(start), nil
+		return m.closeFocusedPane(start)
 
 	case editorActionSaveQuit:
 		if err := es.save(); err != nil {
-			m.editor = es
+			m.editors[m.activePane] = es
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		m.state = StateBrowsing
-		m.editor = editorState{}
-		return m.withUpdateSample(start), nil
+		return m.closeFocusedPane(start)
 	}
 
+	return m.withUpdateSample(start), nil
+}
+
+// closeFocusedPane closes the active pane. If split, the other pane expands to
+// fill the screen; if single, the editor exits to browsing.
+func (m Model) closeFocusedPane(start time.Time) (tea.Model, tea.Cmd) {
+	if m.paneCount == 2 {
+		remaining := 1 - m.activePane
+		h := m.viewport.Height - 3
+		if h < 1 {
+			h = 1
+		}
+		m.editors[remaining].ta.SetWidth(m.viewport.Width)
+		m.editors[remaining].ta.SetHeight(h)
+		m.editors[0] = m.editors[remaining]
+		m.editors[1] = editorState{}
+		m.paneCount = 1
+		m.activePane = 0
+	} else {
+		m.editors[0] = editorState{}
+		m.editors[1] = editorState{}
+		m.paneCount = 0
+		m.activePane = 0
+		m.state = StateBrowsing
+	}
 	return m.withUpdateSample(start), nil
 }
 

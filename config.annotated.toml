@@ -108,6 +108,12 @@ newFileSameDir = true
 # What to open when c/C creates a new card: "inapp" (default), "external" ($EDITOR), "none".
 newFileEditor = "inapp"
 
+# When true and newFileEditor is "inapp", c/C opens source and new card in a split-pane editor.
+autoSplitOnLink = true
+
+# Key to switch focus between split editor panes.
+bindSwitchPane = ["ctrl+w"]
+
 # Debug overlay: disabled by default. Set true to allow the Debug keybinding.
 enableDebugUI = false
 

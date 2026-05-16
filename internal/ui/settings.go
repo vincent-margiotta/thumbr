@@ -48,6 +48,7 @@ type Settings struct {
 	NewFileEditor       string // "inapp" | "external" | "none"
 	ContinueNameCmd     string
 	BranchNameCmd       string
+	AutoSplitOnLink     bool
 }
 
 var DefaultSettings = Settings{
@@ -81,6 +82,7 @@ var DefaultSettings = Settings{
 	NewFileEditor:       "inapp",
 	ContinueNameCmd:     "",
 	BranchNameCmd:       "",
+	AutoSplitOnLink:     true,
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -135,6 +137,7 @@ type KeyBindings struct {
 	Reload        []string
 	NavFirst      []string
 	NavLast       []string
+	SwitchPane    []string
 }
 
 // DefaultBindings returns the out-of-the-box keybinding set.
@@ -164,16 +167,18 @@ func DefaultBindings() KeyBindings {
 		Reload:        []string{"R"},
 		NavFirst:      []string{"g"},
 		NavLast:       []string{"G"},
+		SwitchPane:    []string{"ctrl+w"},
 	}
 }
 
 // FileCreation holds configuration for the continue/branch file-creation feature.
 type FileCreation struct {
-	LinkTemplate  string
-	SameDir       *bool
-	NewFileEditor string
-	ContinueCmd   string
-	BranchCmd     string
+	LinkTemplate    string
+	SameDir         *bool
+	NewFileEditor   string
+	ContinueCmd     string
+	BranchCmd       string
+	AutoSplitOnLink *bool
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +280,7 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.OverlayDown, b.OverlayDown)
 	override(&m.bindings.NavFirst, b.NavFirst)
 	override(&m.bindings.NavLast, b.NavLast)
+	override(&m.bindings.SwitchPane, b.SwitchPane)
 }
 
 // ApplyFileCreation overrides file-creation settings with non-zero values.
@@ -293,6 +299,9 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 	if fc.BranchCmd != "" {
 		m.settings.BranchNameCmd = fc.BranchCmd
+	}
+	if fc.AutoSplitOnLink != nil {
+		m.settings.AutoSplitOnLink = *fc.AutoSplitOnLink
 	}
 }
 

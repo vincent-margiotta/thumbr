@@ -80,6 +80,8 @@ type config struct {
 	NewFileSameDir      *bool    `json:"newFileSameDir"      yaml:"newFileSameDir"      toml:"newFileSameDir"`
 	NewFileEditor       string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
 	BindInApp           []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
+	BindSwitchPane      []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
+	AutoSplitOnLink     *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
 	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
@@ -261,6 +263,7 @@ func main() {
 		bindInAppArg         string
 		bindNavFirstArg      string
 		bindNavLastArg       string
+		bindSwitchPaneArg    string
 	)
 	var (
 		continueNameCmdArg     string
@@ -297,6 +300,7 @@ func main() {
 	flagSet.BoolVar(&newFileSameDirArg, "new-file-same-dir", true, "create linked files in the same directory as the focused card")
 	flagSet.StringVar(&newFileEditorArg, "new-file-editor", "", "editor to open after c/C creates a file: inapp, external, or none (default inapp)")
 	flagSet.StringVar(&bindInAppArg, "bind-inapp", "", "comma-separated keys to open card in in-app editor")
+	flagSet.StringVar(&bindSwitchPaneArg, "bind-switch-pane", "", "comma-separated keys to switch focus between split editor panes")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -347,6 +351,7 @@ func main() {
 		newFileLinkTemplate string
 		newFileSameDir      bool
 		newFileEditor       string
+		autoSplitOnLink     bool
 	}{
 		noteRoot:            ".",
 		randomSeed:          time.Now().UnixNano(),
@@ -387,6 +392,7 @@ func main() {
 		newFileLinkTemplate: "",
 		newFileSameDir:      true,
 		newFileEditor:       "",
+		autoSplitOnLink:     ui.DefaultSettings.AutoSplitOnLink,
 	}
 
 	if configPath == "" {
@@ -525,6 +531,10 @@ func main() {
 		mergeBinding(&opts.bindings.SuspendEditor, cfg.BindSuspendEditor)
 		mergeBinding(&opts.bindings.NavFirst, cfg.BindNavFirst)
 		mergeBinding(&opts.bindings.NavLast, cfg.BindNavLast)
+		mergeBinding(&opts.bindings.SwitchPane, cfg.BindSwitchPane)
+		if cfg.AutoSplitOnLink != nil {
+			opts.autoSplitOnLink = *cfg.AutoSplitOnLink
+		}
 		if cfg.ContinueNameCmd != "" {
 			opts.continueNameCmd = cfg.ContinueNameCmd
 		}
@@ -733,6 +743,9 @@ func main() {
 	if v := parseBinding(bindNavLastArg); len(v) > 0 {
 		opts.bindings.NavLast = v
 	}
+	if v := parseBinding(bindSwitchPaneArg); len(v) > 0 {
+		opts.bindings.SwitchPane = v
+	}
 	if continueNameCmdArg != "" {
 		opts.continueNameCmd = continueNameCmdArg
 	}
@@ -835,11 +848,12 @@ func main() {
 	}
 	m.ApplyLayout(layout)
 	fc := ui.FileCreation{
-		LinkTemplate:  opts.newFileLinkTemplate,
-		SameDir:       &opts.newFileSameDir,
-		NewFileEditor: opts.newFileEditor,
-		ContinueCmd:   opts.continueNameCmd,
-		BranchCmd:     opts.branchNameCmd,
+		LinkTemplate:    opts.newFileLinkTemplate,
+		SameDir:         &opts.newFileSameDir,
+		NewFileEditor:   opts.newFileEditor,
+		ContinueCmd:     opts.continueNameCmd,
+		BranchCmd:       opts.branchNameCmd,
+		AutoSplitOnLink: &opts.autoSplitOnLink,
 	}
 	m.ApplyFileCreation(fc)
 	m.EnableDebugUI(opts.enableDebugUI)

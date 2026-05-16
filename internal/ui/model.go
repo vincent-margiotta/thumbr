@@ -144,11 +144,16 @@ type Model struct {
 	// pendingSeekPath causes the next resetAfterLoad to navigate to this path.
 	pendingSeekPath string
 
-	// editor holds in-app vim editor state when state == StateEditing.
-	editor editorState
+	// editors[0] is the top pane, editors[1] is the bottom pane.
+	editors    [2]editorState
+	activePane int // 0 or 1
+	paneCount  int // 0=none, 1=single, 2=split
+
 	// pendingEditorPath causes the next boxLoadResult to open this file in-app.
 	pendingEditorPath string
 	pendingEditorLine int
+	// pendingSourcePath, when non-empty alongside pendingEditorPath, triggers auto-split.
+	pendingSourcePath string
 }
 
 type promptState struct {

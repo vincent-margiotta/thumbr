@@ -12,35 +12,30 @@ import (
 )
 
 func (m Model) renderEditor() string {
-	es := m.editor
+	if m.paneCount == 2 {
+		return m.renderSplitEditor()
+	}
+	return m.renderSingleEditor()
+}
+
+func (m Model) renderSingleEditor() string {
+	es := m.editors[0]
 
 	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
 	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
 
-	// Header: filename [*]   MODE
-	filename := filepath.Base(es.path)
+	label := modeLabel(es.mode)
+	modeStr := hi.Render("[" + label + "]")
 	dirtyFlag := ""
 	if es.dirty {
 		dirtyFlag = " [*]"
 	}
-	var modeLabel string
-	switch es.mode {
-	case vimNormal:
-		modeLabel = "NORMAL"
-	case vimInsert:
-		modeLabel = "INSERT"
-	case vimCommand:
-		modeLabel = "COMMAND"
-	}
-	modeStr := hi.Render("[" + modeLabel + "]")
-	headerLeft := hi.Render(filename + dirtyFlag)
+	headerLeft := hi.Render(filepath.Base(es.path) + dirtyFlag)
 	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
 	header := headerLeft + strings.Repeat(" ", padLen) + modeStr
 
-	// Body: textarea
 	body := es.ta.View()
 
-	// Footer: command input line or hint
 	var footer string
 	if es.mode == vimCommand {
 		footer = hi.Render(":") + es.cmdLine + "█"
@@ -49,6 +44,46 @@ func (m Model) renderEditor() string {
 	}
 
 	return header + "\n" + body + "\n" + footer + "\n" + m.renderStatusBar()
+}
+
+func (m Model) renderSplitEditor() string {
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	renderPaneHeader := func(es editorState, active bool) string {
+		dirtyFlag := ""
+		if es.dirty {
+			dirtyFlag = " [*]"
+		}
+		label := modeLabel(es.mode)
+		modeStr := "[" + label + "]"
+		headerLeft := filepath.Base(es.path) + dirtyFlag
+		if active {
+			modeStr = hi.Render(modeStr)
+			headerLeft = hi.Render(headerLeft)
+		} else {
+			modeStr = dim.Render(modeStr)
+			headerLeft = dim.Render(headerLeft)
+		}
+		padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
+		return headerLeft + strings.Repeat(" ", padLen) + modeStr
+	}
+
+	topHeader := renderPaneHeader(m.editors[0], m.activePane == 0)
+	topBody := m.editors[0].ta.View()
+	divider := strings.Repeat(string(m.settings.BorderH), m.viewport.Width)
+	botHeader := renderPaneHeader(m.editors[1], m.activePane == 1)
+	botBody := m.editors[1].ta.View()
+
+	activeES := m.editors[m.activePane]
+	var footer string
+	if activeES.mode == vimCommand {
+		footer = hi.Render(":") + activeES.cmdLine + "█"
+	} else {
+		footer = dim.Render("ctrl+s save  ctrl+w switch  :wq save+quit  :q quit  :q! discard")
+	}
+
+	return topHeader + "\n" + topBody + "\n" + divider + "\n" + botHeader + "\n" + botBody + "\n" + footer + "\n" + m.renderStatusBar()
 }
 
 // Rendering-related methods: drawing cards, overlay, status bar, etc.
@@ -624,8 +659,13 @@ func (m Model) renderStatusBar() string {
 		left += dim.Render(fmt.Sprintf(" · %d marked", markedCount))
 	}
 
-	if m.editor.path != "" && m.state != StateEditing {
-		left += dim.Render(fmt.Sprintf(" · ↩ %s", filepath.Base(m.editor.path)))
+	if m.paneCount >= 1 && m.state != StateEditing {
+		if m.paneCount == 2 {
+			left += dim.Render(fmt.Sprintf(" · ↩ %s / %s",
+				filepath.Base(m.editors[0].path), filepath.Base(m.editors[1].path)))
+		} else {
+			left += dim.Render(fmt.Sprintf(" · ↩ %s", filepath.Base(m.editors[0].path)))
+		}
 	}
 
 	// ---- Right: ephemeral message or context hints ----
@@ -643,7 +683,11 @@ func (m Model) renderStatusBar() string {
 		case m.state == StatePrompting:
 			hint = "enter confirm · esc cancel · tab cycle"
 		case m.state == StateEditing:
-			hint = "ctrl+s save · :wq quit · ctrl+b browse"
+			if m.paneCount == 2 {
+				hint = "ctrl+s save · ctrl+w switch · :wq quit · ctrl+b browse"
+			} else {
+				hint = "ctrl+s save · :wq quit · ctrl+b browse"
+			}
 		case m.state == StateViewing:
 			hint = "j/k scroll · n/p page · esc back"
 		default:
@@ -754,7 +798,8 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
 		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
 		{keys: m.bindings.NextRoot, desc: "create next integer root card"},
-		{keys: m.bindings.OpenInApp, desc: "open card in in-app editor"},
+		{keys: m.bindings.OpenInApp, desc: "open card in in-app editor (or companion pane)"},
+		{keys: m.bindings.SwitchPane, desc: "switch focus between split editor panes"},
 		{keys: m.bindings.SuspendEditor, desc: "suspend editor, return to browse"},
 		{keys: m.bindings.OpenExternal, desc: "open card in $EDITOR"},
 		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},

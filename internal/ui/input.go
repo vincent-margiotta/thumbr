@@ -40,13 +40,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.prompt.input.Width = width
 		}
-		if m.state == StateEditing {
-			m.editor.ta.SetWidth(msg.Width)
-			h := msg.Height - 3
-			if h < 1 {
-				h = 1
+		if m.state == StateEditing || m.paneCount >= 1 {
+			if m.paneCount == 2 {
+				topVP, botVP := splitViewports(m.viewport)
+				m.editors[0].ta.SetWidth(topVP.Width)
+				m.editors[0].ta.SetHeight(topVP.Height - 3)
+				m.editors[1].ta.SetWidth(botVP.Width)
+				m.editors[1].ta.SetHeight(botVP.Height - 3)
+			} else if m.paneCount == 1 {
+				m.editors[0].ta.SetWidth(m.viewport.Width)
+				h := m.viewport.Height - 3
+				if h < 1 {
+					h = 1
+				}
+				m.editors[0].ta.SetHeight(h)
 			}
-			m.editor.ta.SetHeight(h)
 		}
 		m.ready = true
 		return m.withUpdateSample(start), nil
@@ -62,6 +70,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pendingEditorPath != "" {
 			path := m.pendingEditorPath
 			m.pendingEditorPath = ""
+			if m.pendingSourcePath != "" && m.settings.AutoSplitOnLink {
+				src := m.pendingSourcePath
+				m.pendingSourcePath = ""
+				return m.withUpdateSample(start), openSplitCmd(src, path)
+			}
+			m.pendingSourcePath = ""
 			return m.withUpdateSample(start), openInAppCmd(path)
 		}
 		vis := m.visibleIndices()
@@ -98,8 +112,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cursorLine := m.pendingEditorLine
 		m.pendingEditorLine = 0
+		if m.paneCount == 1 && m.editors[0].path != "" {
+			// Companion open: resize pane 0 to top, open new file as bottom pane.
+			topVP, botVP := splitViewports(m.viewport)
+			m.editors[0].ta.SetWidth(topVP.Width)
+			m.editors[0].ta.SetHeight(topVP.Height - 3)
+			es, cmd := newEditorState(msg.path, msg.content, botVP, cursorLine)
+			m.editors[1] = es
+			m.paneCount = 2
+			m.activePane = 1
+			m.state = StateEditing
+			return m.withUpdateSample(start), cmd
+		}
+		// Fresh single-pane open.
 		es, cmd := newEditorState(msg.path, msg.content, m.viewport, cursorLine)
-		m.editor = es
+		m.editors[0] = es
+		m.editors[1] = editorState{}
+		m.paneCount = 1
+		m.activePane = 0
+		m.state = StateEditing
+		return m.withUpdateSample(start), cmd
+
+	case openSplitResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		topVP, botVP := splitViewports(m.viewport)
+		topEs, _ := newEditorState(msg.topPath, msg.topContent, topVP, 0)
+		cursorLine := m.pendingEditorLine
+		m.pendingEditorLine = 0
+		botEs, cmd := newEditorState(msg.bottomPath, msg.bottomContent, botVP, cursorLine)
+		m.editors[0] = topEs
+		m.editors[1] = botEs
+		m.paneCount = 2
+		m.activePane = 1
 		m.state = StateEditing
 		return m.withUpdateSample(start), cmd
 
@@ -201,20 +249,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
 		case m.isBinding(key, m.bindings.OpenInApp):
-			if m.editor.path != "" {
-				// Resume suspended editor. If it's dirty and the user is on a
-				// different card, warn rather than silently discarding their work.
-				if m.editor.dirty && len(m.cards) > 0 && m.cards[m.cursor].Path != m.editor.path {
-					m = m.setStatus(fmt.Sprintf("Suspended editor has unsaved changes — press e on %s to resume, or :q! to discard", filepath.Base(m.editor.path)), 4*time.Second)
-					return m.withUpdateSample(start), nil
-				}
+			currentPath := ""
+			if len(m.cards) > 0 {
+				currentPath = m.cards[m.cursor].Path
+			}
+			// Resume if the current card is already open in a suspended pane.
+			if m.paneCount >= 1 && m.editors[0].path == currentPath && currentPath != "" {
 				m.state = StateEditing
+				m.activePane = 0
 				return m.withUpdateSample(start), nil
 			}
-			if len(m.cards) > 0 {
-				return m.withUpdateSample(start), openInAppCmd(m.cards[m.cursor].Path)
+			if m.paneCount == 2 && m.editors[1].path == currentPath && currentPath != "" {
+				m.state = StateEditing
+				m.activePane = 1
+				return m.withUpdateSample(start), nil
 			}
-			return m.withUpdateSample(start), nil
+			if currentPath == "" {
+				return m.withUpdateSample(start), nil
+			}
+			// Single suspended + different card → open as companion.
+			if m.paneCount == 1 && m.editors[0].path != "" {
+				if m.editors[0].dirty {
+					m = m.setStatus(fmt.Sprintf("Unsaved changes in %s — save or :q! first", filepath.Base(m.editors[0].path)), 4*time.Second)
+					return m.withUpdateSample(start), nil
+				}
+				return m.withUpdateSample(start), openInAppCmd(currentPath)
+			}
+			// Split suspended + different card → warn if dirty, else discard and open fresh.
+			if m.paneCount == 2 {
+				if m.editors[0].dirty || m.editors[1].dirty {
+					m = m.setStatus("Unsaved changes — save or :q! first", 4*time.Second)
+					return m.withUpdateSample(start), nil
+				}
+				m.editors = [2]editorState{}
+				m.paneCount = 0
+				m.activePane = 0
+			}
+			return m.withUpdateSample(start), openInAppCmd(currentPath)
 		case m.isBinding(key, m.bindings.OpenExternal):
 			if len(m.cards) > 0 {
 				cmd := m.openInEditorCmd(m.cards[m.cursor].Path)
@@ -609,6 +680,9 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 		if inAppContent != "" {
 			inAppContent = "\n\n\n" + strings.TrimSuffix(inAppContent, "\n")
 			m.pendingEditorLine = 1
+		}
+		if m.settings.AutoSplitOnLink {
+			m.pendingSourcePath = card.Path
 		}
 		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, inAppContent, true)
 	}

@@ -52,6 +52,12 @@ type cardContentResult struct {
 	err     error
 }
 
+type openSplitResult struct {
+	topPath, topContent       string
+	bottomPath, bottomContent string
+	err                       error
+}
+
 // ---------------------------------------------------------------------------
 // Async command methods
 // ---------------------------------------------------------------------------
@@ -114,6 +120,24 @@ func preloadCardsCmd(cards []notes.Card, indices []int) tea.Cmd {
 		return nil
 	}
 	return tea.Batch(cmds...)
+}
+
+// openSplitCmd reads both files and returns an openSplitResult to open a split-pane editor.
+func openSplitCmd(topPath, bottomPath string) tea.Cmd {
+	return func() tea.Msg {
+		top, err := os.ReadFile(topPath)
+		if err != nil {
+			return openSplitResult{err: err}
+		}
+		bottom, err := os.ReadFile(bottomPath)
+		return openSplitResult{
+			topPath:       topPath,
+			topContent:    string(top),
+			bottomPath:    bottomPath,
+			bottomContent: string(bottom),
+			err:           err,
+		}
+	}
 }
 
 // openInAppCmd reads the file at path and returns an openInAppResult so the
