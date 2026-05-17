@@ -185,5 +185,4 @@ docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
 
 ## Roadmap / Known Gaps
 
-  - Live auto-reload (watch for file changes; `R` provides manual reload today).
-  - Release pipelines (GoReleaser/Homebrew).
+  - Release pipelines (GoReleaser/Homebrew) — on hold pending demand.
