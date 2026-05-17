@@ -45,7 +45,10 @@ type editorState struct {
 	saveErr        error
 	undoStack      []undoEntry
 	redoStack      []undoEntry
-	insertSnapshot *undoEntry // state captured on insert-mode entry
+	insertSnapshot *undoEntry                   // state captured on insert-mode entry
+	insertLog      string                       // chars typed since insert-mode entry (for dot repeat)
+	insertEntry    func(editorState) editorState // pre-insert action to replay on dot repeat
+	lastRepeat     func(editorState) editorState // nil until a repeatable change is made
 }
 
 type editorAction int
@@ -293,10 +296,20 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es.ta.CursorEnd()
 	case "G":
 		es.ta = taKey(es.ta, tea.KeyCtrlEnd)
+	case ".":
+		if es.lastRepeat != nil {
+			es = es.lastRepeat(es)
+		}
 	case "x":
 		es = es.pushUndo()
 		es.ta = taKey(es.ta, tea.KeyDelete)
 		es.dirty = true
+		es.lastRepeat = func(s editorState) editorState {
+			s = s.pushUndo()
+			s.ta = taKey(s.ta, tea.KeyDelete)
+			s.dirty = true
+			return s
+		}
 	case "u":
 		if len(es.undoStack) > 0 {
 			es.redoStack = append(es.redoStack, es.snapshot())
@@ -318,16 +331,28 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "i":
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
+		es.insertLog = ""
+		es.insertEntry = nil
 		es.mode = vimInsert
 	case "a":
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
 		es.ta = taKey(es.ta, tea.KeyRight)
+		es.insertLog = ""
+		es.insertEntry = func(s editorState) editorState {
+			s.ta = taKey(s.ta, tea.KeyRight)
+			return s
+		}
 		es.mode = vimInsert
 	case "A":
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
 		es.ta.CursorEnd()
+		es.insertLog = ""
+		es.insertEntry = func(s editorState) editorState {
+			s.ta.CursorEnd()
+			return s
+		}
 		es.mode = vimInsert
 	case "o":
 		es = es.pushUndo()
@@ -336,6 +361,14 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es.dirty = true
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
+		es.insertLog = ""
+		es.insertEntry = func(s editorState) editorState {
+			s = s.pushUndo()
+			s.ta.CursorEnd()
+			s.ta.InsertString("\n")
+			s.dirty = true
+			return s
+		}
 		es.mode = vimInsert
 	case "O":
 		es = es.pushUndo()
@@ -345,6 +378,15 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es.dirty = true
 		snap := es.snapshot()
 		es.insertSnapshot = &snap
+		es.insertLog = ""
+		es.insertEntry = func(s editorState) editorState {
+			s = s.pushUndo()
+			s.ta.CursorStart()
+			s.ta.InsertString("\n")
+			s.ta = taKey(s.ta, tea.KeyUp)
+			s.dirty = true
+			return s
+		}
 		es.mode = vimInsert
 	case "p":
 		if es.yankBuf != "" {
@@ -352,6 +394,15 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			es.ta.CursorEnd()
 			es.ta.InsertString("\n" + es.yankBuf)
 			es.dirty = true
+			es.lastRepeat = func(s editorState) editorState {
+				if s.yankBuf != "" {
+					s = s.pushUndo()
+					s.ta.CursorEnd()
+					s.ta.InsertString("\n" + s.yankBuf)
+					s.dirty = true
+				}
+				return s
+			}
 		}
 	case ":":
 		es.mode = vimCommand
@@ -385,6 +436,18 @@ func (es editorState) handlePending(key string) editorState {
 				es.ta.SetValue(strings.Join(newLines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, 0)
 				es.dirty = true
+				es.lastRepeat = func(s editorState) editorState {
+					s = s.pushUndo()
+					ls := strings.Split(s.ta.Value(), "\n")
+					li := s.ta.Line()
+					if li >= 0 && li < len(ls) {
+						nl := append(ls[:li:li], ls[li+1:]...)
+						s.ta.SetValue(strings.Join(nl, "\n"))
+						s = s.setCursorToLineCol(li, 0)
+						s.dirty = true
+					}
+					return s
+				}
 			}
 		case "w":
 			es = es.pushUndo()
@@ -398,6 +461,21 @@ func (es editorState) handlePending(key string) editorState {
 				es.ta.SetValue(strings.Join(lines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, col)
 				es.dirty = true
+				es.lastRepeat = func(s editorState) editorState {
+					s = s.pushUndo()
+					ls := strings.Split(s.ta.Value(), "\n")
+					li := s.ta.Line()
+					c := s.ta.LineInfo().CharOffset
+					if li >= 0 && li < len(ls) {
+						r := []rune(ls[li])
+						e := wordForwardEnd(r, c)
+						ls[li] = string(r[:c]) + string(r[e:])
+						s.ta.SetValue(strings.Join(ls, "\n"))
+						s = s.setCursorToLineCol(li, c)
+						s.dirty = true
+					}
+					return s
+				}
 			}
 		case "i":
 			es.pending = "di"
@@ -416,6 +494,21 @@ func (es editorState) handlePending(key string) editorState {
 				es.ta.SetValue(strings.Join(lines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, start)
 				es.dirty = true
+				es.lastRepeat = func(s editorState) editorState {
+					s = s.pushUndo()
+					ls := strings.Split(s.ta.Value(), "\n")
+					li := s.ta.Line()
+					c := s.ta.LineInfo().CharOffset
+					if li >= 0 && li < len(ls) {
+						r := []rune(ls[li])
+						st, en := wordBoundary(r, c)
+						ls[li] = string(r[:st]) + string(r[en:])
+						s.ta.SetValue(strings.Join(ls, "\n"))
+						s = s.setCursorToLineCol(li, st)
+						s.dirty = true
+					}
+					return s
+				}
 			}
 		}
 
@@ -435,6 +528,15 @@ func (es editorState) handlePending(key string) editorState {
 			es.ta.InsertString(key)
 			es.ta = taKey(es.ta, tea.KeyLeft)
 			es.dirty = true
+			ch := key
+			es.lastRepeat = func(s editorState) editorState {
+				s = s.pushUndo()
+				s.ta = taKey(s.ta, tea.KeyDelete)
+				s.ta.InsertString(ch)
+				s.ta = taKey(s.ta, tea.KeyLeft)
+				s.dirty = true
+				return s
+			}
 		}
 
 	case "c":
@@ -454,6 +556,22 @@ func (es editorState) handlePending(key string) editorState {
 			}
 			snap := es.snapshot()
 			es.insertSnapshot = &snap
+			es.insertLog = ""
+			es.insertEntry = func(s editorState) editorState {
+				s = s.pushUndo()
+				ls := strings.Split(s.ta.Value(), "\n")
+				li := s.ta.Line()
+				c := s.ta.LineInfo().CharOffset
+				if li >= 0 && li < len(ls) {
+					r := []rune(ls[li])
+					e := wordForwardEnd(r, c)
+					ls[li] = string(r[:c]) + string(r[e:])
+					s.ta.SetValue(strings.Join(ls, "\n"))
+					s = s.setCursorToLineCol(li, c)
+					s.dirty = true
+				}
+				return s
+			}
 			es.mode = vimInsert
 		case "i":
 			es.pending = "ci"
@@ -475,6 +593,22 @@ func (es editorState) handlePending(key string) editorState {
 			}
 			snap := es.snapshot()
 			es.insertSnapshot = &snap
+			es.insertLog = ""
+			es.insertEntry = func(s editorState) editorState {
+				s = s.pushUndo()
+				ls := strings.Split(s.ta.Value(), "\n")
+				li := s.ta.Line()
+				c := s.ta.LineInfo().CharOffset
+				if li >= 0 && li < len(ls) {
+					r := []rune(ls[li])
+					st, en := wordBoundary(r, c)
+					ls[li] = string(r[:st]) + string(r[en:])
+					s.ta.SetValue(strings.Join(ls, "\n"))
+					s = s.setCursorToLineCol(li, st)
+					s.dirty = true
+				}
+				return s
+			}
 			es.mode = vimInsert
 		}
 	}
@@ -482,14 +616,33 @@ func (es editorState) handlePending(key string) editorState {
 }
 
 // setCursorToLineCol navigates the textarea cursor to the given line and column
-// after a SetValue call that resets cursor position.
+// using absolute character offset from the start of the document. This avoids
+// the unreliable Down-key navigation that misfires after SetValue calls.
 func (es editorState) setCursorToLineCol(line, col int) editorState {
-	es.ta = taKey(es.ta, tea.KeyCtrlHome)
-	for i := 0; i < line; i++ {
-		es.ta = taKey(es.ta, tea.KeyDown)
+	lines := strings.Split(es.ta.Value(), "\n")
+	if line < 0 {
+		line = 0
 	}
-	es.ta.CursorStart()
-	for i := 0; i < col; i++ {
+	if len(lines) == 0 {
+		return es
+	}
+	if line >= len(lines) {
+		line = len(lines) - 1
+	}
+	lineRunes := []rune(lines[line])
+	if col < 0 {
+		col = 0
+	}
+	if col > len(lineRunes) {
+		col = len(lineRunes)
+	}
+	abs := 0
+	for i := 0; i < line; i++ {
+		abs += len([]rune(lines[i])) + 1 // +1 for the \n
+	}
+	abs += col
+	es.ta = taKey(es.ta, tea.KeyCtrlHome)
+	for i := 0; i < abs; i++ {
 		es.ta = taKey(es.ta, tea.KeyRight)
 	}
 	return es
@@ -534,7 +687,7 @@ func wordBoundary(runes []rune, col int) (start, end int) {
 }
 
 // moveWordForward implements vim `w`: jump to the start of the next word,
-// crossing lines if the current word runs to the end of the line.
+// crossing to the next line when the motion runs off the end of the current one.
 func (es editorState) moveWordForward() editorState {
 	lines := strings.Split(es.ta.Value(), "\n")
 	lineIdx := es.ta.Line()
@@ -545,24 +698,21 @@ func (es editorState) moveWordForward() editorState {
 	runes := []rune(lines[lineIdx])
 	newCol := wordForwardEnd(runes, col)
 	if newCol < len(runes) {
-		for i := col; i < newCol; i++ {
-			es.ta = taKey(es.ta, tea.KeyRight)
-		}
-	} else if lineIdx+1 < len(lines) {
-		es.ta = taKey(es.ta, tea.KeyDown)
-		es.ta.CursorStart()
+		return es.setCursorToLineCol(lineIdx, newCol)
+	}
+	if lineIdx+1 < len(lines) {
 		nextRunes := []rune(lines[lineIdx+1])
 		i := 0
 		for i < len(nextRunes) && (nextRunes[i] == ' ' || nextRunes[i] == '\t') {
-			es.ta = taKey(es.ta, tea.KeyRight)
 			i++
 		}
+		return es.setCursorToLineCol(lineIdx+1, i)
 	}
 	return es
 }
 
 // moveWordBackward implements vim `b`: jump to the start of the current or
-// previous word, crossing lines when already at column 0.
+// previous word, crossing to the previous line when already at column 0.
 func (es editorState) moveWordBackward() editorState {
 	lines := strings.Split(es.ta.Value(), "\n")
 	lineIdx := es.ta.Line()
@@ -573,26 +723,23 @@ func (es editorState) moveWordBackward() editorState {
 	runes := []rune(lines[lineIdx])
 	newCol := prevWordStart(runes, col)
 	if newCol >= 0 {
-		for i := col; i > newCol; i-- {
-			es.ta = taKey(es.ta, tea.KeyLeft)
-		}
-	} else if lineIdx > 0 {
-		es.ta = taKey(es.ta, tea.KeyUp)
+		return es.setCursorToLineCol(lineIdx, newCol)
+	}
+	if lineIdx > 0 {
 		prevRunes := []rune(lines[lineIdx-1])
-		es.ta.CursorEnd()
-		if len(prevRunes) > 0 {
-			i := len(prevRunes) - 1
-			isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
-			for i >= 0 && isSpace(prevRunes[i]) {
-				i--
-			}
-			if i >= 0 {
-				start, _ := wordBoundary(prevRunes, i)
-				for j := len(prevRunes); j > start; j-- {
-					es.ta = taKey(es.ta, tea.KeyLeft)
-				}
-			}
+		if len(prevRunes) == 0 {
+			return es.setCursorToLineCol(lineIdx-1, 0)
 		}
+		isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+		i := len(prevRunes) - 1
+		for i >= 0 && isSpace(prevRunes[i]) {
+			i--
+		}
+		if i < 0 {
+			return es.setCursorToLineCol(lineIdx-1, 0)
+		}
+		start, _ := wordBoundary(prevRunes, i)
+		return es.setCursorToLineCol(lineIdx-1, start)
 	}
 	return es
 }
@@ -662,10 +809,40 @@ func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
 		if es.insertSnapshot != nil && es.ta.Value() != es.insertSnapshot.content {
 			es.undoStack = append(es.undoStack, *es.insertSnapshot)
 			es.redoStack = nil
+			log := es.insertLog
+			entry := es.insertEntry
+			es.lastRepeat = func(s editorState) editorState {
+				s = s.pushUndo()
+				if entry != nil {
+					s = entry(s)
+				}
+				for _, r := range []rune(log) {
+					if r == '\n' {
+						s.ta = taKey(s.ta, tea.KeyEnter)
+					} else {
+						s.ta.InsertString(string(r))
+					}
+					s.dirty = true
+				}
+				return s
+			}
 		}
 		es.insertSnapshot = nil
+		es.insertLog = ""
+		es.insertEntry = nil
 		es.mode = vimNormal
 		return es, nil
+	case "backspace":
+		if len(es.insertLog) > 0 {
+			runes := []rune(es.insertLog)
+			es.insertLog = string(runes[:len(runes)-1])
+		}
+	default:
+		if msg.Type == tea.KeyRunes {
+			es.insertLog += string(msg.Runes)
+		} else if msg.Type == tea.KeyEnter {
+			es.insertLog += "\n"
+		}
 	}
 	var cmd tea.Cmd
 	es.ta, cmd = es.ta.Update(msg)
