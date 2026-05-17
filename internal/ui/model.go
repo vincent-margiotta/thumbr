@@ -13,7 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"thumbr/internal/notes"
+	"github.com/vincent-margiotta/thumbr/internal/notes"
 )
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"thumbr/internal/notes"
+	"github.com/vincent-margiotta/thumbr/internal/notes"
 )
 
 func newTestModel(totalCards, cursor int) Model {

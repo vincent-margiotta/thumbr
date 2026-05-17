@@ -14,7 +14,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"thumbr/internal/notes"
+	"github.com/vincent-margiotta/thumbr/internal/notes"
 )
 
 // Update and navigation-related methods live here.

@@ -18,8 +18,8 @@ import (
 	"github.com/pelletier/go-toml/v2"
 	"gopkg.in/yaml.v3"
 
-	"thumbr/internal/notes"
-	"thumbr/internal/ui"
+	"github.com/vincent-margiotta/thumbr/internal/notes"
+	"github.com/vincent-margiotta/thumbr/internal/ui"
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".

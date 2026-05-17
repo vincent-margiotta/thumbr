@@ -1,4 +1,4 @@
-module thumbr
+module github.com/vincent-margiotta/thumbr
 
 go 1.24.0
 
