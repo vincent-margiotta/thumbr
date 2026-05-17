@@ -8,10 +8,9 @@ ARGS        ?= samples/notes
 
 # Versioning
 VERSION     ?= $(shell git describe --tags --dirty --always 2>/dev/null || echo dev)
-BUILD_DATE  := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 # LDFLAGS: Linker flags (inject variables)
-LDFLAGS     := -X main.version=$(VERSION) -X main.buildDate=$(BUILD_DATE)
+LDFLAGS     := -X main.version=$(VERSION)
 
 # Go Configuration
 GO            := go
@@ -52,7 +51,7 @@ vet:
 	@echo "Vet..."
 	GOCACHE="$(GOCACHE)" $(GO) vet ./...
 
-## lint: Alias for vet (backcompat)
+## lint: Alias for vet
 lint: vet
 
 ## test: Run unit tests
