@@ -10,7 +10,7 @@ Thumbr favors the analog experience over digital workflow features. It emulates 
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
 - **Simple Titles:** Uses the filename (minus extension) as the card title; order follows directory traversal.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
-- **In-App Editor:** Browse, create, and edit notes without leaving Thumbr. Built-in vim-style editing (normal/insert/command modes) with `:w`/`ctrl+s` to save and `:q`/`:wq` to exit.
+- **In-App Editor:** Browse, create, and edit notes without leaving Thumbr. Built-in vim-style editing (normal/insert/command modes) with `:w`/`ctrl+s` to save and `:q`/`:wq` to exit. When `c`/`C` creates a linked card, both notes open in a split pane (source top, new card bottom); `ctrl+w` switches focus between panes.
 - **Luhmann Addressing:** Continue (`c`), branch (`C`), and create the next integer root (`N`) using Luhmann-style alphanumeric addressing. Custom shell commands can override the derivation.
 - **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
 - **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
@@ -35,10 +35,15 @@ make build
 ./thumbr samples/notes
 ````
 
-### Install/Run via Go
+### Install via Go
 
 ```bash
-# Run directly on your current directory
+go install github.com/vincent-margiotta/thumbr/cmd/thumbr@latest
+```
+
+Or run directly from a cloned repo without installing:
+
+```bash
 go run ./cmd/thumbr .
 ```
 
@@ -66,10 +71,10 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 | **Jump to ~%** | `g` `1`–`9` | Jump to 10%–90% through the deck. |
 | **Random** | `r` | Jump to a random card. |
 | **Open overlay** | `Enter` | Pull the active card into the reading overlay. |
-| **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. |
+| **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. If another editor is suspended, opens as a companion pane. |
 | **Edit (external)** | `E` | Open the active card in `$EDITOR`. |
-| **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). |
-| **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). |
+| **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). Opens in a split pane by default (`autoSplitOnLink`). |
+| **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). Opens in a split pane by default (`autoSplitOnLink`). |
 | **Next root** | `N` | Create the next integer root card (e.g. `17` if `16` is highest). |
 | **New file** | `a` | Prompt for a new filename and create it. |
 | **Mark card** | `m` | Toggle mark (`*`). Unmarked cards dim when any are marked. |
@@ -96,9 +101,10 @@ The in-app editor uses vim-style modes.
 | **Insert mode** | `i` / `a` | Enter insert mode before / after cursor. |
 | **Normal mode** | `Esc` / `Ctrl+c` | Return to normal mode. |
 | **Save** | `:w` / `Ctrl+s` | Save without exiting. |
-| **Quit** | `:q` | Quit (blocked if unsaved changes). |
-| **Discard & quit** | `:q!` | Discard changes and return to browse. |
-| **Save & quit** | `:wq` | Save, then return to browse. |
+| **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split → single; single → browse. |
+| **Discard & quit** | `:q!` | Discard changes and close active pane. |
+| **Save & quit** | `:wq` | Save and close active pane. |
+| **Switch pane** | `Ctrl+w` | Switch focus between top and bottom panes (split view only). |
 | **Suspend editor** | `Ctrl+b` | Suspend editor and return to browse; press `e` to resume. |
 
 > Keybindings can be customized via the configuration file. The debug overlay (`d`) is disabled by default; enable it with `enableDebugUI: true`.
