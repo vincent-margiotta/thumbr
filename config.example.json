@@ -58,6 +58,7 @@
   "newFileSameDir": true,
   "newFileEditor": "inapp",
   "autoSplitOnLink": true,
+  "liveReload": true,
   "textWidth": 80,
   "enableDebugUI": false,
   "crashLogPath": ""

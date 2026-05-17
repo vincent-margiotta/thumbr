@@ -59,6 +59,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ready = true
 		return m.withUpdateSample(start), nil
 
+	case watchEventMsg:
+		if !m.settings.LiveReload {
+			return m.withUpdateSample(start), nil
+		}
+		return m.withUpdateSample(start), tea.Batch(
+			m.loadBoxCmd(m.currentBox()),
+			watchDirCmd(m.watchStop, m.currentBox(), m.loadOpts),
+		)
+
 	case boxLoadResult:
 		if msg.err != nil {
 			m.err = msg.err
@@ -67,23 +76,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m = m.resetAfterLoad(msg.cards, msg.path)
 		m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
+		// When the active box changes, cancel the old watcher and start one for the new root.
+		var newWatchCmd tea.Cmd
+		if m.settings.LiveReload && msg.path != m.watchingBox {
+			close(m.watchStop)
+			m.watchStop = make(chan struct{})
+			m.watchingBox = msg.path
+			newWatchCmd = watchDirCmd(m.watchStop, msg.path, m.loadOpts)
+		}
 		if m.pendingEditorPath != "" {
 			path := m.pendingEditorPath
 			m.pendingEditorPath = ""
 			if m.pendingSourcePath != "" && m.settings.AutoSplitOnLink {
 				src := m.pendingSourcePath
 				m.pendingSourcePath = ""
-				return m.withUpdateSample(start), openSplitCmd(src, path)
+				return m.withUpdateSample(start), tea.Batch(newWatchCmd, openSplitCmd(src, path))
 			}
 			m.pendingSourcePath = ""
-			return m.withUpdateSample(start), openInAppCmd(path)
+			return m.withUpdateSample(start), tea.Batch(newWatchCmd, openInAppCmd(path))
 		}
 		vis := m.visibleIndices()
 		n := m.settings.StackVisibleCount + 2
 		if n > len(vis) {
 			n = len(vis)
 		}
-		return m.withUpdateSample(start), preloadCardsCmd(m.cards, vis[:n])
+		return m.withUpdateSample(start), tea.Batch(preloadCardsCmd(m.cards, vis[:n]), newWatchCmd)
 
 	case newFileResult:
 		if msg.err != nil {

@@ -52,7 +52,8 @@ type Settings struct {
 	BranchNameCmd       string
 	AutoSplitOnLink     bool
 
-	TextWidth int // hard-wrap column in the editor; 0 disables
+	TextWidth  int  // hard-wrap column in the editor; 0 disables
+	LiveReload bool // reload card list when files change on disk
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -89,6 +90,7 @@ var DefaultSettings = Settings{
 	BranchNameCmd:       "",
 	AutoSplitOnLink:     true,
 	TextWidth:           80,
+	LiveReload:          true,
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -327,6 +329,11 @@ func (m *Model) SetPageStep(step int) {
 	if step > 0 {
 		m.overlayPageStep = step
 	}
+}
+
+// EnableLiveReload enables or disables automatic card-list reload on file-system changes.
+func (m *Model) EnableLiveReload(enabled bool) {
+	m.settings.LiveReload = enabled
 }
 
 // SetTextWidth sets the hard-wrap column for the in-app editor. Pass 0 to disable.

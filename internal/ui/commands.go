@@ -5,13 +5,16 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/vincent-margiotta/thumbr/internal/notes"
@@ -51,6 +54,9 @@ type cardContentResult struct {
 	content string
 	err     error
 }
+
+// watchEventMsg is sent when the file watcher detects a relevant change in the note root.
+type watchEventMsg struct{}
 
 type openSplitResult struct {
 	topPath, topContent       string
@@ -233,6 +239,118 @@ func (m Model) createLinkedFileCmdNoEditor(box, targetDir, stem, ext, initialCon
 		}
 		return newFileResult{box: box, path: target, seekPath: target, openInApp: openInApp}
 	}
+}
+
+// watchDirCmd watches root for file-system events relevant to the card list
+// (creates, removes, and renames of files whose extension matches opts.IncludeExts).
+// It blocks until a debounced event fires or stop is closed, then returns
+// watchEventMsg or nil respectively. Newly created subdirectories are added
+// to the watch set automatically.
+func watchDirCmd(stop <-chan struct{}, root string, opts notes.LoadOptions) tea.Cmd {
+	return func() tea.Msg {
+		w, err := fsnotify.NewWatcher()
+		if err != nil {
+			return nil
+		}
+		defer w.Close()
+		if err := watchAddDirs(w, root, opts.IgnoreGlobs); err != nil {
+			return nil
+		}
+
+		timerCh := make(chan struct{}, 1)
+		var debounce *time.Timer
+
+		for {
+			select {
+			case <-stop:
+				return nil
+			case event, ok := <-w.Events:
+				if !ok {
+					return nil
+				}
+				if event.Op&(fsnotify.Create|fsnotify.Remove|fsnotify.Rename) == 0 {
+					continue
+				}
+				// Watch newly created subdirectories.
+				if event.Op&fsnotify.Create != 0 {
+					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+						_ = watchAddDirs(w, event.Name, opts.IgnoreGlobs)
+					}
+				}
+				// Only trigger on files with a matching extension.
+				if !watchFileMatches(event.Name, opts.IncludeExts, opts.IgnoreGlobs) {
+					continue
+				}
+				if debounce != nil {
+					debounce.Stop()
+				}
+				debounce = time.AfterFunc(300*time.Millisecond, func() {
+					select {
+					case timerCh <- struct{}{}:
+					default:
+					}
+				})
+			case <-timerCh:
+				return watchEventMsg{}
+			case _, ok := <-w.Errors:
+				if !ok {
+					return nil
+				}
+			}
+		}
+	}
+}
+
+// watchAddDirs recursively adds root and all subdirectories to w, skipping
+// directories that match ignoreGlobs.
+func watchAddDirs(w *fsnotify.Watcher, root string, ignoreGlobs []string) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if watchPathIgnored(path, ignoreGlobs) {
+			return filepath.SkipDir
+		}
+		_ = w.Add(path)
+		return nil
+	})
+}
+
+// watchFileMatches returns true when path has a matching extension and is not ignored.
+func watchFileMatches(path string, exts []string, ignoreGlobs []string) bool {
+	if watchPathIgnored(path, ignoreGlobs) {
+		return false
+	}
+	if len(exts) == 0 {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	for _, e := range exts {
+		if strings.ToLower(e) == ext {
+			return true
+		}
+	}
+	return false
+}
+
+// watchPathIgnored returns true when path or its base name matches any ignore glob.
+func watchPathIgnored(path string, patterns []string) bool {
+	base := filepath.Base(path)
+	for _, pat := range patterns {
+		if pat == "" {
+			continue
+		}
+		if ok, _ := filepath.Match(pat, path); ok {
+			return true
+		}
+		if ok, _ := filepath.Match(pat, base); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

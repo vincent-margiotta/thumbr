@@ -150,6 +150,11 @@ type Model struct {
 	activePane int // 0 or 1
 	paneCount  int // 0=none, 1=single, 2=split
 
+	// watchStop is closed to signal the current watcher goroutine to exit.
+	watchStop chan struct{}
+	// watchingBox is the box path currently being watched.
+	watchingBox string
+
 	// pendingEditorPath causes the next boxLoadResult to open this file in-app.
 	pendingEditorPath string
 	pendingEditorLine int
@@ -182,8 +187,10 @@ func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, r
 		boxFilters: map[string]bool{
 			root: false,
 		},
-		noteRoot: root,
-		loadOpts: loadOpts,
+		noteRoot:    root,
+		loadOpts:    loadOpts,
+		watchStop:   make(chan struct{}),
+		watchingBox: root,
 	}
 	m = m.setActiveBox(root)
 	return m
@@ -194,15 +201,22 @@ func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, r
 // ---------------------------------------------------------------------------
 
 func (m Model) Init() tea.Cmd {
-	if len(m.cards) == 0 {
+	var cmds []tea.Cmd
+	if len(m.cards) > 0 {
+		vis := m.visibleIndices()
+		n := m.settings.StackVisibleCount + 2
+		if n > len(vis) {
+			n = len(vis)
+		}
+		cmds = append(cmds, preloadCardsCmd(m.cards, vis[:n]))
+	}
+	if m.settings.LiveReload {
+		cmds = append(cmds, watchDirCmd(m.watchStop, m.currentBox(), m.loadOpts))
+	}
+	if len(cmds) == 0 {
 		return nil
 	}
-	vis := m.visibleIndices()
-	n := m.settings.StackVisibleCount + 2
-	if n > len(vis) {
-		n = len(vis)
-	}
-	return preloadCardsCmd(m.cards, vis[:n])
+	return tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
