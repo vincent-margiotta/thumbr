@@ -26,7 +26,7 @@ ARCHIVE_NAME := $(BINARY_NAME)-$(VERSION).tar.gz
 
 # --- Main Targets ---
 
-.PHONY: all build run fmt vet lint test race cover tidy deps clean clean-cache check archive bench help
+.PHONY: all build install run fmt vet lint test race cover tidy deps clean clean-cache check archive bench help
 
 all: check build
 
@@ -35,6 +35,10 @@ build:
 	@echo "Building $(BINARY_NAME) $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
 	GOCACHE="$(GOCACHE)" $(GO) build $(GO_BUILD_FLAGS) -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/thumbr
+
+## install: Install binary to $(GOBIN) / $(GOPATH)/bin
+install:
+	$(GO) install $(GO_BUILD_FLAGS) -ldflags "$(LDFLAGS)" ./cmd/thumbr
 
 ## run: Build and run the binary (pass args with ARGS="...")
 run: build

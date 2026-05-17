@@ -151,6 +151,7 @@ On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--c
 
 Uses a local `.gocache` to keep your system clean.
 
+  - `make install`: Install binary to `$GOBIN` / `$GOPATH/bin`.
   - `make run`: Build and run (defaults to `samples/notes`).
   - `make build`: Compile binary (embeds `git describe` version).
   - `make check`: Run lint (`go vet`) and tests.
