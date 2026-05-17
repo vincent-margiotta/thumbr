@@ -175,6 +175,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 		} else {
 			m.editors[m.activePane] = es
+			m = m.syncCardContent(es.path, es.ta.Value())
 			m = m.setStatus("Saved", 2*time.Second)
 		}
 		return m.withUpdateSample(start), nil
@@ -214,6 +215,20 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 	return m.withUpdateSample(start), nil
 }
 
+// syncCardContent updates the cached content of the card at path so the
+// overlay reflects the saved state without a full reload.
+func (m Model) syncCardContent(path, content string) Model {
+	for i := range m.cards {
+		if m.cards[i].Path == path {
+			m.cards[i].Content = content
+			m.cards[i].ContentLoaded = true
+			m.cards[i].ContentErr = nil
+			break
+		}
+	}
+	return m
+}
+
 func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Model, tea.Cmd) {
 	es := m.editors[m.activePane]
 	switch action {
@@ -224,6 +239,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			return m.withUpdateSample(start), nil
 		}
 		m.editors[m.activePane] = es
+		m = m.syncCardContent(es.path, es.ta.Value())
 		m = m.setStatus("Saved", 2*time.Second)
 		return m.withUpdateSample(start), nil
 
@@ -244,6 +260,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
+		m = m.syncCardContent(es.path, es.ta.Value())
 		return m.closeFocusedPane(start)
 
 	case editorActionReformat:
