@@ -26,47 +26,47 @@ import (
 var version = "dev"
 
 type config struct {
-	NoteRoot         string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
-	RandomSeed       *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
-	AltScreen        *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
-	IncludeExts      []string `json:"includeExts" yaml:"includeExts" toml:"includeExts"`
-	IgnoreGlobs      []string `json:"ignoreGlobs" yaml:"ignoreGlobs" toml:"ignoreGlobs"`
-	ColorMark        string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
-	ColorMuted       string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
-	ColorHi          string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
-	ColorDim         string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
-	ColorStatusBG    string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
-	ColorStatusFG    string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
-	ColorStatusDim   string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
-	PageStep         int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavAccelMs       int      `json:"navAccelMs" yaml:"navAccelMs" toml:"navAccelMs"`
-	NavMaxStep       int      `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
-	StackVisible     int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
-	StackOffsetX     int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
-	StackOffsetY     int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
-	CardWidthFrac    float64  `json:"cardWidthFrac" yaml:"cardWidthFrac" toml:"cardWidthFrac"`
-	CardHeightFrac   float64  `json:"cardHeightFrac" yaml:"cardHeightFrac" toml:"cardHeightFrac"`
-	ActiveLiftY      int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
-	StickyOverlayNav *bool    `json:"stickyOverlayNav" yaml:"stickyOverlayNav" toml:"stickyOverlayNav"`
-	MaxCursorDepth   int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
-	BorderCorner     string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
-	BorderH          string   `json:"borderH" yaml:"borderH" toml:"borderH"`
-	BorderV          string   `json:"borderV" yaml:"borderV" toml:"borderV"`
-	BindUp           []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
-	BindDown         []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
-	BindRandom       []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
-	BindOverlay      []string `json:"bindOverlay" yaml:"bindOverlay" toml:"bindOverlay"`
-	BindEdit         []string `json:"bindEdit" yaml:"bindEdit" toml:"bindEdit"`
-	BindBox          []string `json:"bindBox" yaml:"bindBox" toml:"bindBox"`
-	BindNewFile      []string `json:"bindNewFile" yaml:"bindNewFile" toml:"bindNewFile"`
-	BindMark         []string `json:"bindMark" yaml:"bindMark" toml:"bindMark"`
-	BindFilter       []string `json:"bindFilter" yaml:"bindFilter" toml:"bindFilter"`
-	BindHelp         []string `json:"bindHelp" yaml:"bindHelp" toml:"bindHelp"`
-	BindQuit         []string `json:"bindQuit" yaml:"bindQuit" toml:"bindQuit"`
-	BindPageNext     []string `json:"bindPageNext" yaml:"bindPageNext" toml:"bindPageNext"`
-	BindPagePrev     []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
-	BindOverlayUp    []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
-	BindOverlayDown  []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
+	NoteRoot            string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
+	RandomSeed          *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
+	AltScreen           *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
+	IncludeExts         []string `json:"includeExts" yaml:"includeExts" toml:"includeExts"`
+	IgnoreGlobs         []string `json:"ignoreGlobs" yaml:"ignoreGlobs" toml:"ignoreGlobs"`
+	ColorMark           string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
+	ColorMuted          string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
+	ColorHi             string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
+	ColorDim            string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
+	ColorStatusBG       string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
+	ColorStatusFG       string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
+	ColorStatusDim      string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
+	PageStep            int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
+	NavAccelMs          int      `json:"navAccelMs" yaml:"navAccelMs" toml:"navAccelMs"`
+	NavMaxStep          int      `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
+	StackVisible        int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
+	StackOffsetX        int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
+	StackOffsetY        int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
+	CardWidthFrac       float64  `json:"cardWidthFrac" yaml:"cardWidthFrac" toml:"cardWidthFrac"`
+	CardHeightFrac      float64  `json:"cardHeightFrac" yaml:"cardHeightFrac" toml:"cardHeightFrac"`
+	ActiveLiftY         int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
+	StickyOverlayNav    *bool    `json:"stickyOverlayNav" yaml:"stickyOverlayNav" toml:"stickyOverlayNav"`
+	MaxCursorDepth      int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
+	BorderCorner        string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
+	BorderH             string   `json:"borderH" yaml:"borderH" toml:"borderH"`
+	BorderV             string   `json:"borderV" yaml:"borderV" toml:"borderV"`
+	BindUp              []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
+	BindDown            []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
+	BindRandom          []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
+	BindOverlay         []string `json:"bindOverlay" yaml:"bindOverlay" toml:"bindOverlay"`
+	BindEdit            []string `json:"bindEdit" yaml:"bindEdit" toml:"bindEdit"`
+	BindBox             []string `json:"bindBox" yaml:"bindBox" toml:"bindBox"`
+	BindNewFile         []string `json:"bindNewFile" yaml:"bindNewFile" toml:"bindNewFile"`
+	BindMark            []string `json:"bindMark" yaml:"bindMark" toml:"bindMark"`
+	BindFilter          []string `json:"bindFilter" yaml:"bindFilter" toml:"bindFilter"`
+	BindHelp            []string `json:"bindHelp" yaml:"bindHelp" toml:"bindHelp"`
+	BindQuit            []string `json:"bindQuit" yaml:"bindQuit" toml:"bindQuit"`
+	BindPageNext        []string `json:"bindPageNext" yaml:"bindPageNext" toml:"bindPageNext"`
+	BindPagePrev        []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
+	BindOverlayUp       []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
+	BindOverlayDown     []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
 	BindReload          []string `json:"bindReload"          yaml:"bindReload"          toml:"bindReload"`
 	BindContinue        []string `json:"bindContinue"        yaml:"bindContinue"        toml:"bindContinue"`
 	BindBranch          []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
@@ -83,12 +83,12 @@ type config struct {
 	BindSwitchPane      []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
 	AutoSplitOnLink     *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
 	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
-	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
-	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
-	TextWidth        *int     `json:"textWidth"     yaml:"textWidth"     toml:"textWidth"`
-	LiveReload       *bool    `json:"liveReload"    yaml:"liveReload"    toml:"liveReload"`
-	EnableDebugUI    *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
-	CrashLogPath     string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
+	SortPattern         string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
+	SortPatternFirst    *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
+	TextWidth           *int     `json:"textWidth"     yaml:"textWidth"     toml:"textWidth"`
+	LiveReload          *bool    `json:"liveReload"    yaml:"liveReload"    toml:"liveReload"`
+	EnableDebugUI       *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
+	CrashLogPath        string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
 }
 
 type int64Flag struct {
@@ -246,24 +246,24 @@ func main() {
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
 	// Keybinding overrides (comma-separated lists)
 	var (
-		bindUpArg        string
-		bindDownArg      string
-		bindRandomArg    string
-		bindOverlayArg   string
-		bindEditArg      string
-		bindBoxArg       string
-		bindNewFileArg   string
-		bindMarkArg      string
-		bindFilterArg    string
-		bindHelpArg      string
-		bindQuitArg      string
-		bindPageNextArg  string
-		bindPagePrevArg  string
-		bindOverlayUpArg string
-		bindOverlayDnArg string
-		bindReloadArg    string
-		bindContinueArg  string
-		bindBranchArg    string
+		bindUpArg            string
+		bindDownArg          string
+		bindRandomArg        string
+		bindOverlayArg       string
+		bindEditArg          string
+		bindBoxArg           string
+		bindNewFileArg       string
+		bindMarkArg          string
+		bindFilterArg        string
+		bindHelpArg          string
+		bindQuitArg          string
+		bindPageNextArg      string
+		bindPagePrevArg      string
+		bindOverlayUpArg     string
+		bindOverlayDnArg     string
+		bindReloadArg        string
+		bindContinueArg      string
+		bindBranchArg        string
 		bindNextRootArg      string
 		bindSuspendEditorArg string
 		bindInAppArg         string
@@ -318,36 +318,36 @@ func main() {
 	}
 
 	opts := struct {
-		noteRoot           string
-		randomSeed         int64
-		useAlternateScreen bool
-		includeExts        []string
-		ignoreGlobs        []string
-		sortMode           string
-		sortPattern        string
-		sortPatternFirst   bool
-		colorMark          string
-		colorMuted         string
-		colorHi            string
-		colorDim           string
-		colorStatusBG      string
-		colorStatusFG      string
-		colorStatusDim     string
-		pageStep           int
-		navAccelMs         int
-		navMaxStep         int
-		bindings           ui.KeyBindings
-		stackVisible       int
-		stackOffsetX       int
-		stackOffsetY       int
-		cardWidthFrac      float64
-		cardHeightFrac     float64
-		activeLiftY        int
-		stickyOverlayNav   bool
-		maxCursorDepth     int
-		borderCorner       string
-		borderH            string
-		borderV            string
+		noteRoot            string
+		randomSeed          int64
+		useAlternateScreen  bool
+		includeExts         []string
+		ignoreGlobs         []string
+		sortMode            string
+		sortPattern         string
+		sortPatternFirst    bool
+		colorMark           string
+		colorMuted          string
+		colorHi             string
+		colorDim            string
+		colorStatusBG       string
+		colorStatusFG       string
+		colorStatusDim      string
+		pageStep            int
+		navAccelMs          int
+		navMaxStep          int
+		bindings            ui.KeyBindings
+		stackVisible        int
+		stackOffsetX        int
+		stackOffsetY        int
+		cardWidthFrac       float64
+		cardHeightFrac      float64
+		activeLiftY         int
+		stickyOverlayNav    bool
+		maxCursorDepth      int
+		borderCorner        string
+		borderH             string
+		borderV             string
 		enableDebugUI       bool
 		crashLogPath        string
 		bindNavFirstArg     string

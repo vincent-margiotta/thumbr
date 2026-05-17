@@ -65,10 +65,10 @@ func TestNextRootInteger(t *testing.T) {
 		ok    bool
 	}{
 		{[]string{"1", "2", "3"}, "4", true},
-		{[]string{"3", "1", "2"}, "4", true},   // order-independent
+		{[]string{"3", "1", "2"}, "4", true}, // order-independent
 		{[]string{"5"}, "6", true},
 		{[]string{"1", "2", "foo", "3a"}, "3", true}, // non-integers ignored
-		{[]string{"a", "b", "1a"}, "", false},         // no pure integers
+		{[]string{"a", "b", "1a"}, "", false},        // no pure integers
 		{[]string{}, "", false},
 		{nil, "", false},
 	}

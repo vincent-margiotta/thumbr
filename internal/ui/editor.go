@@ -23,7 +23,7 @@ func taKey(ta textarea.Model, key tea.KeyType) textarea.Model {
 type vimMode int
 
 const (
-	vimNormal  vimMode = iota
+	vimNormal vimMode = iota
 	vimInsert
 	vimCommand
 )
@@ -45,8 +45,8 @@ type editorState struct {
 	saveErr        error
 	undoStack      []undoEntry
 	redoStack      []undoEntry
-	insertSnapshot *undoEntry                   // state captured on insert-mode entry
-	insertLog      string                       // chars typed since insert-mode entry (for dot repeat)
+	insertSnapshot *undoEntry                    // state captured on insert-mode entry
+	insertLog      string                        // chars typed since insert-mode entry (for dot repeat)
 	insertEntry    func(editorState) editorState // pre-insert action to replay on dot repeat
 	lastRepeat     func(editorState) editorState // nil until a repeatable change is made
 }

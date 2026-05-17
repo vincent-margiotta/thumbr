@@ -103,12 +103,12 @@ type Model struct {
 	avgInterval float64 // exponential moving average of ms between presses
 	navPending  string  // pending nav prefix key ("g" waits for a second key)
 
-	rng          *rand.Rand
-	showHelp     bool
-	showDebug    bool
-	marked       map[string]bool // absolute file paths of marked cards
-	boxFilters   map[string]bool // per-box filter state
-	filterMarked bool
+	rng             *rand.Rand
+	showHelp        bool
+	showDebug       bool
+	marked          map[string]bool // absolute file paths of marked cards
+	boxFilters      map[string]bool // per-box filter state
+	filterMarked    bool
 	overlayPage     int
 	overlayPageStep int // overrides computed half-page step when > 0
 

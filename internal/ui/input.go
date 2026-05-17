@@ -488,8 +488,8 @@ func (m Model) promptTargetBox() string {
 // avgInterval by a growth factor; elapsed time decays it exponentially. Pressing
 // faster than ~160 ms/press accelerates; slower causes gradual decay.
 func navStep(avgInterval, dt float64, sameDir bool, maxStep int) (newAvg float64, step int) {
-	const growth = 1.6 // multiplier applied each press
-	const decay = 0.75 // fraction remaining per 100 ms elapsed
+	const growth = 1.6         // multiplier applied each press
+	const decay = 0.75         // fraction remaining per 100 ms elapsed
 	const initV = 1.0 / growth // ensures the first press always yields step=1
 
 	if !sameDir || avgInterval == 0 {
