@@ -96,14 +96,45 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 
 The in-app editor uses vim-style modes.
 
+#### Navigation
+
 | Action | Keybinding | Notes |
 | :--- | :--- | :--- |
 | **Insert mode** | `i` / `a` | Enter insert mode before / after cursor. |
+| **Append at EOL** | `A` | Enter insert mode at end of line. |
+| **Open line below** | `o` | Insert new line below and enter insert mode. |
+| **Open line above** | `O` | Insert new line above and enter insert mode. |
 | **Normal mode** | `Esc` / `Ctrl+c` | Return to normal mode. |
+| **Word forward** | `w` | Move to start of next word (crosses lines). |
+| **Word backward** | `b` | Move to start of previous word (crosses lines). |
+
+#### Editing
+
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
+| **Delete char** | `x` | Delete character under cursor (saved to register). |
+| **Replace char** | `r` | Replace character under cursor. |
+| **Delete line** | `dd` | Delete current line (saved to register). |
+| **Delete word** | `dw` / `diw` | Delete to next word boundary / delete inner word. |
+| **Change word** | `cw` / `ciw` | Replace to next word boundary / replace inner word (enters insert mode). |
+| **Paste** | `p` | Paste last deleted text after cursor. |
+| **Dot repeat** | `.` | Repeat the last normal-mode change. |
+| **Reflow line** | `gqq` | Reformat current line to fit `textWidth`. |
+
+#### Commands
+
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
 | **Save** | `:w` / `Ctrl+s` | Save without exiting. |
 | **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split → single; single → browse. |
 | **Discard & quit** | `:q!` | Discard changes and close active pane. |
 | **Save & quit** | `:wq` | Save and close active pane. |
+| **Reformat file** | `:fmt` | Reflow all lines in the file to fit `textWidth`. |
+
+#### Pane Management
+
+| Action | Keybinding | Notes |
+| :--- | :--- | :--- |
 | **Switch pane** | `Ctrl+w` | Switch focus between top and bottom panes (split view only). |
 | **Suspend editor** | `Ctrl+b` | Suspend editor and return to browse; press `e` to resume. |
 
