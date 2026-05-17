@@ -4,7 +4,7 @@
 
 ## Influence
 
-Thumbr favors the analog experience over digital workflow features. It emulates flipping through a physical card box: filename-as-title cards in a stack, rapid “thumbing” with acceleration, and an overlay that feels like pulling a card to the front. Navigation is biased toward serendipity (random jumps) and branching hub notes instead of rigid hierarchies or backlinks. The goal is to keep your notes as simple files while giving you an intuitive, tactile way to browse and continue ideas.
+Notes are files. Thumbr keeps them that way — plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through with momentum, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search — random jumps, no hierarchy, no backlinks graph — because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
