@@ -59,6 +59,7 @@ const (
 	editorActionQuit
 	editorActionSaveQuit
 	editorActionForceQuit
+	editorActionReformat
 )
 
 // splitViewports returns per-pane Viewports for a 35/65 split.
@@ -244,6 +245,30 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			return m.withUpdateSample(start), nil
 		}
 		return m.closeFocusedPane(start)
+
+	case editorActionReformat:
+		tw := m.settings.TextWidth
+		if tw <= 0 {
+			m = m.setStatus("textWidth is disabled — set it in config to use :fmt", 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		lines := strings.Split(es.ta.Value(), "\n")
+		var newLines []string
+		for _, line := range lines {
+			newLines = append(newLines, reflowLine(line, tw)...)
+		}
+		newContent := strings.Join(newLines, "\n")
+		if newContent != es.ta.Value() {
+			es = es.pushUndo()
+			es.ta.SetValue(newContent)
+			es = es.setCursorToLineCol(es.ta.Line(), 0)
+			es.dirty = true
+			m.editors[m.activePane] = es
+			m = m.setStatus("Reformatted", 2*time.Second)
+		} else {
+			m = m.setStatus("Already within column limit", 2*time.Second)
+		}
+		return m.withUpdateSample(start), nil
 	}
 
 	return m.withUpdateSample(start), nil
@@ -985,6 +1010,8 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionForceQuit
 		case "wq", "x":
 			return es, editorActionSaveQuit
+		case "fmt":
+			return es, editorActionReformat
 		}
 		return es, editorActionNone
 	case "backspace":
