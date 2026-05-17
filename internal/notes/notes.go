@@ -20,6 +20,9 @@ type Card struct {
 	ContentErr    error
 }
 
+// LoadOptions controls which files are included, how they are sorted, and
+// whether timing data is captured. All fields are optional; zero values
+// produce the built-in defaults (include .txt, natural sort).
 type LoadOptions struct {
 	IncludeExts      []string // e.g. []string{".txt", ".md"}; empty means default .txt
 	IgnoreGlobs      []string // file/dir patterns to skip

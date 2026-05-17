@@ -12,7 +12,9 @@ type Viewport struct {
 	Height int
 }
 
-// Settings holds all tuneable display and behaviour parameters.
+// Settings holds all tuneable display and behaviour parameters for the UI.
+// The zero value is not useful; start from DefaultSettings and apply overrides
+// via the Apply* methods on Model.
 type Settings struct {
 	StackVisibleCount int
 	StackOffsetX      int
@@ -51,6 +53,7 @@ type Settings struct {
 	AutoSplitOnLink     bool
 }
 
+// DefaultSettings is the out-of-the-box configuration used by NewModel.
 var DefaultSettings = Settings{
 	StackVisibleCount: 7,
 	StackOffsetX:      2,
@@ -315,6 +318,8 @@ func (m *Model) ApplyNav(navAccelMs, navMaxStep int) {
 	}
 }
 
+// SetPageStep sets the overlay page-scroll step in lines. Values ≤ 0 are
+// ignored; the default is half the visible body height.
 func (m *Model) SetPageStep(step int) {
 	if step > 0 {
 		m.overlayPageStep = step

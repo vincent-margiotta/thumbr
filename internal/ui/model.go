@@ -20,13 +20,14 @@ import (
 // State machine types
 // ---------------------------------------------------------------------------
 
+// State represents the current interaction mode of the UI.
 type State int
 
 const (
-	StateBrowsing State = iota
-	StateViewing
-	StatePrompting
-	StateEditing
+	StateBrowsing  State = iota // navigating the card stack
+	StateViewing                // reading a card in the overlay
+	StatePrompting              // entering text in a prompt (box path, new file)
+	StateEditing                // in-app vim editor is active
 )
 
 func (s State) String() string {
