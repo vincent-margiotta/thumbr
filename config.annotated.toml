@@ -111,6 +111,10 @@ newFileEditor = "inapp"
 # When true and newFileEditor is "inapp", c/C opens source and new card in a split-pane editor.
 autoSplitOnLink = true
 
+# Hard-wrap column for the in-app editor. When a line exceeds this width, the
+# last space at or before the column is replaced with a newline. Set to 0 to disable.
+textWidth = 80
+
 # Key to switch focus between split editor panes.
 bindSwitchPane = ["ctrl+w"]
 

@@ -154,6 +154,8 @@ func (es editorState) pushUndo() editorState {
 func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
+	tw := m.settings.TextWidth
+
 	if m.isBinding(key, m.bindings.SwitchPane) && m.paneCount == 2 {
 		m.activePane = 1 - m.activePane
 		return m.withUpdateSample(start), nil
@@ -180,7 +182,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 	switch es.mode {
 	case vimNormal:
 		if es.pending != "" {
-			es = es.handlePending(key)
+			es = es.handlePending(key, tw)
 			m.editors[m.activePane] = es
 			return m.withUpdateSample(start), nil
 		}
@@ -194,7 +196,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 
 	case vimInsert:
 		var cmd tea.Cmd
-		es, cmd = es.handleInsert(msg)
+		es, cmd = es.handleInsert(msg, tw)
 		m.editors[m.activePane] = es
 		return m.withUpdateSample(start), cmd
 
@@ -415,7 +417,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	return es, editorActionNone
 }
 
-func (es editorState) handlePending(key string) editorState {
+func (es editorState) handlePending(key string, textwidth int) editorState {
 	prev := es.pending
 	es.pending = ""
 
@@ -423,6 +425,44 @@ func (es editorState) handlePending(key string) editorState {
 	case "g":
 		if key == "g" {
 			es.ta = taKey(es.ta, tea.KeyCtrlHome)
+		} else if key == "q" {
+			es.pending = "gq"
+		}
+
+	case "gq":
+		if key == "q" && textwidth > 0 {
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				reflowed := reflowLine(lines[lineIdx], textwidth)
+				if len(reflowed) > 1 || (len(reflowed) == 1 && reflowed[0] != lines[lineIdx]) {
+					es = es.pushUndo()
+					newLines := make([]string, 0, len(lines)+len(reflowed)-1)
+					newLines = append(newLines, lines[:lineIdx]...)
+					newLines = append(newLines, reflowed...)
+					newLines = append(newLines, lines[lineIdx+1:]...)
+					es.ta.SetValue(strings.Join(newLines, "\n"))
+					es = es.setCursorToLineCol(lineIdx, 0)
+					es.dirty = true
+					tw := textwidth
+					es.lastRepeat = func(s editorState) editorState {
+						s = s.pushUndo()
+						ls := strings.Split(s.ta.Value(), "\n")
+						li := s.ta.Line()
+						if li >= 0 && li < len(ls) {
+							rf := reflowLine(ls[li], tw)
+							nl := make([]string, 0, len(ls)+len(rf)-1)
+							nl = append(nl, ls[:li]...)
+							nl = append(nl, rf...)
+							nl = append(nl, ls[li+1:]...)
+							s.ta.SetValue(strings.Join(nl, "\n"))
+							s = s.setCursorToLineCol(li, 0)
+							s.dirty = true
+						}
+						return s
+					}
+				}
+			}
 		}
 
 	case "d":
@@ -767,6 +807,36 @@ func prevWordStart(runes []rune, col int) int {
 	return start
 }
 
+// reflowLine wraps a single line to fit within textwidth by replacing spaces
+// with newlines at word boundaries. Lines with no breakable space are returned
+// unchanged. The result always contains at least one element.
+func reflowLine(line string, textwidth int) []string {
+	if len([]rune(line)) <= textwidth {
+		return []string{line}
+	}
+	words := strings.Fields(line)
+	if len(words) == 0 {
+		return []string{line}
+	}
+	var result []string
+	cur := ""
+	for _, word := range words {
+		switch {
+		case cur == "":
+			cur = word
+		case len([]rune(cur))+1+len([]rune(word)) <= textwidth:
+			cur += " " + word
+		default:
+			result = append(result, cur)
+			cur = word
+		}
+	}
+	if cur != "" {
+		result = append(result, cur)
+	}
+	return result
+}
+
 // wordForwardEnd returns the rune index just past the end of the word/token
 // motion from col — matching vim's `w` / `dw` target (skips trailing spaces).
 func wordForwardEnd(runes []rune, col int) int {
@@ -802,7 +872,7 @@ func wordForwardEnd(runes []rune, col int) int {
 	return i
 }
 
-func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
+func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, tea.Cmd) {
 	key := msg.String()
 	switch key {
 	case "esc", "ctrl+[":
@@ -811,6 +881,7 @@ func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
 			es.redoStack = nil
 			log := es.insertLog
 			entry := es.insertEntry
+			tw := textwidth
 			es.lastRepeat = func(s editorState) editorState {
 				s = s.pushUndo()
 				if entry != nil {
@@ -821,6 +892,9 @@ func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
 						s.ta = taKey(s.ta, tea.KeyEnter)
 					} else {
 						s.ta.InsertString(string(r))
+						if tw > 0 {
+							s = s.applyHardWrap(tw)
+						}
 					}
 					s.dirty = true
 				}
@@ -847,7 +921,49 @@ func (es editorState) handleInsert(msg tea.KeyMsg) (editorState, tea.Cmd) {
 	var cmd tea.Cmd
 	es.ta, cmd = es.ta.Update(msg)
 	es.dirty = true
+	if textwidth > 0 && msg.Type == tea.KeyRunes {
+		es = es.applyHardWrap(textwidth)
+	}
 	return es, cmd
+}
+
+// applyHardWrap checks whether the current line exceeds textwidth and, if so,
+// finds the last space at or before textwidth and replaces it with a newline.
+// Lines with no space before textwidth are left unchanged (long words are not split).
+func (es editorState) applyHardWrap(textwidth int) editorState {
+	lines := strings.Split(es.ta.Value(), "\n")
+	lineIdx := es.ta.Line()
+	col := es.ta.LineInfo().CharOffset
+	if lineIdx >= len(lines) {
+		return es
+	}
+	runes := []rune(lines[lineIdx])
+	if len(runes) <= textwidth {
+		return es
+	}
+	wrapAt := -1
+	for i := textwidth - 1; i >= 0; i-- {
+		if runes[i] == ' ' {
+			wrapAt = i
+			break
+		}
+	}
+	if wrapAt < 0 {
+		return es
+	}
+	before := string(runes[:wrapAt])
+	after := string(runes[wrapAt+1:])
+	newLines := make([]string, 0, len(lines)+1)
+	newLines = append(newLines, lines[:lineIdx]...)
+	newLines = append(newLines, before, after)
+	newLines = append(newLines, lines[lineIdx+1:]...)
+	es.ta.SetValue(strings.Join(newLines, "\n"))
+	if col >= wrapAt {
+		es = es.setCursorToLineCol(lineIdx+1, col-wrapAt-1)
+	} else {
+		es = es.setCursorToLineCol(lineIdx, col)
+	}
+	return es
 }
 
 func (es editorState) handleCommand(key string) (editorState, editorAction) {

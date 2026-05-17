@@ -85,6 +85,7 @@ type config struct {
 	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
 	SortPattern      string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
+	TextWidth        *int     `json:"textWidth"     yaml:"textWidth"     toml:"textWidth"`
 	EnableDebugUI    *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
 	CrashLogPath     string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
 }
@@ -202,6 +203,7 @@ func main() {
 		sortModeArg         string
 		sortPatternArg      string
 		sortPatternFirstArg bool
+		textWidthArg        int
 	)
 
 	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
@@ -236,6 +238,7 @@ func main() {
 	flagSet.StringVar(&sortModeArg, "sort-mode", "", "card sort mode: lexical or natural (default natural)")
 	flagSet.StringVar(&sortPatternArg, "sort-pattern", "", "regex for names to apply sort-mode to; others use lexical (default ^[0-9]+[A-Za-z0-9]*$)")
 	flagSet.BoolVar(&sortPatternFirstArg, "sort-pattern-first", false, "when true, names matching sort-pattern come before non-matching; when false, they come after")
+	flagSet.IntVar(&textWidthArg, "text-width", -1, "hard-wrap column for the in-app editor (0 to disable, default 80)")
 	enableDebugUIArg := flagSet.Bool("enable-debug-ui", false, "enable in-app debug overlay (default disabled)")
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
 	// Keybinding overrides (comma-separated lists)
@@ -352,6 +355,7 @@ func main() {
 		newFileSameDir      bool
 		newFileEditor       string
 		autoSplitOnLink     bool
+		textWidth           int
 	}{
 		noteRoot:            ".",
 		randomSeed:          time.Now().UnixNano(),
@@ -393,6 +397,7 @@ func main() {
 		newFileSameDir:      true,
 		newFileEditor:       "",
 		autoSplitOnLink:     ui.DefaultSettings.AutoSplitOnLink,
+		textWidth:           ui.DefaultSettings.TextWidth,
 	}
 
 	if configPath == "" {
@@ -535,6 +540,9 @@ func main() {
 		if cfg.AutoSplitOnLink != nil {
 			opts.autoSplitOnLink = *cfg.AutoSplitOnLink
 		}
+		if cfg.TextWidth != nil {
+			opts.textWidth = *cfg.TextWidth
+		}
 		if cfg.ContinueNameCmd != "" {
 			opts.continueNameCmd = cfg.ContinueNameCmd
 		}
@@ -616,6 +624,9 @@ func main() {
 		opts.sortPattern = sortPatternArg
 	}
 	opts.sortPatternFirst = sortPatternFirstArg
+	if textWidthArg >= 0 {
+		opts.textWidth = textWidthArg
+	}
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
 	}
@@ -856,6 +867,7 @@ func main() {
 		AutoSplitOnLink: &opts.autoSplitOnLink,
 	}
 	m.ApplyFileCreation(fc)
+	m.SetTextWidth(opts.textWidth)
 	m.EnableDebugUI(opts.enableDebugUI)
 
 	programOptions := []tea.ProgramOption{}

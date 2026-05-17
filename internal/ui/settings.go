@@ -51,6 +51,8 @@ type Settings struct {
 	ContinueNameCmd     string
 	BranchNameCmd       string
 	AutoSplitOnLink     bool
+
+	TextWidth int // hard-wrap column in the editor; 0 disables
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -86,6 +88,7 @@ var DefaultSettings = Settings{
 	ContinueNameCmd:     "",
 	BranchNameCmd:       "",
 	AutoSplitOnLink:     true,
+	TextWidth:           80,
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -324,6 +327,14 @@ func (m *Model) SetPageStep(step int) {
 	if step > 0 {
 		m.overlayPageStep = step
 	}
+}
+
+// SetTextWidth sets the hard-wrap column for the in-app editor. Pass 0 to disable.
+func (m *Model) SetTextWidth(n int) {
+	if n < 0 {
+		n = 0
+	}
+	m.settings.TextWidth = n
 }
 
 // EnableDebugUI gates the debug overlay; when false, debug toggles are ignored.
