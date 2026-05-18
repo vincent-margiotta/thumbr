@@ -5,6 +5,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -58,6 +59,7 @@ const (
 	editorActionSave
 	editorActionQuit
 	editorActionSaveQuit
+	editorActionSaveQuitAll
 	editorActionForceQuit
 	editorActionReformat
 )
@@ -262,6 +264,23 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		}
 		m = m.syncCardContent(es.path, es.ta.Value())
 		return m.closeFocusedPane(start)
+
+	case editorActionSaveQuitAll:
+		for i := 0; i < m.paneCount; i++ {
+			pane := m.editors[i]
+			if err := pane.save(); err != nil {
+				m.editors[i] = pane
+				m = m.setStatus(fmt.Sprintf("Save failed (%s): %v", filepath.Base(pane.path), err), 3*time.Second)
+				return m.withUpdateSample(start), nil
+			}
+			m.editors[i] = pane
+			m = m.syncCardContent(pane.path, pane.ta.Value())
+		}
+		m.editors = [2]editorState{}
+		m.paneCount = 0
+		m.activePane = 0
+		m.state = StateBrowsing
+		return m.withUpdateSample(start), nil
 
 	case editorActionReformat:
 		tw := m.settings.TextWidth
@@ -1027,6 +1046,8 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionForceQuit
 		case "wq", "x":
 			return es, editorActionSaveQuit
+		case "wqa":
+			return es, editorActionSaveQuitAll
 		case "fmt":
 			return es, editorActionReformat
 		}
