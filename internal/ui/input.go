@@ -74,8 +74,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.setStatus(fmt.Sprintf("Load failed: %v", msg.err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
+		// Preserve editor state across background reloads (e.g. live-reload watcher firing
+		// on a file the editor just created). Only restore when no pending editor open is queued.
+		savedState, savedCursor, editorActive := m.state, m.cursor, m.paneCount >= 1
 		m = m.resetAfterLoad(msg.cards, msg.path)
-		m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
+		if editorActive && m.pendingEditorPath == "" {
+			m.state = savedState
+			m.cursor = savedCursor
+		} else {
+			m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
+		}
 		// When the active box changes, cancel the old watcher and start one for the new root.
 		var newWatchCmd tea.Cmd
 		if m.settings.LiveReload && msg.path != m.watchingBox {
