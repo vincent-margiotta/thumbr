@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -62,6 +63,7 @@ const (
 	editorActionSaveQuitAll
 	editorActionForceQuit
 	editorActionReformat
+	editorActionSort
 )
 
 // splitViewports returns per-pane Viewports for a 35/65 split.
@@ -303,6 +305,24 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			m = m.setStatus("Reformatted", 2*time.Second)
 		} else {
 			m = m.setStatus("Already within column limit", 2*time.Second)
+		}
+		return m.withUpdateSample(start), nil
+
+	case editorActionSort:
+		lines := strings.Split(es.ta.Value(), "\n")
+		sorted := make([]string, len(lines))
+		copy(sorted, lines)
+		sort.Strings(sorted)
+		newContent := strings.Join(sorted, "\n")
+		if newContent != es.ta.Value() {
+			es = es.pushUndo()
+			es.ta.SetValue(newContent)
+			es = es.setCursorToLineCol(0, 0)
+			es.dirty = true
+			m.editors[m.activePane] = es
+			m = m.setStatus("Sorted", 2*time.Second)
+		} else {
+			m = m.setStatus("Already sorted", 2*time.Second)
 		}
 		return m.withUpdateSample(start), nil
 	}
@@ -1048,6 +1068,8 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionSaveQuit
 		case "wqa":
 			return es, editorActionSaveQuitAll
+		case "sort":
+			return es, editorActionSort
 		case "fmt":
 			return es, editorActionReformat
 		}
