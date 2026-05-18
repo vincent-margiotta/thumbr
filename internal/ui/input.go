@@ -74,16 +74,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.setStatus(fmt.Sprintf("Load failed: %v", msg.err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		// Preserve editor state across background reloads (e.g. live-reload watcher firing
-		// on a file the editor just created). Only restore when no pending editor open is queued.
-		savedState, savedCursor, editorActive := m.state, m.cursor, m.paneCount >= 1
+		// When a pending editor open is queued, read the file(s) synchronously so we can
+		// transition directly to StateEditing in this Update call — no intermediate browse
+		// frame, no blip. Note: resetAfterLoad sets state=StateBrowsing, so we must open
+		// the editor AFTER calling it but BEFORE returning.
+		pendingPath := m.pendingEditorPath
+		pendingSource := m.pendingSourcePath
+		m.pendingEditorPath = ""
+		m.pendingSourcePath = ""
+		// Preserve editor state across background reloads (live-reload watcher firing while
+		// editing). Only applies when no pending editor open is queued.
+		editorActive := m.paneCount >= 1
+		savedState, savedCursor := m.state, m.cursor
 		m = m.resetAfterLoad(msg.cards, msg.path)
-		if editorActive && m.pendingEditorPath == "" {
-			m.state = savedState
-			m.cursor = savedCursor
-		} else {
-			m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
-		}
 		// When the active box changes, cancel the old watcher and start one for the new root.
 		var newWatchCmd tea.Cmd
 		if m.settings.LiveReload && msg.path != m.watchingBox {
@@ -92,16 +95,48 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.watchingBox = msg.path
 			newWatchCmd = watchDirCmd(m.watchStop, msg.path, m.loadOpts)
 		}
-		if m.pendingEditorPath != "" {
-			path := m.pendingEditorPath
-			m.pendingEditorPath = ""
-			if m.pendingSourcePath != "" && m.settings.AutoSplitOnLink {
-				src := m.pendingSourcePath
-				m.pendingSourcePath = ""
-				return m.withUpdateSample(start), tea.Batch(newWatchCmd, openSplitCmd(src, path))
+		if pendingPath != "" {
+			cursorLine := m.pendingEditorLine
+			m.pendingEditorLine = 0
+			if pendingSource != "" && m.settings.AutoSplitOnLink {
+				topContent, err := os.ReadFile(pendingSource)
+				if err != nil {
+					m = m.setStatus(fmt.Sprintf("Open failed: %v", err), 3*time.Second)
+					return m.withUpdateSample(start), newWatchCmd
+				}
+				botContent, err := os.ReadFile(pendingPath)
+				if err != nil {
+					m = m.setStatus(fmt.Sprintf("Open failed: %v", err), 3*time.Second)
+					return m.withUpdateSample(start), newWatchCmd
+				}
+				topVP, botVP := splitViewports(m.viewport)
+				topEs, _ := newEditorState(pendingSource, string(topContent), topVP, 0)
+				botEs, cmd := newEditorState(pendingPath, string(botContent), botVP, cursorLine)
+				m.editors[0] = topEs
+				m.editors[1] = botEs
+				m.paneCount = 2
+				m.activePane = 1
+				m.state = StateEditing
+				return m.withUpdateSample(start), tea.Batch(newWatchCmd, cmd)
 			}
-			m.pendingSourcePath = ""
-			return m.withUpdateSample(start), tea.Batch(newWatchCmd, openInAppCmd(path))
+			content, err := os.ReadFile(pendingPath)
+			if err != nil {
+				m = m.setStatus(fmt.Sprintf("Open failed: %v", err), 3*time.Second)
+				return m.withUpdateSample(start), newWatchCmd
+			}
+			es, cmd := newEditorState(pendingPath, string(content), m.viewport, cursorLine)
+			m.editors[0] = es
+			m.editors[1] = editorState{}
+			m.paneCount = 1
+			m.activePane = 0
+			m.state = StateEditing
+			return m.withUpdateSample(start), tea.Batch(newWatchCmd, cmd)
+		}
+		if editorActive {
+			m.state = savedState
+			m.cursor = savedCursor
+		} else {
+			m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
 		}
 		vis := m.visibleIndices()
 		n := m.settings.StackVisibleCount + 2
