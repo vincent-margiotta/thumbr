@@ -43,6 +43,7 @@ type editorState struct {
 	dirty          bool
 	pending        string // partial multi-char sequence: "g", "d", "y", "r", "c"
 	yankBuf        string
+	yankLinewise   bool   // true for line yanks (yy/dd), false for char yanks (yw/D/x)
 	cmdLine        string // content after : in command mode
 	saveErr        error
 	undoStack      []undoEntry
@@ -385,10 +386,30 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		}
 	case "x":
 		es = es.pushUndo()
+		lines := strings.Split(es.ta.Value(), "\n")
+		lineIdx := es.ta.Line()
+		col := es.ta.LineInfo().CharOffset
+		if lineIdx >= 0 && lineIdx < len(lines) {
+			runes := []rune(lines[lineIdx])
+			if col < len(runes) {
+				es.yankBuf = string(runes[col])
+				es.yankLinewise = false
+			}
+		}
 		es.ta = taKey(es.ta, tea.KeyDelete)
 		es.dirty = true
 		es.lastRepeat = func(s editorState) editorState {
 			s = s.pushUndo()
+			ls := strings.Split(s.ta.Value(), "\n")
+			li := s.ta.Line()
+			c := s.ta.LineInfo().CharOffset
+			if li >= 0 && li < len(ls) {
+				r := []rune(ls[li])
+				if c < len(r) {
+					s.yankBuf = string(r[c])
+					s.yankLinewise = false
+				}
+			}
 			s.ta = taKey(s.ta, tea.KeyDelete)
 			s.dirty = true
 			return s
@@ -474,19 +495,93 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 	case "p":
 		if es.yankBuf != "" {
 			es = es.pushUndo()
-			es.ta.CursorEnd()
-			es.ta.InsertString("\n" + es.yankBuf)
+			if es.yankLinewise {
+				es.ta.CursorEnd()
+				es.ta.InsertString("\n" + es.yankBuf)
+			} else {
+				es.ta = taKey(es.ta, tea.KeyRight)
+				es.ta.InsertString(es.yankBuf)
+			}
 			es.dirty = true
 			es.lastRepeat = func(s editorState) editorState {
 				if s.yankBuf != "" {
 					s = s.pushUndo()
-					s.ta.CursorEnd()
-					s.ta.InsertString("\n" + s.yankBuf)
+					if s.yankLinewise {
+						s.ta.CursorEnd()
+						s.ta.InsertString("\n" + s.yankBuf)
+					} else {
+						s.ta = taKey(s.ta, tea.KeyRight)
+						s.ta.InsertString(s.yankBuf)
+					}
 					s.dirty = true
 				}
 				return s
 			}
 		}
+	case "D":
+		es = es.pushUndo()
+		lines := strings.Split(es.ta.Value(), "\n")
+		lineIdx := es.ta.Line()
+		col := es.ta.LineInfo().CharOffset
+		if lineIdx >= 0 && lineIdx < len(lines) {
+			runes := []rune(lines[lineIdx])
+			if col < len(runes) {
+				es.yankBuf = string(runes[col:])
+				es.yankLinewise = false
+				lines[lineIdx] = string(runes[:col])
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, col)
+				es.dirty = true
+			}
+		}
+		es.lastRepeat = func(s editorState) editorState {
+			s = s.pushUndo()
+			ls := strings.Split(s.ta.Value(), "\n")
+			li := s.ta.Line()
+			c := s.ta.LineInfo().CharOffset
+			if li >= 0 && li < len(ls) {
+				r := []rune(ls[li])
+				if c < len(r) {
+					s.yankBuf = string(r[c:])
+					s.yankLinewise = false
+					ls[li] = string(r[:c])
+					s.ta.SetValue(strings.Join(ls, "\n"))
+					s = s.setCursorToLineCol(li, c)
+					s.dirty = true
+				}
+			}
+			return s
+		}
+	case "C":
+		es = es.pushUndo()
+		lines := strings.Split(es.ta.Value(), "\n")
+		lineIdx := es.ta.Line()
+		col := es.ta.LineInfo().CharOffset
+		if lineIdx >= 0 && lineIdx < len(lines) {
+			runes := []rune(lines[lineIdx])
+			lines[lineIdx] = string(runes[:col])
+			es.ta.SetValue(strings.Join(lines, "\n"))
+			es = es.setCursorToLineCol(lineIdx, col)
+			es.dirty = true
+		}
+		snap := es.snapshot()
+		es.insertSnapshot = &snap
+		es.insertLog = ""
+		es.insertEntry = func(s editorState) editorState {
+			s = s.pushUndo()
+			ls := strings.Split(s.ta.Value(), "\n")
+			li := s.ta.Line()
+			c := s.ta.LineInfo().CharOffset
+			if li >= 0 && li < len(ls) {
+				r := []rune(ls[li])
+				ls[li] = string(r[:c])
+				s.ta.SetValue(strings.Join(ls, "\n"))
+				s = s.setCursorToLineCol(li, c)
+				s.dirty = true
+			}
+			return s
+		}
+		es.mode = vimInsert
 	case ":":
 		es.mode = vimCommand
 		es.cmdLine = ""
@@ -553,6 +648,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
 			if lineIdx >= 0 && lineIdx < len(lines) {
+				es.yankBuf = lines[lineIdx]
+				es.yankLinewise = true
 				newLines := append(lines[:lineIdx:lineIdx], lines[lineIdx+1:]...)
 				es.ta.SetValue(strings.Join(newLines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, 0)
@@ -562,6 +659,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					ls := strings.Split(s.ta.Value(), "\n")
 					li := s.ta.Line()
 					if li >= 0 && li < len(ls) {
+						s.yankBuf = ls[li]
+						s.yankLinewise = true
 						nl := append(ls[:li:li], ls[li+1:]...)
 						s.ta.SetValue(strings.Join(nl, "\n"))
 						s = s.setCursorToLineCol(li, 0)
@@ -578,6 +677,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				end := wordForwardEnd(runes, col)
+				es.yankBuf = string(runes[col:end])
+				es.yankLinewise = false
 				lines[lineIdx] = string(runes[:col]) + string(runes[end:])
 				es.ta.SetValue(strings.Join(lines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, col)
@@ -590,6 +691,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					if li >= 0 && li < len(ls) {
 						r := []rune(ls[li])
 						e := wordForwardEnd(r, c)
+						s.yankBuf = string(r[c:e])
+						s.yankLinewise = false
 						ls[li] = string(r[:c]) + string(r[e:])
 						s.ta.SetValue(strings.Join(ls, "\n"))
 						s = s.setCursorToLineCol(li, c)
@@ -611,6 +714,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				start, end := wordBoundary(runes, col)
+				es.yankBuf = string(runes[start:end])
+				es.yankLinewise = false
 				lines[lineIdx] = string(runes[:start]) + string(runes[end:])
 				es.ta.SetValue(strings.Join(lines, "\n"))
 				es = es.setCursorToLineCol(lineIdx, start)
@@ -623,6 +728,8 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					if li >= 0 && li < len(ls) {
 						r := []rune(ls[li])
 						st, en := wordBoundary(r, c)
+						s.yankBuf = string(r[st:en])
+						s.yankLinewise = false
 						ls[li] = string(r[:st]) + string(r[en:])
 						s.ta.SetValue(strings.Join(ls, "\n"))
 						s = s.setCursorToLineCol(li, st)
@@ -634,11 +741,38 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 		}
 
 	case "y":
-		if key == "y" {
+		switch key {
+		case "y":
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				es.yankBuf = lines[lineIdx]
+				es.yankLinewise = true
+			}
+		case "w":
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				end := wordForwardEnd(runes, col)
+				es.yankBuf = string(runes[col:end])
+				es.yankLinewise = false
+			}
+		case "i":
+			es.pending = "yi"
+		}
+
+	case "yi":
+		if key == "w" {
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			col := es.ta.LineInfo().CharOffset
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				runes := []rune(lines[lineIdx])
+				start, end := wordBoundary(runes, col)
+				es.yankBuf = string(runes[start:end])
+				es.yankLinewise = false
 			}
 		}
 

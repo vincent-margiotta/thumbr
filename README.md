@@ -105,8 +105,11 @@ The in-app editor uses vim-style modes.
 | **Open line below** | `o` | Insert new line below and enter insert mode. |
 | **Open line above** | `O` | Insert new line above and enter insert mode. |
 | **Normal mode** | `Esc` / `Ctrl+c` | Return to normal mode. |
-| **Word forward** | `w` | Move to start of next word (crosses lines). |
-| **Word backward** | `b` | Move to start of previous word (crosses lines). |
+| **Character** | `h` / `l` | Move left / right. |
+| **Line** | `j` / `k` | Move down / up. |
+| **Word** | `w` / `b` | Move to next / previous word start (crosses lines). |
+| **Line start / end** | `0` / `$` | Jump to start / end of current line. |
+| **File top / bottom** | `gg` / `G` | Jump to first / last line of the file. |
 
 #### Editing
 
@@ -114,10 +117,16 @@ The in-app editor uses vim-style modes.
 | :--- | :--- | :--- |
 | **Delete char** | `x` | Delete character under cursor (saved to register). |
 | **Replace char** | `r` | Replace character under cursor. |
+| **Delete to EOL** | `D` | Delete from cursor to end of line (saved to register). |
+| **Change to EOL** | `C` | Delete from cursor to end of line and enter insert mode. |
 | **Delete line** | `dd` | Delete current line (saved to register). |
-| **Delete word** | `dw` / `diw` | Delete to next word boundary / delete inner word. |
+| **Delete word** | `dw` / `diw` | Delete to next word boundary / delete inner word (saved to register). |
 | **Change word** | `cw` / `ciw` | Replace to next word boundary / replace inner word (enters insert mode). |
-| **Paste** | `p` | Paste last deleted text after cursor. |
+| **Yank line** | `yy` | Copy current line to register without deleting. |
+| **Yank word** | `yw` / `yiw` | Copy to next word boundary / inner word to register. |
+| **Paste** | `p` | Paste register after cursor (inline for word yanks, new line for line yanks). |
+| **Undo** | `u` | Undo last change. |
+| **Redo** | `Ctrl+r` | Redo last undone change. |
 | **Dot repeat** | `.` | Repeat the last normal-mode change. |
 | **Reflow line** | `gqq` | Reformat current line to fit `textWidth`. |
 
@@ -129,7 +138,9 @@ The in-app editor uses vim-style modes.
 | **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split → single; single → browse. |
 | **Discard & quit** | `:q!` | Discard changes and close active pane. |
 | **Save & quit** | `:wq` | Save and close active pane. |
+| **Save & quit all** | `:wqa` | Save all open panes and exit the editor. |
 | **Reformat file** | `:fmt` | Reflow all lines in the file to fit `textWidth`. |
+| **Sort lines** | `:sort` | Sort all lines in the file alphabetically. |
 
 #### Pane Management
 
