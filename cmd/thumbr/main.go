@@ -884,6 +884,9 @@ func main() {
 
 	programOptions := []tea.ProgramOption{}
 	if opts.useAlternateScreen {
+		// Pre-clear the main screen buffer before entering alt-screen so that
+		// the first external-editor launch doesn't flash old terminal history.
+		fmt.Print("\033[2J\033[H")
 		programOptions = append(programOptions, tea.WithAltScreen())
 	}
 

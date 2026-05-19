@@ -226,11 +226,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.err = msg.err
 			m.editorErrors++
-			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
-		} else {
-			m = m.setStatus("Opening in editor…", 2*time.Second)
+			m = m.setStatus(fmt.Sprintf("Editor error: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
 		}
-		return m.withUpdateSample(start), nil
+		if content, err := os.ReadFile(msg.path); err == nil {
+			m = m.syncCardContent(msg.path, string(content))
+		}
+		m.pendingSeekPath = msg.path
+		return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
 
 	case tea.KeyMsg:
 		key := msg.String()
@@ -348,9 +351,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), openInAppCmd(currentPath)
 		case m.isBinding(key, m.bindings.OpenExternal):
 			if len(m.cards) > 0 {
-				cmd := m.openInEditorCmd(m.cards[m.cursor].Path)
-				m = m.setStatus("Opening in editor…", 2*time.Second)
-				return m.withUpdateSample(start), cmd
+				return m.withUpdateSample(start), externalEditorCmd(m.cards[m.cursor].Path)
 			}
 			return m.withUpdateSample(start), nil
 		}

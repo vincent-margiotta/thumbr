@@ -5,6 +5,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -78,11 +79,53 @@ func (m Model) loadBoxCmd(path string) tea.Cmd {
 	}
 }
 
-// openInEditorCmd launches the external editor for the path.
-func (m Model) openInEditorCmd(path string) tea.Cmd {
-	return func() tea.Msg {
-		return editorResult{path: path, err: launchEditor(path)}
+// externalEditorCmd suspends the Bubble Tea event loop, hands the terminal to
+// $VISUAL / $EDITOR (falling back to "vi"), and resumes when the editor exits.
+// It clears the screen immediately before the editor draws its first frame so
+// the main-screen-buffer flash that follows alt-screen exit is not visible.
+func externalEditorCmd(path string) tea.Cmd {
+	editor := os.Getenv("VISUAL")
+	if editor == "" {
+		editor = os.Getenv("EDITOR")
 	}
+	if editor == "" {
+		editor = "vi"
+	}
+	cmd := exec.Command("sh", "-c", editor+" "+strconv.Quote(path))
+	return tea.Exec(&clearBeforeRun{cmd: cmd}, func(err error) tea.Msg {
+		return editorResult{path: path, err: err}
+	})
+}
+
+// clearBeforeRun wraps an exec.Cmd so that it clears the terminal immediately
+// before the command runs. This hides the main-screen-buffer flash that
+// occurs between Bubble Tea exiting the alt screen and the editor's first render.
+type clearBeforeRun struct {
+	cmd    *exec.Cmd
+	stdout io.Writer
+}
+
+func (c *clearBeforeRun) SetStdin(r io.Reader) {
+	if c.cmd.Stdin == nil {
+		c.cmd.Stdin = r
+	}
+}
+func (c *clearBeforeRun) SetStdout(w io.Writer) {
+	c.stdout = w
+	if c.cmd.Stdout == nil {
+		c.cmd.Stdout = w
+	}
+}
+func (c *clearBeforeRun) SetStderr(w io.Writer) {
+	if c.cmd.Stderr == nil {
+		c.cmd.Stderr = w
+	}
+}
+func (c *clearBeforeRun) Run() error {
+	if c.stdout != nil {
+		_, _ = fmt.Fprint(c.stdout, "\033[2J\033[H")
+	}
+	return c.cmd.Run()
 }
 
 // preloadVisibleCmd returns a preload command for the cards currently visible
