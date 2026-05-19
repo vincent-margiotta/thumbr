@@ -559,7 +559,17 @@ func (m Model) toggleMark() Model {
 			return m.ensureCursorVisible()
 		}
 		if m.visibleCursorIndex(vis) == -1 {
-			m.cursor = vis[0]
+			// Snap to the nearest remaining card: first one after the removed
+			// card's position, or the last one before it if none follows.
+			nearest := vis[0]
+			for _, idx := range vis {
+				if idx > m.cursor {
+					nearest = idx
+					break
+				}
+				nearest = idx
+			}
+			m.cursor = nearest
 		}
 	}
 	return m
