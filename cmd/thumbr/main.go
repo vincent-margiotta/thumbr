@@ -85,8 +85,9 @@ type config struct {
 	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
 	SortPattern         string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
 	SortPatternFirst    *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
-	TextWidth           *int     `json:"textWidth"     yaml:"textWidth"     toml:"textWidth"`
-	LiveReload          *bool    `json:"liveReload"    yaml:"liveReload"    toml:"liveReload"`
+	TextWidth           *int     `json:"textWidth"      yaml:"textWidth"      toml:"textWidth"`
+	LiveReload          *bool    `json:"liveReload"     yaml:"liveReload"     toml:"liveReload"`
+	EditMode            string   `json:"editMode"       yaml:"editMode"       toml:"editMode"`
 	EnableDebugUI       *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
 	CrashLogPath        string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
 }
@@ -206,6 +207,7 @@ func main() {
 		sortPatternFirstArg bool
 		textWidthArg        int
 		noLiveReloadArg     bool
+		externalEditModeArg bool
 	)
 
 	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
@@ -242,6 +244,7 @@ func main() {
 	flagSet.BoolVar(&sortPatternFirstArg, "sort-pattern-first", false, "when true, names matching sort-pattern come before non-matching; when false, they come after")
 	flagSet.IntVar(&textWidthArg, "text-width", -1, "hard-wrap column for the in-app editor (0 to disable, default 80)")
 	flagSet.BoolVar(&noLiveReloadArg, "no-live-reload", false, "disable automatic card-list reload when notes change on disk")
+	flagSet.BoolVar(&externalEditModeArg, "external-edit", false, "make e open $EDITOR instead of the in-app editor")
 	enableDebugUIArg := flagSet.Bool("enable-debug-ui", false, "enable in-app debug overlay (default disabled)")
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
 	// Keybinding overrides (comma-separated lists)
@@ -360,6 +363,7 @@ func main() {
 		autoSplitOnLink     bool
 		textWidth           int
 		liveReload          bool
+		externalEditMode    bool
 	}{
 		noteRoot:            ".",
 		randomSeed:          time.Now().UnixNano(),
@@ -551,6 +555,9 @@ func main() {
 		if cfg.LiveReload != nil {
 			opts.liveReload = *cfg.LiveReload
 		}
+		if cfg.EditMode == "external" {
+			opts.externalEditMode = true
+		}
 		if cfg.ContinueNameCmd != "" {
 			opts.continueNameCmd = cfg.ContinueNameCmd
 		}
@@ -637,6 +644,9 @@ func main() {
 	}
 	if noLiveReloadArg {
 		opts.liveReload = false
+	}
+	if externalEditModeArg {
+		opts.externalEditMode = true
 	}
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
@@ -880,6 +890,7 @@ func main() {
 	m.ApplyFileCreation(fc)
 	m.SetTextWidth(opts.textWidth)
 	m.EnableLiveReload(opts.liveReload)
+	m.SetExternalEditMode(opts.externalEditMode)
 	m.EnableDebugUI(opts.enableDebugUI)
 
 	programOptions := []tea.ProgramOption{}

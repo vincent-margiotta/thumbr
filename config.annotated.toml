@@ -115,6 +115,11 @@ autoSplitOnLink = true
 # disable (e.g. on networked filesystems where FS events are unreliable).
 liveReload = true
 
+# Controls what the e key opens. "inapp" (default) uses the built-in editor;
+# "external" opens $EDITOR instead. c/C/N always use the in-app split-pane
+# regardless of this setting.
+editMode = "inapp"
+
 # Hard-wrap column for the in-app editor. When a line exceeds this width, the
 # last space at or before the column is replaced with a newline. Set to 0 to disable.
 textWidth = 80

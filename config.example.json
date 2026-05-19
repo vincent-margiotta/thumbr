@@ -59,6 +59,7 @@
   "newFileEditor": "inapp",
   "autoSplitOnLink": true,
   "liveReload": true,
+  "editMode": "inapp",
   "textWidth": 80,
   "enableDebugUI": false,
   "crashLogPath": ""

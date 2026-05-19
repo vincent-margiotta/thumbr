@@ -52,8 +52,9 @@ type Settings struct {
 	BranchNameCmd       string
 	AutoSplitOnLink     bool
 
-	TextWidth  int  // hard-wrap column in the editor; 0 disables
-	LiveReload bool // reload card list when files change on disk
+	TextWidth        int  // hard-wrap column in the editor; 0 disables
+	LiveReload       bool // reload card list when files change on disk
+	ExternalEditMode bool // e key opens $EDITOR instead of the in-app editor
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -334,6 +335,12 @@ func (m *Model) SetPageStep(step int) {
 // EnableLiveReload enables or disables automatic card-list reload on file-system changes.
 func (m *Model) EnableLiveReload(enabled bool) {
 	m.settings.LiveReload = enabled
+}
+
+// SetExternalEditMode controls whether the e key opens $EDITOR instead of the
+// in-app editor. c/C/N always use the in-app split-pane regardless of this setting.
+func (m *Model) SetExternalEditMode(enabled bool) {
+	m.settings.ExternalEditMode = enabled
 }
 
 // SetTextWidth sets the hard-wrap column for the in-app editor. Pass 0 to disable.

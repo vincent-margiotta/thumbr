@@ -312,6 +312,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
 		case m.isBinding(key, m.bindings.OpenInApp):
+			if m.settings.ExternalEditMode {
+				if len(m.cards) > 0 {
+					return m.withUpdateSample(start), externalEditorCmd(m.cards[m.cursor].Path)
+				}
+				return m.withUpdateSample(start), nil
+			}
 			currentPath := ""
 			if len(m.cards) > 0 {
 				currentPath = m.cards[m.cursor].Path
