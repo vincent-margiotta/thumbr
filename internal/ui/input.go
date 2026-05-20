@@ -386,18 +386,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.ensureCardContent(m.cursor)
 			case m.isBinding(key, m.bindings.Down):
 				m = m.moveCursor(-1)
+				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.Up):
 				m = m.moveCursor(1)
+				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.Random):
 				m = m.randomCursor()
+				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			case m.isBinding(key, m.bindings.NavFirst):
 				// g enters pending mode; gg resolves to first card.
 				if m.navPending == "g" {
 					m.navPending = ""
 					m = m.jumpToEdge(-1)
+					m = m.ensureVisibleContent()
 					navCmd = m.preloadVisibleCmd()
 				} else {
 					m.navPending = "g"
@@ -405,10 +409,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.isBinding(key, m.bindings.NavLast):
 				m.navPending = ""
 				m = m.jumpToEdge(1)
+				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			case m.navPending == "g" && len(key) == 1 && key[0] >= '1' && key[0] <= '9':
 				m.navPending = ""
 				m = m.jumpToPercent(int(key[0]-'0') * 10)
+				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			default:
 				// Any unrecognised key cancels a pending prefix.

@@ -140,7 +140,7 @@ func (m Model) preloadVisibleCmd() tea.Cmd {
 		pos = 0
 	}
 	n := m.settings.StackVisibleCount + 2
-	start := pos - 1
+	start := pos - m.settings.MaxCursorDepth
 	if start < 0 {
 		start = 0
 	}

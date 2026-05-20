@@ -420,6 +420,22 @@ func (m Model) defaultExt() string {
 	return ".md"
 }
 
+// ensureVisibleContent synchronously loads content for the depth-0 card in the
+// current stack view — the card whose full preview is displayed. Called after
+// each navigation move so the preview is present in the same render frame.
+func (m Model) ensureVisibleContent() Model {
+	vis := m.visibleIndices()
+	pos := m.visibleCursorIndex(vis)
+	if pos < 0 {
+		pos = 0
+	}
+	front := pos - m.settings.MaxCursorDepth
+	if front < 0 {
+		front = 0
+	}
+	return m.ensureCardContent(vis[front])
+}
+
 func (m Model) ensureCardContent(idx int) Model {
 	if idx < 0 || idx >= len(m.cards) {
 		return m
