@@ -530,12 +530,17 @@ func (m Model) promptTargetBox() string {
 
 // navStep returns the step count for a single directional keypress.
 // sameDir is false on direction change or the first press, which always yields 1.
-// dt is milliseconds since the last same-direction press; tau controls the
-// characteristic interval: pressing every tau ms → step 1; faster → more steps.
+// dt is milliseconds since the last same-direction press.
+// tau sets the characteristic interval: pressing every tau ms → step 1; faster → more.
+// minDt floors dt so that key-repeat (auto-hold) behaves like pressing at top speed.
 func navStep(dt float64, sameDir bool, maxStep int) int {
-	const tau = 150.0
+	const tau = 400.0
+	const minDt = 80.0
 	if !sameDir || dt <= 0 {
 		return 1
+	}
+	if dt < minDt {
+		dt = minDt
 	}
 	step := int(tau / dt)
 	if step < 1 {
