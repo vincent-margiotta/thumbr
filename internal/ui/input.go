@@ -43,12 +43,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state == StateEditing || m.paneCount >= 1 {
 			if m.paneCount == 2 {
 				topVP, botVP := splitViewports(m.viewport)
-				m.editors[0].ta.SetWidth(topVP.Width)
+				m.editors[0].ta.SetWidth(editorWidth(topVP.Width, m.settings.TextWidth))
 				m.editors[0].ta.SetHeight(topVP.Height - 3)
-				m.editors[1].ta.SetWidth(botVP.Width)
+				m.editors[1].ta.SetWidth(editorWidth(botVP.Width, m.settings.TextWidth))
 				m.editors[1].ta.SetHeight(botVP.Height - 3)
 			} else if m.paneCount == 1 {
-				m.editors[0].ta.SetWidth(m.viewport.Width)
+				m.editors[0].ta.SetWidth(editorWidth(m.viewport.Width, m.settings.TextWidth))
 				h := m.viewport.Height - 3
 				if h < 1 {
 					h = 1
@@ -110,8 +110,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m.withUpdateSample(start), newWatchCmd
 				}
 				topVP, botVP := splitViewports(m.viewport)
-				topEs, _ := newEditorState(pendingSource, string(topContent), topVP, 0)
-				botEs, cmd := newEditorState(pendingPath, string(botContent), botVP, cursorLine)
+				topEs, _ := newEditorState(pendingSource, string(topContent), topVP, m.settings.TextWidth, 0)
+				botEs, cmd := newEditorState(pendingPath, string(botContent), botVP, m.settings.TextWidth, cursorLine)
 				m.editors[0] = topEs
 				m.editors[1] = botEs
 				m.paneCount = 2
@@ -124,7 +124,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.setStatus(fmt.Sprintf("Open failed: %v", err), 3*time.Second)
 				return m.withUpdateSample(start), newWatchCmd
 			}
-			es, cmd := newEditorState(pendingPath, string(content), m.viewport, cursorLine)
+			es, cmd := newEditorState(pendingPath, string(content), m.viewport, m.settings.TextWidth, cursorLine)
 			m.editors[0] = es
 			m.editors[1] = editorState{}
 			m.paneCount = 1
@@ -171,9 +171,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.paneCount == 1 && m.editors[0].path != "" {
 			// Companion open: resize pane 0 to top, open new file as bottom pane.
 			topVP, botVP := splitViewports(m.viewport)
-			m.editors[0].ta.SetWidth(topVP.Width)
+			m.editors[0].ta.SetWidth(editorWidth(topVP.Width, m.settings.TextWidth))
 			m.editors[0].ta.SetHeight(topVP.Height - 3)
-			es, cmd := newEditorState(msg.path, msg.content, botVP, cursorLine)
+			es, cmd := newEditorState(msg.path, msg.content, botVP, m.settings.TextWidth, cursorLine)
 			m.editors[1] = es
 			m.paneCount = 2
 			m.activePane = 1
@@ -181,7 +181,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), cmd
 		}
 		// Fresh single-pane open.
-		es, cmd := newEditorState(msg.path, msg.content, m.viewport, cursorLine)
+		es, cmd := newEditorState(msg.path, msg.content, m.viewport, m.settings.TextWidth, cursorLine)
 		m.editors[0] = es
 		m.editors[1] = editorState{}
 		m.paneCount = 1
@@ -196,10 +196,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), nil
 		}
 		topVP, botVP := splitViewports(m.viewport)
-		topEs, _ := newEditorState(msg.topPath, msg.topContent, topVP, 0)
+		topEs, _ := newEditorState(msg.topPath, msg.topContent, topVP, m.settings.TextWidth, 0)
 		cursorLine := m.pendingEditorLine
 		m.pendingEditorLine = 0
-		botEs, cmd := newEditorState(msg.bottomPath, msg.bottomContent, botVP, cursorLine)
+		botEs, cmd := newEditorState(msg.bottomPath, msg.bottomContent, botVP, m.settings.TextWidth, cursorLine)
 		m.editors[0] = topEs
 		m.editors[1] = botEs
 		m.paneCount = 2

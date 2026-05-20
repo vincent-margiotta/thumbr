@@ -97,7 +97,16 @@ func modeLabel(mode vimMode) string {
 	}
 }
 
-func newEditorState(path, content string, vp Viewport, cursorLine int) (editorState, tea.Cmd) {
+// editorWidth returns the effective textarea width: capped at textWidth when set,
+// so text soft-wraps at the configured column without inserting literal newlines.
+func editorWidth(vpWidth, textWidth int) int {
+	if textWidth > 0 && textWidth < vpWidth {
+		return textWidth
+	}
+	return vpWidth
+}
+
+func newEditorState(path, content string, vp Viewport, textWidth, cursorLine int) (editorState, tea.Cmd) {
 	ta := textarea.New()
 	ta.CharLimit = 0
 	ta.ShowLineNumbers = false
@@ -105,7 +114,7 @@ func newEditorState(path, content string, vp Viewport, cursorLine int) (editorSt
 	if h < 1 {
 		h = 1
 	}
-	ta.SetWidth(vp.Width)
+	ta.SetWidth(editorWidth(vp.Width, textWidth))
 	ta.SetHeight(h)
 	ta.SetValue(content)
 	cmd := ta.Focus()
@@ -340,7 +349,7 @@ func (m Model) closeFocusedPane(start time.Time) (tea.Model, tea.Cmd) {
 		if h < 1 {
 			h = 1
 		}
-		m.editors[remaining].ta.SetWidth(m.viewport.Width)
+		m.editors[remaining].ta.SetWidth(editorWidth(m.viewport.Width, m.settings.TextWidth))
 		m.editors[remaining].ta.SetHeight(h)
 		m.editors[0] = m.editors[remaining]
 		m.editors[1] = editorState{}
@@ -1186,7 +1195,6 @@ func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, 
 			es.redoStack = nil
 			log := es.insertLog
 			entry := es.insertEntry
-			tw := textwidth
 			es.lastRepeat = func(s editorState) editorState {
 				s = s.pushUndo()
 				if entry != nil {
@@ -1197,9 +1205,6 @@ func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, 
 						s.ta = taKey(s.ta, tea.KeyEnter)
 					} else {
 						s.ta.InsertString(string(r))
-						if tw > 0 {
-							s = s.applyHardWrap(tw)
-						}
 					}
 					s.dirty = true
 				}
@@ -1226,49 +1231,7 @@ func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, 
 	var cmd tea.Cmd
 	es.ta, cmd = es.ta.Update(msg)
 	es.dirty = true
-	if textwidth > 0 && msg.Type == tea.KeyRunes {
-		es = es.applyHardWrap(textwidth)
-	}
 	return es, cmd
-}
-
-// applyHardWrap checks whether the current line exceeds textwidth and, if so,
-// finds the last space at or before textwidth and replaces it with a newline.
-// Lines with no space before textwidth are left unchanged (long words are not split).
-func (es editorState) applyHardWrap(textwidth int) editorState {
-	lines := strings.Split(es.ta.Value(), "\n")
-	lineIdx := es.ta.Line()
-	col := es.ta.LineInfo().CharOffset
-	if lineIdx >= len(lines) {
-		return es
-	}
-	runes := []rune(lines[lineIdx])
-	if len(runes) <= textwidth {
-		return es
-	}
-	wrapAt := -1
-	for i := textwidth - 1; i >= 0; i-- {
-		if runes[i] == ' ' {
-			wrapAt = i
-			break
-		}
-	}
-	if wrapAt < 0 {
-		return es
-	}
-	before := string(runes[:wrapAt])
-	after := string(runes[wrapAt+1:])
-	newLines := make([]string, 0, len(lines)+1)
-	newLines = append(newLines, lines[:lineIdx]...)
-	newLines = append(newLines, before, after)
-	newLines = append(newLines, lines[lineIdx+1:]...)
-	es.ta.SetValue(strings.Join(newLines, "\n"))
-	if col >= wrapAt {
-		es = es.setCursorToLineCol(lineIdx+1, col-wrapAt-1)
-	} else {
-		es = es.setCursorToLineCol(lineIdx, col)
-	}
-	return es
 }
 
 func (es editorState) handleCommand(key string) (editorState, editorAction) {

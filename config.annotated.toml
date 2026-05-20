@@ -126,8 +126,9 @@ liveReload = true
 # regardless of this setting.
 editMode = "inapp"
 
-# Hard-wrap column for the in-app editor. When a line exceeds this width, the
-# last space at or before the column is replaced with a newline. Set to 0 to disable.
+# Soft-wrap column for the in-app editor. Text wraps visually at this width
+# without inserting literal newlines, so notes look clean in any external editor.
+# Also controls the default card width (textWidth + 4). Set to 0 to disable.
 textWidth = 80
 
 # Key to switch focus between split editor panes.
