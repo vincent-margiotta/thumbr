@@ -138,12 +138,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m = m.setStatus(fmt.Sprintf("Loaded %d cards", len(msg.cards)), 2*time.Second)
 		}
-		vis := m.visibleIndices()
-		n := m.settings.StackVisibleCount + 2
-		if n > len(vis) {
-			n = len(vis)
-		}
-		return m.withUpdateSample(start), tea.Batch(preloadCardsCmd(m.cards, vis[:n]), newWatchCmd)
+		m = m.ensureVisibleContent()
+		return m.withUpdateSample(start), tea.Batch(m.preloadVisibleCmd(), newWatchCmd)
 
 	case newFileResult:
 		if msg.err != nil {
