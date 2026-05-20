@@ -63,7 +63,6 @@ const (
 	editorActionSaveQuit
 	editorActionSaveQuitAll
 	editorActionForceQuit
-	editorActionReformat
 	editorActionSort
 )
 
@@ -292,30 +291,6 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		m.paneCount = 0
 		m.activePane = 0
 		m.state = StateBrowsing
-		return m.withUpdateSample(start), nil
-
-	case editorActionReformat:
-		tw := m.settings.TextWidth
-		if tw <= 0 {
-			m = m.setStatus("textWidth is disabled — set it in config to use :fmt", 3*time.Second)
-			return m.withUpdateSample(start), nil
-		}
-		lines := strings.Split(es.ta.Value(), "\n")
-		var newLines []string
-		for _, line := range lines {
-			newLines = append(newLines, reflowLine(line, tw)...)
-		}
-		newContent := strings.Join(newLines, "\n")
-		if newContent != es.ta.Value() {
-			es = es.pushUndo()
-			es.ta.SetValue(newContent)
-			es = es.setCursorToLineCol(es.ta.Line(), 0)
-			es.dirty = true
-			m.editors[m.activePane] = es
-			m = m.setStatus("Reformatted", 2*time.Second)
-		} else {
-			m = m.setStatus("Already within column limit", 2*time.Second)
-		}
 		return m.withUpdateSample(start), nil
 
 	case editorActionSort:
@@ -612,44 +587,6 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 	case "g":
 		if key == "g" {
 			es.ta = taKey(es.ta, tea.KeyCtrlHome)
-		} else if key == "q" {
-			es.pending = "gq"
-		}
-
-	case "gq":
-		if key == "q" && textwidth > 0 {
-			lines := strings.Split(es.ta.Value(), "\n")
-			lineIdx := es.ta.Line()
-			if lineIdx >= 0 && lineIdx < len(lines) {
-				reflowed := reflowLine(lines[lineIdx], textwidth)
-				if len(reflowed) > 1 || (len(reflowed) == 1 && reflowed[0] != lines[lineIdx]) {
-					es = es.pushUndo()
-					newLines := make([]string, 0, len(lines)+len(reflowed)-1)
-					newLines = append(newLines, lines[:lineIdx]...)
-					newLines = append(newLines, reflowed...)
-					newLines = append(newLines, lines[lineIdx+1:]...)
-					es.ta.SetValue(strings.Join(newLines, "\n"))
-					es = es.setCursorToLineCol(lineIdx, 0)
-					es.dirty = true
-					tw := textwidth
-					es.lastRepeat = func(s editorState) editorState {
-						s = s.pushUndo()
-						ls := strings.Split(s.ta.Value(), "\n")
-						li := s.ta.Line()
-						if li >= 0 && li < len(ls) {
-							rf := reflowLine(ls[li], tw)
-							nl := make([]string, 0, len(ls)+len(rf)-1)
-							nl = append(nl, ls[:li]...)
-							nl = append(nl, rf...)
-							nl = append(nl, ls[li+1:]...)
-							s.ta.SetValue(strings.Join(nl, "\n"))
-							s = s.setCursorToLineCol(li, 0)
-							s.dirty = true
-						}
-						return s
-					}
-				}
-			}
 		}
 
 	case "d":
@@ -1121,35 +1058,6 @@ func prevWordStart(runes []rune, col int) int {
 	return start
 }
 
-// reflowLine wraps a single line to fit within textwidth by replacing spaces
-// with newlines at word boundaries. Lines with no breakable space are returned
-// unchanged. The result always contains at least one element.
-func reflowLine(line string, textwidth int) []string {
-	if len([]rune(line)) <= textwidth {
-		return []string{line}
-	}
-	words := strings.Fields(line)
-	if len(words) == 0 {
-		return []string{line}
-	}
-	var result []string
-	cur := ""
-	for _, word := range words {
-		switch {
-		case cur == "":
-			cur = word
-		case len([]rune(cur))+1+len([]rune(word)) <= textwidth:
-			cur += " " + word
-		default:
-			result = append(result, cur)
-			cur = word
-		}
-	}
-	if cur != "" {
-		result = append(result, cur)
-	}
-	return result
-}
 
 // wordForwardEnd returns the rune index just past the end of the word/token
 // motion from col — matching vim's `w` / `dw` target (skips trailing spaces).
@@ -1257,8 +1165,6 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionSaveQuitAll
 		case "sort":
 			return es, editorActionSort
-		case "fmt":
-			return es, editorActionReformat
 		}
 		return es, editorActionNone
 	case "backspace":

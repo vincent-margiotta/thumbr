@@ -129,7 +129,6 @@ The in-app editor uses vim-style modes.
 | **Undo** | `u` | Undo last change. |
 | **Redo** | `Ctrl+r` | Redo last undone change. |
 | **Dot repeat** | `.` | Repeat the last normal-mode change. |
-| **Reflow line** | `gqq` | Reformat current line to fit `textWidth`. |
 
 #### Commands
 
@@ -140,7 +139,6 @@ The in-app editor uses vim-style modes.
 | **Discard & quit** | `:q!` | Discard changes and close active pane. |
 | **Save & quit** | `:wq` | Save and close active pane. |
 | **Save & quit all** | `:wqa` | Save all open panes and exit the editor. |
-| **Reformat file** | `:fmt` | Reflow all lines in the file to fit `textWidth`. |
 | **Sort lines** | `:sort` | Sort all lines in the file alphabetically. |
 
 #### Pane Management
