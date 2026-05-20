@@ -33,8 +33,10 @@ colorStatusDim = "#999999"
 
 # Layout and motion tuning.
 pageStep = 0              # 0 = half the overlay body height
-navAccelMs = 350          # ms window for acceleration
-navMaxStep = 8            # max accelerated step
+navMaxStep = 8            # hard cap on cards skipped per keypress
+navTau     = 300.0        # breakeven interval (ms): pressing at this rate → step=1; faster → more
+navGamma   = 1.75         # power-law exponent; higher = sharper acceleration with pressing speed
+navMinDt   = 50.0         # minimum interval floor (ms); key-hold == pressing at top speed
 stackVisible = 7          # cards shown in stack
 stackOffsetX = 2
 stackOffsetY = 1

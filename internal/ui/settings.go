@@ -32,6 +32,9 @@ type Settings struct {
 	ColorStatusDim lipgloss.Color
 
 	NavMaxStep int
+	NavTau     float64 // breakeven interval (ms): pressing at this rate → step=1
+	NavGamma   float64 // power-law exponent; >1 = sharper acceleration with speed
+	NavMinDt   float64 // minimum interval floor (ms); hold == pressing at top speed
 
 	MaxCursorDepth   int
 	ActiveLiftY      int
@@ -71,6 +74,9 @@ var DefaultSettings = Settings{
 	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
 	ColorStatusDim:    lipgloss.Color("#999999"),
 	NavMaxStep: 8,
+	NavTau:     300.0,
+	NavGamma:   1.75,
+	NavMinDt:   50.0,
 	MaxCursorDepth:    2,
 	ActiveLiftY:       2,
 	StickyOverlayNav:  false,
@@ -313,9 +319,21 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 }
 
 // ApplyNav overrides the maximum navigation step size (positive values only).
-func (m *Model) ApplyNav(navMaxStep int) {
+// ApplyNav overrides navigation tuning. Zero values are ignored (keep default).
+// navMaxStep caps the step size per keypress.
+// tau, gamma, minDt control the power-law curve; see NavTau/NavGamma/NavMinDt docs.
+func (m *Model) ApplyNav(navMaxStep int, tau, gamma, minDt float64) {
 	if navMaxStep > 0 {
 		m.settings.NavMaxStep = navMaxStep
+	}
+	if tau > 0 {
+		m.settings.NavTau = tau
+	}
+	if gamma > 0 {
+		m.settings.NavGamma = gamma
+	}
+	if minDt > 0 {
+		m.settings.NavMinDt = minDt
 	}
 }
 

@@ -39,7 +39,10 @@ type config struct {
 	ColorStatusFG       string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
 	ColorStatusDim      string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
 	PageStep            int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavMaxStep int `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
+	NavMaxStep int     `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
+	NavTau     float64 `json:"navTau"     yaml:"navTau"     toml:"navTau"`
+	NavGamma   float64 `json:"navGamma"   yaml:"navGamma"   toml:"navGamma"`
+	NavMinDt   float64 `json:"navMinDt"   yaml:"navMinDt"   toml:"navMinDt"`
 	StackVisible        int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
 	StackOffsetX        int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
 	StackOffsetY        int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
@@ -189,6 +192,9 @@ func main() {
 		colorStatusDimArg   string
 		pageStepArg         int
 		cfgNavMaxStep int
+		cfgNavTau     float64
+		cfgNavGamma   float64
+		cfgNavMinDt   float64
 		stackVisibleArg     int
 		stackOffsetXArg     int
 		stackOffsetYArg     int
@@ -224,7 +230,10 @@ func main() {
 	flagSet.StringVar(&colorStatusFGArg, "color-status-fg", "", "hex color for status bar foreground")
 	flagSet.StringVar(&colorStatusDimArg, "color-status-dim", "", "hex color for status bar muted text")
 	flagSet.IntVar(&pageStepArg, "page-step", 0, "override overlay page step (lines); defaults to half the overlay body height")
-	flagSet.IntVar(&cfgNavMaxStep, "nav-max-step", 0, "cap on step size per keypress (0 to use default)")
+	flagSet.IntVar(&cfgNavMaxStep, "nav-max-step", 0, "cap on step size per keypress (0 = default)")
+	flagSet.Float64Var(&cfgNavTau, "nav-tau", 0, "breakeven interval ms: pressing at this rate → step=1 (0 = default)")
+	flagSet.Float64Var(&cfgNavGamma, "nav-gamma", 0, "power-law exponent: higher = sharper acceleration (0 = default)")
+	flagSet.Float64Var(&cfgNavMinDt, "nav-min-dt", 0, "minimum interval floor ms: hold == pressing at top speed (0 = default)")
 	flagSet.IntVar(&stackVisibleArg, "stack-visible", 0, "number of cards visible in the stack (0 to use default)")
 	flagSet.IntVar(&stackOffsetXArg, "stack-offset-x", 0, "horizontal offset between stacked cards (0 to use default)")
 	flagSet.IntVar(&stackOffsetYArg, "stack-offset-y", 0, "vertical offset between stacked cards (0 to use default)")
@@ -335,6 +344,9 @@ func main() {
 		colorStatusDim      string
 		pageStep   int
 		navMaxStep int
+		navTau     float64
+		navGamma   float64
+		navMinDt   float64
 		bindings            ui.KeyBindings
 		stackVisible        int
 		stackOffsetX        int
@@ -378,6 +390,9 @@ func main() {
 		colorStatusDim:      "",
 		pageStep:   0,
 		navMaxStep: 0,
+		navTau:     0,
+		navGamma:   0,
+		navMinDt:   0,
 		bindings:            ui.DefaultBindings(),
 		stackVisible:        0,
 		stackOffsetX:        0,
@@ -463,6 +478,15 @@ func main() {
 		}
 		if cfg.NavMaxStep > 0 {
 			opts.navMaxStep = cfg.NavMaxStep
+		}
+		if cfg.NavTau > 0 {
+			opts.navTau = cfg.NavTau
+		}
+		if cfg.NavGamma > 0 {
+			opts.navGamma = cfg.NavGamma
+		}
+		if cfg.NavMinDt > 0 {
+			opts.navMinDt = cfg.NavMinDt
 		}
 		if cfg.MaxCursorDepth > 0 {
 			opts.maxCursorDepth = cfg.MaxCursorDepth
@@ -645,6 +669,15 @@ func main() {
 	}
 	if cfgNavMaxStep > 0 {
 		opts.navMaxStep = cfgNavMaxStep
+	}
+	if cfgNavTau > 0 {
+		opts.navTau = cfgNavTau
+	}
+	if cfgNavGamma > 0 {
+		opts.navGamma = cfgNavGamma
+	}
+	if cfgNavMinDt > 0 {
+		opts.navMinDt = cfgNavMinDt
 	}
 	if maxCursorDepthArg > 0 {
 		opts.maxCursorDepth = maxCursorDepthArg
@@ -845,8 +878,8 @@ func main() {
 	if opts.pageStep > 0 {
 		m.SetPageStep(opts.pageStep)
 	}
-	if opts.navMaxStep > 0 {
-		m.ApplyNav(opts.navMaxStep)
+	if opts.navMaxStep > 0 || opts.navTau > 0 || opts.navGamma > 0 || opts.navMinDt > 0 {
+		m.ApplyNav(opts.navMaxStep, opts.navTau, opts.navGamma, opts.navMinDt)
 	}
 	layout := ui.Layout{
 		StackVisibleCount: opts.stackVisible,

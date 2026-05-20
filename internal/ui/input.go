@@ -534,16 +534,11 @@ func (m Model) promptTargetBox() string {
 // dt is milliseconds since the last same-direction press.
 //
 // Power-law model: step = round((tau/dt)^gamma).
-// tau is the "breakeven" interval — pressing every tau ms gives exactly step=1.
+// tau is the breakeven interval — pressing every tau ms gives exactly step=1.
 // gamma > 1 makes the response non-linear: a modest speedup in pressing rate
-// produces a dramatic increase in step size, matching the feel of physical thumbing.
+// produces a dramatic jump in step size, matching the feel of physical thumbing.
 // minDt floors dt so auto-repeat (key-hold) converges with fast deliberate pressing.
-func navStep(dt float64, sameDir bool, maxStep int) int {
-	const (
-		tau   = 300.0 // ms: step=1 threshold
-		gamma = 1.75  // curvature; >1 = dramatic acceleration with speed
-		minDt = 50.0  // ms floor; hold == pressing at top speed
-	)
+func navStep(dt, tau, gamma, minDt float64, sameDir bool, maxStep int) int {
 	if !sameDir || dt <= 0 {
 		return 1
 	}
@@ -588,7 +583,7 @@ func (m Model) moveCursor(dir int) Model {
 		maxStep = m.settings.NavMaxStep
 	}
 
-	step := navStep(dt, sameDir, maxStep)
+	step := navStep(dt, m.settings.NavTau, m.settings.NavGamma, m.settings.NavMinDt, sameDir, maxStep)
 
 	remaining := pos
 	if dir > 0 {
