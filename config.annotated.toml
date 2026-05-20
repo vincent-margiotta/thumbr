@@ -40,8 +40,12 @@ navMinDt   = 50.0         # minimum interval floor (ms); key-hold == pressing at
 stackVisible = 7          # cards shown in stack
 stackOffsetX = 2
 stackOffsetY = 1
-cardWidthFrac = 0.6
-cardHeightFrac = 0.6
+# Card dimensions. Set to 0 (default) for automatic sizing:
+#   width  → derived from textWidth + 4 (borders + inner margin); falls back to 60% viewport
+#   height → derived from width to preserve a 4"×6" landscape aspect ratio
+# Set a value in (0,1] to fix the dimension as a fraction of the viewport instead.
+cardWidthFrac = 0
+cardHeightFrac = 0
 activeLiftY = 2
 stickyOverlayNav = false  # keep overlay nav active when toggling?
 maxCursorDepth = 2        # how deep the active card can sit in stack

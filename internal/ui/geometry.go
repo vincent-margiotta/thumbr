@@ -126,9 +126,12 @@ func (m Model) computeStackGeometry() []cardGeom {
 	return geoms
 }
 
-// cardSize computes the width/height of an index-card-shaped rectangle
-// in terminal cells. We fit a fixed-aspect rectangle into a bounding box
-// determined by the current viewport and CardWidthFrac/CardHeightFrac.
+// cardSize computes the width/height of an index-card-shaped rectangle in
+// terminal cells, preserving a 4"×6" landscape aspect ratio.
+//
+// Width priority: CardWidthFrac (explicit) → TextWidth+4 (auto) → 60% viewport.
+// Height priority: CardHeightFrac (explicit) → derived from aspect ratio.
+// Either fraction set to 0 activates the automatic behaviour for that axis.
 func (m Model) cardSize() (int, int) {
 	vw := float64(m.viewport.Width)
 	vh := float64(m.viewport.Height)
@@ -136,44 +139,52 @@ func (m Model) cardSize() (int, int) {
 		return 0, 0
 	}
 
-	// Max size based on viewport fractions
-	maxW := vw * m.settings.CardWidthFrac
-	maxH := vh * m.settings.CardHeightFrac
+	// A 4"×6" index card (landscape) has a 6:4 = 1.5 physical aspect ratio.
+	// Terminal cells are roughly 2× taller than wide, so the visual column:row
+	// ratio that reproduces the physical shape is 1.5 × 2 = 3.0.
+	const aspect = 3.0
 
-	// Leave a small margin from the edges
+	// Target width.
+	var maxW float64
+	switch {
+	case m.settings.CardWidthFrac > 0:
+		maxW = vw * m.settings.CardWidthFrac
+	case m.settings.TextWidth > 0:
+		// Anchor to the configured line width: +2 for left/right borders,
+		// +2 for one column of inner margin on each side.
+		maxW = float64(m.settings.TextWidth + 4)
+	default:
+		maxW = vw * 0.6
+	}
 	if maxW > vw-2 {
 		maxW = vw - 2
+	}
+
+	// Target height.
+	var maxH float64
+	if m.settings.CardHeightFrac > 0 {
+		maxH = vh * m.settings.CardHeightFrac
+	} else {
+		maxH = vh - 2 // unconstrained; aspect ratio drives the actual height
 	}
 	if maxH > vh-2 {
 		maxH = vh - 2
 	}
-	if maxW <= 0 || maxH <= 0 {
-		return 0, 0
-	}
 
-	// Visual aspect: width : height in terminal cells.
-	// Because terminal cells are tall, we use a wider ratio than 6:4.
-	// Tweak this to taste; 3.0 is a good starting point.
-	const visualAspect = 3.0 // width / height
-
-	// First, try to use the full allowed width and compute height from aspect.
-	hFromW := maxW / visualAspect
+	// Fit within maxW × maxH while preserving the aspect ratio.
 	var w, h float64
-
+	hFromW := maxW / aspect
 	if hFromW <= maxH {
-		// Width is the limiting factor; we can keep full width.
-		w = maxW
-		h = hFromW
+		w, h = maxW, hFromW
 	} else {
-		// Height is the limiting factor; use full height and compute width.
 		h = maxH
-		w = maxH * visualAspect
+		w = maxH * aspect
 		if w > maxW {
 			w = maxW
 		}
 	}
 
-	// Minimums so it still looks like a card
+	// Minimums so it still looks like a card.
 	if w < 20 {
 		w = 20
 	}
@@ -181,7 +192,7 @@ func (m Model) cardSize() (int, int) {
 		h = 6
 	}
 
-	// Final clamp to viewport just in case
+	// Final viewport clamp.
 	if w > vw-2 {
 		w = vw - 2
 	}
