@@ -39,8 +39,7 @@ type config struct {
 	ColorStatusFG       string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
 	ColorStatusDim      string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
 	PageStep            int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavAccelMs          int      `json:"navAccelMs" yaml:"navAccelMs" toml:"navAccelMs"`
-	NavMaxStep          int      `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
+	NavMaxStep int `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
 	StackVisible        int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
 	StackOffsetX        int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
 	StackOffsetY        int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
@@ -189,8 +188,7 @@ func main() {
 		colorStatusFGArg    string
 		colorStatusDimArg   string
 		pageStepArg         int
-		cfgNavAccelMs       int
-		cfgNavMaxStep       int
+		cfgNavMaxStep int
 		stackVisibleArg     int
 		stackOffsetXArg     int
 		stackOffsetYArg     int
@@ -226,8 +224,7 @@ func main() {
 	flagSet.StringVar(&colorStatusFGArg, "color-status-fg", "", "hex color for status bar foreground")
 	flagSet.StringVar(&colorStatusDimArg, "color-status-dim", "", "hex color for status bar muted text")
 	flagSet.IntVar(&pageStepArg, "page-step", 0, "override overlay page step (lines); defaults to half the overlay body height")
-	flagSet.IntVar(&cfgNavAccelMs, "nav-accel-ms", 0, "navigation acceleration window in milliseconds (0 to use default)")
-	flagSet.IntVar(&cfgNavMaxStep, "nav-max-step", 0, "maximum navigation step when accelerating (0 to use default)")
+	flagSet.IntVar(&cfgNavMaxStep, "nav-max-step", 0, "cap on step size per keypress (0 to use default)")
 	flagSet.IntVar(&stackVisibleArg, "stack-visible", 0, "number of cards visible in the stack (0 to use default)")
 	flagSet.IntVar(&stackOffsetXArg, "stack-offset-x", 0, "horizontal offset between stacked cards (0 to use default)")
 	flagSet.IntVar(&stackOffsetYArg, "stack-offset-y", 0, "vertical offset between stacked cards (0 to use default)")
@@ -336,9 +333,8 @@ func main() {
 		colorStatusBG       string
 		colorStatusFG       string
 		colorStatusDim      string
-		pageStep            int
-		navAccelMs          int
-		navMaxStep          int
+		pageStep   int
+		navMaxStep int
 		bindings            ui.KeyBindings
 		stackVisible        int
 		stackOffsetX        int
@@ -380,9 +376,8 @@ func main() {
 		colorStatusBG:       "",
 		colorStatusFG:       "",
 		colorStatusDim:      "",
-		pageStep:            0,
-		navAccelMs:          0,
-		navMaxStep:          0,
+		pageStep:   0,
+		navMaxStep: 0,
 		bindings:            ui.DefaultBindings(),
 		stackVisible:        0,
 		stackOffsetX:        0,
@@ -465,9 +460,6 @@ func main() {
 		}
 		if cfg.PageStep > 0 {
 			opts.pageStep = cfg.PageStep
-		}
-		if cfg.NavAccelMs > 0 {
-			opts.navAccelMs = cfg.NavAccelMs
 		}
 		if cfg.NavMaxStep > 0 {
 			opts.navMaxStep = cfg.NavMaxStep
@@ -650,9 +642,6 @@ func main() {
 	}
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
-	}
-	if cfgNavAccelMs > 0 {
-		opts.navAccelMs = cfgNavAccelMs
 	}
 	if cfgNavMaxStep > 0 {
 		opts.navMaxStep = cfgNavMaxStep
@@ -856,8 +845,8 @@ func main() {
 	if opts.pageStep > 0 {
 		m.SetPageStep(opts.pageStep)
 	}
-	if opts.navAccelMs > 0 || opts.navMaxStep > 0 {
-		m.ApplyNav(opts.navAccelMs, opts.navMaxStep)
+	if opts.navMaxStep > 0 {
+		m.ApplyNav(opts.navMaxStep)
 	}
 	layout := ui.Layout{
 		StackVisibleCount: opts.stackVisible,

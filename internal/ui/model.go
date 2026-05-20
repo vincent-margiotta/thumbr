@@ -100,8 +100,7 @@ type Model struct {
 
 	lastNavDir  int
 	lastNavTime time.Time
-	avgInterval float64 // exponential moving average of ms between presses
-	navPending  string  // pending nav prefix key ("g" waits for a second key)
+	navPending  string // pending nav prefix key ("g" waits for a second key)
 
 	rng             *rand.Rand
 	showHelp        bool

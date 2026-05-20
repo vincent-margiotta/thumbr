@@ -5,75 +5,58 @@ import "testing"
 // ---- navStep ----
 
 func TestNavStep_FirstPressAlwaysOne(t *testing.T) {
-	// avgInterval=0 signals "no history"; first press must yield step=1.
-	_, step := navStep(0, 999, true, 20)
+	// Direction change (sameDir=false) always yields step=1.
+	step := navStep(50, false, 20)
 	if step != 1 {
-		t.Errorf("first press (avgInterval=0): want step=1, got %d", step)
+		t.Errorf("first press (sameDir=false): want step=1, got %d", step)
 	}
 }
 
 func TestNavStep_DirectionChangeResetsToOne(t *testing.T) {
-	// Build up some momentum then flip direction.
-	avg := 0.0
-	for i := 0; i < 10; i++ {
-		avg, _ = navStep(avg, 50, true, 20)
-	}
-	_, step := navStep(avg, 50, false, 20)
+	// Fast pressing then a direction change must reset to step=1.
+	step := navStep(30, false, 20)
 	if step != 1 {
 		t.Errorf("after direction change: want step=1, got %d", step)
 	}
 }
 
 func TestNavStep_FastPressingAccelerates(t *testing.T) {
-	// Pressing at 50 ms intervals (very fast) should grow the step over time.
-	avg := 0.0
-	maxStep := 20
-	var last int
-	for i := 0; i < 15; i++ {
-		var s int
-		avg, s = navStep(avg, 50, i > 0, maxStep)
-		last = s
-	}
-	if last <= 1 {
-		t.Errorf("sustained fast pressing should produce step > 1, got %d", last)
+	// Pressing at 30 ms (very fast) should yield step > 1.
+	step := navStep(30, true, 20)
+	if step <= 1 {
+		t.Errorf("fast pressing (30 ms) should produce step > 1, got %d", step)
 	}
 }
 
-func TestNavStep_SlowPressingDecelerates(t *testing.T) {
-	// Build up momentum, then slow down; step should shrink back toward 1.
-	avg := 0.0
-	maxStep := 20
-	for i := 0; i < 12; i++ {
-		avg, _ = navStep(avg, 50, i > 0, maxStep)
-	}
-	var slowStep int
-	for i := 0; i < 8; i++ {
-		avg, slowStep = navStep(avg, 400, true, maxStep)
-	}
-	if slowStep > 2 {
-		t.Errorf("after slowing down, want step <= 2, got %d", slowStep)
+func TestNavStep_SlowPressingYieldsOne(t *testing.T) {
+	// Pressing at 300 ms (deliberate) should yield step=1.
+	step := navStep(300, true, 20)
+	if step > 1 {
+		t.Errorf("slow pressing (300 ms) should produce step=1, got %d", step)
 	}
 }
 
 func TestNavStep_NeverExceedsMaxStep(t *testing.T) {
 	maxStep := 5
-	avg := 0.0
-	for i := 0; i < 30; i++ {
-		var s int
-		avg, s = navStep(avg, 30, i > 0, maxStep)
-		if s > maxStep {
-			t.Fatalf("step %d exceeds maxStep %d at iteration %d", s, maxStep, i)
-		}
+	// Even the fastest conceivable interval should be capped.
+	step := navStep(1, true, maxStep)
+	if step > maxStep {
+		t.Fatalf("step %d exceeds maxStep %d", step, maxStep)
 	}
 }
 
 func TestNavStep_AlwaysAtLeastOne(t *testing.T) {
-	// Even with direction change and a long pause the step must be >= 1.
-	avg := 0.0
+	// Any input must produce step >= 1.
 	for _, dt := range []float64{0, 1000, 5000} {
-		_, s := navStep(avg, dt, false, 20)
+		s := navStep(dt, false, 20)
 		if s < 1 {
-			t.Errorf("step < 1 (dt=%.0f)", dt)
+			t.Errorf("step < 1 (dt=%.0f, sameDir=false)", dt)
+		}
+	}
+	for _, dt := range []float64{1000, 5000} {
+		s := navStep(dt, true, 20)
+		if s < 1 {
+			t.Errorf("step < 1 (dt=%.0f, sameDir=true)", dt)
 		}
 	}
 }
@@ -100,12 +83,8 @@ func TestJumpToEdge_Last(t *testing.T) {
 
 func TestJumpToEdge_ResetsMomentum(t *testing.T) {
 	m := newTestModel(10, 5)
-	m.avgInterval = 99.9
 	m.lastNavDir = 1
 	m = m.jumpToEdge(-1)
-	if m.avgInterval != 0 {
-		t.Errorf("jumpToEdge should reset avgInterval, got %f", m.avgInterval)
-	}
 	if m.lastNavDir != 0 {
 		t.Errorf("jumpToEdge should reset lastNavDir, got %d", m.lastNavDir)
 	}
@@ -141,12 +120,8 @@ func TestJumpToPercent_Middle(t *testing.T) {
 
 func TestJumpToPercent_ResetsMomentum(t *testing.T) {
 	m := newTestModel(10, 5)
-	m.avgInterval = 42.0
 	m.lastNavDir = -1
 	m = m.jumpToPercent(30)
-	if m.avgInterval != 0 {
-		t.Errorf("jumpToPercent should reset avgInterval, got %f", m.avgInterval)
-	}
 	if m.lastNavDir != 0 {
 		t.Errorf("jumpToPercent should reset lastNavDir, got %d", m.lastNavDir)
 	}

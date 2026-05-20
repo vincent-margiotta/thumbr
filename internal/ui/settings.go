@@ -31,8 +31,7 @@ type Settings struct {
 	ColorStatusFG  lipgloss.Color
 	ColorStatusDim lipgloss.Color
 
-	NavAccelWindow time.Duration
-	NavMaxStep     int
+	NavMaxStep int
 
 	MaxCursorDepth   int
 	ActiveLiftY      int
@@ -71,8 +70,7 @@ var DefaultSettings = Settings{
 	ColorStatusBG:     lipgloss.Color("#222222"),
 	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
 	ColorStatusDim:    lipgloss.Color("#999999"),
-	NavAccelWindow:    350 * time.Millisecond,
-	NavMaxStep:        8,
+	NavMaxStep: 8,
 	MaxCursorDepth:    2,
 	ActiveLiftY:       2,
 	StickyOverlayNav:  false,
@@ -314,11 +312,8 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 }
 
-// ApplyNav overrides navigation acceleration settings with any positive values.
-func (m *Model) ApplyNav(navAccelMs, navMaxStep int) {
-	if navAccelMs > 0 {
-		m.settings.NavAccelWindow = time.Duration(navAccelMs) * time.Millisecond
-	}
+// ApplyNav overrides the maximum navigation step size (positive values only).
+func (m *Model) ApplyNav(navMaxStep int) {
 	if navMaxStep > 0 {
 		m.settings.NavMaxStep = navMaxStep
 	}

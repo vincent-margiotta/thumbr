@@ -881,7 +881,7 @@ func (m Model) renderDebug() string {
 		fmt.Sprintf("Boxes: %d (active: %d)", len(m.boxes), activeBox),
 		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), m.markedCountCurrent(), m.filterMarked),
 		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
-		fmt.Sprintf("Nav accel: %v, max step: %d", m.settings.NavAccelWindow, m.settings.NavMaxStep),
+		fmt.Sprintf("Nav max step: %d", m.settings.NavMaxStep),
 		fmt.Sprintf("Cursor depth max: %d", m.settings.MaxCursorDepth),
 	}
 	if len(m.updateSamples) > 0 || m.updateMax > 0 {

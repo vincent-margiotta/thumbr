@@ -4,7 +4,6 @@ package ui
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -529,37 +528,23 @@ func (m Model) promptTargetBox() string {
 
 // ==== Navigation ====
 
-// navStep computes the next momentum state and step count for a single directional
-// keypress. avgInterval is the current momentum value (higher = slower); dt is
-// milliseconds since the last press; sameDir is false when the direction reversed;
-// maxStep caps the returned step. Swap this function to try a different nav feel.
-//
-// Current algorithm: physics-based momentum. Each same-direction press multiplies
-// avgInterval by a growth factor; elapsed time decays it exponentially. Pressing
-// faster than ~160 ms/press accelerates; slower causes gradual decay.
-func navStep(avgInterval, dt float64, sameDir bool, maxStep int) (newAvg float64, step int) {
-	const growth = 1.6         // multiplier applied each press
-	const decay = 0.75         // fraction remaining per 100 ms elapsed
-	const initV = 1.0 / growth // ensures the first press always yields step=1
-
-	if !sameDir || avgInterval == 0 {
-		avgInterval = initV
-	} else if dt > 0 {
-		avgInterval *= math.Pow(decay, dt/100.0)
-		if avgInterval < initV {
-			avgInterval = initV
-		}
+// navStep returns the step count for a single directional keypress.
+// sameDir is false on direction change or the first press, which always yields 1.
+// dt is milliseconds since the last same-direction press; tau controls the
+// characteristic interval: pressing every tau ms → step 1; faster → more steps.
+func navStep(dt float64, sameDir bool, maxStep int) int {
+	const tau = 150.0
+	if !sameDir || dt <= 0 {
+		return 1
 	}
-	avgInterval *= growth
-
-	step = int(avgInterval)
+	step := int(tau / dt)
 	if step < 1 {
 		step = 1
 	}
 	if step > maxStep {
 		step = maxStep
 	}
-	return avgInterval, step
+	return step
 }
 
 func (m Model) moveCursor(dir int) Model {
@@ -586,8 +571,7 @@ func (m Model) moveCursor(dir int) Model {
 		maxStep = m.settings.NavMaxStep
 	}
 
-	var step int
-	m.avgInterval, step = navStep(m.avgInterval, dt, sameDir, maxStep)
+	step := navStep(dt, sameDir, maxStep)
 
 	remaining := pos
 	if dir > 0 {
@@ -619,7 +603,6 @@ func (m Model) jumpToEdge(dir int) Model {
 	} else {
 		m.cursor = vis[0]
 	}
-	m.avgInterval = 0
 	m.lastNavDir = 0
 	return m
 }
@@ -638,7 +621,6 @@ func (m Model) jumpToPercent(pct int) Model {
 		idx = 0
 	}
 	m.cursor = vis[idx]
-	m.avgInterval = 0
 	m.lastNavDir = 0
 	return m
 }
@@ -653,7 +635,6 @@ func (m Model) randomCursor() Model {
 	} else {
 		m.cursor = vis[rand.Intn(len(vis))]
 	}
-	m.avgInterval = 0
 	m.lastNavDir = 0
 	return m
 }
