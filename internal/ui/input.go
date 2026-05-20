@@ -4,6 +4,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -531,18 +532,29 @@ func (m Model) promptTargetBox() string {
 // navStep returns the step count for a single directional keypress.
 // sameDir is false on direction change or the first press, which always yields 1.
 // dt is milliseconds since the last same-direction press.
-// tau sets the characteristic interval: pressing every tau ms → step 1; faster → more.
-// minDt floors dt so that key-repeat (auto-hold) behaves like pressing at top speed.
+//
+// Power-law model: step = round((tau/dt)^gamma).
+// tau is the "breakeven" interval — pressing every tau ms gives exactly step=1.
+// gamma > 1 makes the response non-linear: a modest speedup in pressing rate
+// produces a dramatic increase in step size, matching the feel of physical thumbing.
+// minDt floors dt so auto-repeat (key-hold) converges with fast deliberate pressing.
 func navStep(dt float64, sameDir bool, maxStep int) int {
-	const tau = 400.0
-	const minDt = 80.0
+	const (
+		tau   = 300.0 // ms: step=1 threshold
+		gamma = 1.75  // curvature; >1 = dramatic acceleration with speed
+		minDt = 50.0  // ms floor; hold == pressing at top speed
+	)
 	if !sameDir || dt <= 0 {
 		return 1
 	}
 	if dt < minDt {
 		dt = minDt
 	}
-	step := int(tau / dt)
+	ratio := tau / dt
+	if ratio <= 1 {
+		return 1
+	}
+	step := int(math.Round(math.Pow(ratio, gamma)))
 	if step < 1 {
 		step = 1
 	}

@@ -21,18 +21,23 @@ func TestNavStep_DirectionChangeResetsToOne(t *testing.T) {
 }
 
 func TestNavStep_FastPressingAccelerates(t *testing.T) {
-	// Pressing at ~100 ms (fast deliberate) should yield step > 1.
-	step := navStep(100, true, 20)
-	if step <= 1 {
-		t.Errorf("fast pressing (100 ms) should produce step > 1, got %d", step)
+	// Power law: fast pressing (80 ms) should produce a dramatically larger step
+	// than moderate pressing (150 ms).
+	slow := navStep(150, true, 50)
+	fast := navStep(80, true, 50)
+	if fast <= slow {
+		t.Errorf("fast pressing (80 ms, step=%d) should exceed moderate (150 ms, step=%d)", fast, slow)
+	}
+	if fast < 5 {
+		t.Errorf("fast pressing (80 ms) should produce step >= 5, got %d", fast)
 	}
 }
 
 func TestNavStep_SlowPressingYieldsOne(t *testing.T) {
-	// Pressing at 500 ms (deliberate) should yield step=1.
-	step := navStep(500, true, 20)
+	// Pressing at 400 ms (deliberate) should yield step=1.
+	step := navStep(400, true, 20)
 	if step > 1 {
-		t.Errorf("slow pressing (500 ms) should produce step=1, got %d", step)
+		t.Errorf("slow pressing (400 ms) should produce step=1, got %d", step)
 	}
 }
 
