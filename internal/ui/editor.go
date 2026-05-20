@@ -374,6 +374,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es = es.moveWordForward()
 	case "b":
 		es = es.moveWordBackward()
+	case "e":
+		es = es.moveWordEnd()
 	case "0":
 		es.ta.CursorStart()
 	case "$":
@@ -997,6 +999,94 @@ func (es editorState) moveWordBackward() editorState {
 		return es.setCursorToLineCol(lineIdx-1, start)
 	}
 	return es
+}
+
+// moveWordEnd implements vim `e`: jump to the last character of the current or
+// next word, crossing to the next line when needed.
+func (es editorState) moveWordEnd() editorState {
+	lines := strings.Split(es.ta.Value(), "\n")
+	lineIdx := es.ta.Line()
+	col := es.ta.LineInfo().CharOffset
+	if lineIdx >= len(lines) {
+		return es
+	}
+	runes := []rune(lines[lineIdx])
+	newCol := wordEndForward(runes, col)
+	if newCol >= 0 {
+		return es.setCursorToLineCol(lineIdx, newCol)
+	}
+	if lineIdx+1 < len(lines) {
+		next := []rune(lines[lineIdx+1])
+		i := 0
+		isWord := func(r rune) bool {
+			return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+		}
+		isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+		for i < len(next) && isSpace(next[i]) {
+			i++
+		}
+		if i >= len(next) {
+			return es.setCursorToLineCol(lineIdx+1, max(0, len(next)-1))
+		}
+		if isWord(next[i]) {
+			for i+1 < len(next) && isWord(next[i+1]) {
+				i++
+			}
+		} else {
+			for i+1 < len(next) && !isWord(next[i+1]) && !isSpace(next[i+1]) {
+				i++
+			}
+		}
+		return es.setCursorToLineCol(lineIdx+1, i)
+	}
+	return es
+}
+
+// wordEndForward returns the column of the last character of the current or next
+// word, implementing vim `e` semantics (cursor lands ON the final char).
+// Returns -1 when the motion exhausts the current line and should cross to the next.
+func wordEndForward(runes []rune, col int) int {
+	n := len(runes)
+	if n == 0 {
+		return -1
+	}
+	isWord := func(r rune) bool {
+		return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+	}
+	isSpace := func(r rune) bool { return r == ' ' || r == '\t' }
+
+	i := col
+	// If the cursor is already at a word/token end, advance past it so we seek
+	// the *next* word end rather than staying put.
+	if i < n {
+		if i+1 >= n {
+			return -1 // last char of line; cross to next line
+		}
+		curr, next := runes[i], runes[i+1]
+		atWordEnd := (isWord(curr) && !isWord(next)) ||
+			(!isWord(curr) && !isSpace(curr) && (isWord(next) || isSpace(next)))
+		if atWordEnd {
+			i++
+		}
+	}
+	// Skip whitespace.
+	for i < n && isSpace(runes[i]) {
+		i++
+	}
+	if i >= n {
+		return -1
+	}
+	// Advance to the last character of this token.
+	if isWord(runes[i]) {
+		for i+1 < n && isWord(runes[i+1]) {
+			i++
+		}
+	} else {
+		for i+1 < n && !isWord(runes[i+1]) && !isSpace(runes[i+1]) {
+			i++
+		}
+	}
+	return i
 }
 
 // prevWordStart returns the column of the start of the previous/current word

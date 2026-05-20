@@ -108,6 +108,7 @@ The in-app editor uses vim-style modes.
 | **Character** | `h` / `l` | Move left / right. |
 | **Line** | `j` / `k` | Move down / up. |
 | **Word** | `w` / `b` | Move to next / previous word start (crosses lines). |
+| **Word end** | `e` | Move to end of current or next word (crosses lines). |
 | **Line start / end** | `0` / `$` | Jump to start / end of current line. |
 | **File top / bottom** | `gg` / `G` | Jump to first / last line of the file. |
 
