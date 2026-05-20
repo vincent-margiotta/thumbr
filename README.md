@@ -71,7 +71,7 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 | **Jump to ~%** | `g` `1`–`9` | Jump to 10%–90% through the deck. |
 | **Random** | `r` | Jump to a random card. |
 | **Open overlay** | `Enter` | Pull the active card into the reading overlay. |
-| **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. If another editor is suspended, opens as a companion pane. |
+| **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. If another editor is suspended, opens as a companion pane. Set `editMode: "external"` to redirect `e` to `$EDITOR` instead. |
 | **Edit (external)** | `E` | Open the active card in `$EDITOR`. |
 | **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). Opens in a split pane by default (`autoSplitOnLink`). |
 | **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). Opens in a split pane by default (`autoSplitOnLink`). |
@@ -174,6 +174,7 @@ Common tweaks:
 - **Sorting:** `sortMode`, `sortPattern`, `sortPatternFirst` to control natural vs lexical ordering and grouping.
 - **Layout/Styling:** `stackVisible`, `cardWidthFrac`, `colors`, border characters.
 - **Bindings:** `bind*` keys to remap navigation, overlay, marks, etc.
+- **Editor:** `editMode` (`"inapp"` / `"external"`) — redirect `e` to `$EDITOR`; `textWidth` for hard-wrap column; `autoSplitOnLink` for split-pane on `c`/`C`.
 
 Full reference lives in `config.example.json` (JSON) and is supported via YAML/TOML too.
 

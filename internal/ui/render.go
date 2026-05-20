@@ -798,7 +798,12 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
 		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
 		{keys: m.bindings.NextRoot, desc: "create next integer root card"},
-		{keys: m.bindings.OpenInApp, desc: "open card in in-app editor (or companion pane)"},
+		{keys: m.bindings.OpenInApp, desc: func() string {
+			if m.settings.ExternalEditMode {
+				return "open card in $EDITOR"
+			}
+			return "open card in in-app editor (or companion pane)"
+		}()},
 		{keys: m.bindings.SwitchPane, desc: "switch focus between split editor panes"},
 		{keys: m.bindings.SuspendEditor, desc: "suspend editor, return to browse"},
 		{keys: m.bindings.OpenExternal, desc: "open card in $EDITOR"},
