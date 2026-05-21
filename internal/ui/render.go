@@ -217,28 +217,40 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	// Content preview. Depth-0 (frontmost) fills all available interior rows;
 	// inner cards only expose their left edge so one line is enough.
 	if g.h > 3 && card.ContentLoaded && card.Content != "" {
-		previewWidth := g.w - 2
+		previewWidth := g.w - 4 // 1-char inner margin each side, matching the overlay
+		previewX := g.x + 2
 		maxRows := 1
 		if g.depth == 0 {
 			maxRows = g.h - 3 // header row + content rows + bottom border
 		}
 		if previewWidth > 0 && maxRows > 0 {
-			row := 0
-			for _, line := range strings.SplitN(card.Content, "\n", 200) {
+			// Front card: show raw content as-is (blank lines, links, everything).
+			// Back cards: skip leading blanks/links so the one visible row is useful.
+			var displayLines []string
+			if g.depth == 0 {
+				displayLines = wrapText(card.Content, previewWidth, maxRows)
+			} else {
+				var filteredLines []string
+				seenContent := false
+				for _, line := range strings.SplitN(card.Content, "\n", 500) {
+					t := strings.TrimSpace(line)
+					if !seenContent && (strings.HasPrefix(t, "-->") || t == "") {
+						continue
+					}
+					seenContent = true
+					filteredLines = append(filteredLines, strings.TrimLeft(t, "# "))
+				}
+				displayLines = wrapText(strings.Join(filteredLines, "\n"), previewWidth, maxRows)
+			}
+			for row, line := range displayLines {
 				if row >= maxRows {
 					break
 				}
-				t := strings.TrimSpace(line)
-				if t == "" || strings.HasPrefix(t, "-->") {
-					continue
-				}
-				// Strip leading markdown heading markers so headers read cleanly.
-				t = strings.TrimLeft(t, "# ")
 				py := g.y + 2 + row
 				if py < 0 || py >= maxY {
 					break
 				}
-				runes := []rune(t)
+				runes := []rune(line)
 				if len(runes) > previewWidth {
 					if previewWidth > 1 {
 						runes = append(runes[:previewWidth-1], '…')
@@ -247,13 +259,12 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 					}
 				}
 				for i, r := range runes {
-					x := g.x + 1 + i
+					x := previewX + i
 					if x < 0 || x >= maxX {
 						continue
 					}
 					grid[py][x] = cell{ch: r, styleID: styleCardDim}
 				}
-				row++
 			}
 		}
 	}
