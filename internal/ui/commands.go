@@ -242,7 +242,7 @@ func (m Model) createLinkedFileCmdNoEditor(box, targetDir, stem, ext, initialCon
 }
 
 // watchDirCmd watches root for file-system events relevant to the card list
-// (creates, removes, and renames of files whose extension matches opts.IncludeExts).
+// (creates, removes, and renames of .txt files).
 // It blocks until a debounced event fires or stop is closed, then returns
 // watchEventMsg or nil respectively. Newly created subdirectories are added
 // to the watch set automatically.

@@ -130,9 +130,8 @@ func (m Model) computeStackGeometry() []cardGeom {
 // cardSize computes the width/height of an index-card-shaped rectangle in
 // terminal cells, preserving a 4"×6" landscape aspect ratio.
 //
-// Width priority: CardWidthFrac (explicit) → TextWidth+4 (auto) → 60% viewport.
-// Height priority: CardHeightFrac (explicit) → derived from aspect ratio.
-// Either fraction set to 0 activates the automatic behaviour for that axis.
+// Width: TextWidth+4 when configured, else 60% of viewport width.
+// Height: derived from aspect ratio (unconstrained by config).
 func (m Model) cardSize() (int, int) {
 	vw := float64(m.viewport.Width)
 	vh := float64(m.viewport.Height)
