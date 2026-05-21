@@ -30,16 +30,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.viewport.Height = msg.Height
 		}
-		if m.state == StatePrompting {
-			width := m.viewport.Width - 4
-			if width < 10 {
-				width = m.viewport.Width
-			}
-			if width < 10 {
-				width = 10
-			}
-			m.prompt.input.Width = width
-		}
 		if m.state == StateEditing || m.paneCount >= 1 {
 			if m.paneCount == 2 {
 				topVP, botVP := splitViewports(m.viewport)
@@ -64,8 +54,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), nil
 		}
 		return m.withUpdateSample(start), tea.Batch(
-			m.loadBoxCmd(m.currentBox()),
-			watchDirCmd(m.watchStop, m.currentBox(), m.loadOpts),
+			m.loadBoxCmd(m.noteRoot),
+			watchDirCmd(m.watchStop, m.noteRoot, m.loadOpts),
 		)
 
 	case boxLoadResult:
@@ -147,7 +137,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.setStatus(fmt.Sprintf("New file error: %v", msg.err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		m = m.setActiveBox(msg.box)
 		status := "Opening file in editor"
 		if msg.path != "" {
 			status = fmt.Sprintf("Opening %s", filepath.Base(msg.path))
@@ -158,7 +147,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			status = fmt.Sprintf("Created %s", filepath.Base(msg.path))
 		}
 		m = m.setStatus(status, 2*time.Second)
-		return m.withUpdateSample(start), m.loadBoxCmd(msg.box)
+		return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
 
 	case openInAppResult:
 		if msg.err != nil {
@@ -229,7 +218,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.syncCardContent(msg.path, string(content))
 		}
 		m.pendingSeekPath = msg.path
-		return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
+		return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
 
 	case tea.KeyMsg:
 		key := msg.String()
@@ -246,10 +235,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// ctrl+c always quits
 		if key == "ctrl+c" {
 			return m.withUpdateSample(start), tea.Quit
-		}
-
-		if m.state == StatePrompting {
-			return m.handlePromptKey(msg, start)
 		}
 
 		// When editing, all keys go to the editor — no global actions should fire.
@@ -292,12 +277,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.isBinding(key, m.bindings.Filter):
 			m = m.toggleFilter()
 			return m, nil
-		case m.isBinding(key, m.bindings.OpenBox):
-			m = m.startBoxPrompt()
-			return m.withUpdateSample(start), nil
-		case m.isBinding(key, m.bindings.NewFile):
-			m = m.startNewFilePrompt()
-			return m.withUpdateSample(start), nil
 		case m.isBinding(key, m.bindings.Continue):
 			return m.startContinueOrBranch(true, start)
 		case m.isBinding(key, m.bindings.Branch):
@@ -306,7 +285,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.startNextRoot(start)
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
-			return m.withUpdateSample(start), m.loadBoxCmd(m.currentBox())
+			return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
 		case m.isBinding(key, m.bindings.OpenInApp):
 			if m.settings.ExternalEditMode {
 				if len(m.cards) > 0 {
@@ -436,14 +415,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.scrollOverlayLines(-1)
 
 			case m.isBinding(key, m.bindings.Random):
-				if m.settings.StickyOverlayNav {
-					m = m.randomCursor()
-					m = m.ensureCardContent(m.cursor)
-				} else {
-					m.state = StateBrowsing
-					m.overlayPage = 0
-					m = m.randomCursor()
-				}
+				m.state = StateBrowsing
+				m.overlayPage = 0
+				m = m.randomCursor()
 			case m.isBinding(key, m.bindings.PageNext):
 				m = m.nextPage()
 			case m.isBinding(key, m.bindings.PagePrev):
@@ -455,78 +429,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.withUpdateSample(start), nil
-}
-
-func (m Model) handlePromptKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
-	key := msg.String()
-
-	switch key {
-	case "esc":
-		m = m.clearPrompt()
-		return m.withUpdateSample(start), nil
-	case "tab":
-		m = m.cyclePromptBox(1)
-		return m.withUpdateSample(start), nil
-	case "shift+tab":
-		m = m.cyclePromptBox(-1)
-		return m.withUpdateSample(start), nil
-	case "enter":
-		return m.submitPrompt(start)
-	}
-
-	var cmd tea.Cmd
-	m.prompt.input, cmd = m.prompt.input.Update(msg)
-	return m.withUpdateSample(start), cmd
-}
-
-func (m Model) submitPrompt(start time.Time) (tea.Model, tea.Cmd) {
-	switch m.prompt.kind {
-	case promptBox:
-		path := strings.TrimSpace(m.prompt.input.Value())
-		if path == "" {
-			m = m.setStatus("Enter a box path", 2*time.Second)
-			return m.withUpdateSample(start), nil
-		}
-		m = m.clearPrompt()
-		return m.withUpdateSample(start), m.loadBoxCmd(path)
-
-	case promptNewFile:
-		name := strings.TrimSpace(m.prompt.input.Value())
-		if name == "" {
-			m = m.setStatus("Enter a file name", 2*time.Second)
-			return m.withUpdateSample(start), nil
-		}
-		target := m.promptTargetBox()
-		cmd := m.createFileCmd(target, name)
-		m = m.clearPrompt()
-		m = m.setStatus("Creating file…", 1*time.Second)
-		return m.withUpdateSample(start), cmd
-	}
-
-	m = m.clearPrompt()
-	return m.withUpdateSample(start), nil
-}
-
-func (m Model) cyclePromptBox(delta int) Model {
-	if len(m.boxes) == 0 {
-		return m
-	}
-	count := len(m.boxes)
-	m.prompt.selectedBox = (m.prompt.selectedBox + delta + count) % count
-	if m.prompt.kind == promptBox {
-		m.prompt.input.SetValue(m.boxes[m.prompt.selectedBox])
-	}
-	return m
-}
-
-func (m Model) promptTargetBox() string {
-	if len(m.boxes) == 0 {
-		return m.noteRoot
-	}
-	if m.prompt.selectedBox >= 0 && m.prompt.selectedBox < len(m.boxes) {
-		return m.boxes[m.prompt.selectedBox]
-	}
-	return m.currentBox()
 }
 
 // ==== Navigation ====
@@ -690,16 +592,11 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 	}
 
 	if !ok {
-		m = m.startNewFilePrompt()
+		m = m.setStatus("Cannot derive next card name", 3*time.Second)
 		return m.withUpdateSample(start), nil
 	}
 
-	var targetDir string
-	if m.settings.NewFileSameDir {
-		targetDir = filepath.Dir(card.Path)
-	} else {
-		targetDir = m.currentBox()
-	}
+	targetDir := filepath.Dir(card.Path)
 
 	// Walk forward through DeriveBranch until we find a name that doesn't exist on disk.
 	for {
@@ -708,7 +605,7 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 		}
 		next, ok2 := notes.DeriveBranch(newStem)
 		if !ok2 {
-			m = m.startNewFilePrompt()
+			m = m.setStatus("Cannot derive next card name", 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
 		newStem = next
@@ -726,16 +623,16 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 	}
 
 	var linkContent string
-	if linkStem != "" && m.settings.NewFileLinkTemplate != "" {
-		linkContent = fmt.Sprintf(m.settings.NewFileLinkTemplate, linkStem)
+	if linkStem != "" {
+		linkContent = fmt.Sprintf("--> %s\n\n", linkStem)
 	}
 
 	var cmd tea.Cmd
 	switch m.settings.NewFileEditor {
 	case "external":
-		cmd = m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, linkContent)
+		cmd = m.createLinkedFileCmd(m.noteRoot, targetDir, newStem, ext, linkContent)
 	case "none":
-		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, linkContent, false)
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, targetDir, newStem, ext, linkContent, false)
 	default: // "inapp" or ""
 		// Layout: \n[cursor]\n\n[reference]\n — cursor at line 1, above the link.
 		inAppContent := linkContent
@@ -746,7 +643,7 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 		if m.settings.AutoSplitOnLink {
 			m.pendingSourcePath = card.Path
 		}
-		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, inAppContent, true)
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, targetDir, newStem, ext, inAppContent, true)
 	}
 	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
 	return m.withUpdateSample(start), cmd
@@ -762,18 +659,13 @@ func (m Model) startNextRoot(start time.Time) (tea.Model, tea.Cmd) {
 
 	newStem, ok := notes.NextRootInteger(stems)
 	if !ok {
-		m = m.startNewFilePrompt()
+		m = m.setStatus("Cannot derive next root card name", 3*time.Second)
 		return m.withUpdateSample(start), nil
 	}
 
 	ext := m.defaultExt()
-	if len(m.cards) > 0 {
-		if e := filepath.Ext(filepath.Base(m.cards[m.cursor].Path)); e != "" {
-			ext = e
-		}
-	}
 
-	targetDir := m.currentBox()
+	targetDir := m.noteRoot
 	for {
 		if _, err := os.Stat(filepath.Join(targetDir, newStem+ext)); os.IsNotExist(err) {
 			break
@@ -785,11 +677,11 @@ func (m Model) startNextRoot(start time.Time) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.settings.NewFileEditor {
 	case "external":
-		cmd = m.createLinkedFileCmd(m.currentBox(), targetDir, newStem, ext, "")
+		cmd = m.createLinkedFileCmd(m.noteRoot, targetDir, newStem, ext, "")
 	case "none":
-		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, "", false)
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, targetDir, newStem, ext, "", false)
 	default:
-		cmd = m.createLinkedFileCmdNoEditor(m.currentBox(), targetDir, newStem, ext, "", true)
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, targetDir, newStem, ext, "", true)
 	}
 	m = m.setStatus(fmt.Sprintf("Creating %s…", newStem+ext), 1*time.Second)
 	return m.withUpdateSample(start), cmd

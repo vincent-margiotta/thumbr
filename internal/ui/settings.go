@@ -20,9 +20,6 @@ type Settings struct {
 	StackOffsetX      int
 	StackOffsetY      int
 
-	CardWidthFrac  float64
-	CardHeightFrac float64
-
 	ColorHiFG      lipgloss.Color
 	ColorMutFG     lipgloss.Color
 	ColorMarkFG    lipgloss.Color
@@ -36,9 +33,8 @@ type Settings struct {
 	NavGamma   float64 // power-law exponent; >1 = sharper acceleration with speed
 	NavMinDt   float64 // minimum interval floor (ms); hold == pressing at top speed
 
-	MaxCursorDepth   int
-	ActiveLiftY      int
-	StickyOverlayNav bool
+	MaxCursorDepth int
+	ActiveLiftY    int
 
 	BorderTL rune
 	BorderTR rune
@@ -47,9 +43,7 @@ type Settings struct {
 	BorderH  rune
 	BorderV  rune
 
-	NewFileLinkTemplate string
-	NewFileSameDir      bool
-	NewFileEditor       string // "inapp" | "external" | "none"
+	NewFileEditor string // "inapp" | "external" | "none"
 	ContinueNameCmd     string
 	BranchNameCmd       string
 	AutoSplitOnLink     bool
@@ -64,8 +58,6 @@ var DefaultSettings = Settings{
 	StackVisibleCount: 7,
 	StackOffsetX:      2,
 	StackOffsetY:      1,
-	CardWidthFrac:     0,
-	CardHeightFrac:    0,
 	ColorHiFG:         lipgloss.Color("#FFD166"),
 	ColorMutFG:        lipgloss.Color("#444444"),
 	ColorMarkFG:       lipgloss.Color("#6CCB5F"),
@@ -77,9 +69,8 @@ var DefaultSettings = Settings{
 	NavTau:     300.0,
 	NavGamma:   1.75,
 	NavMinDt:   50.0,
-	MaxCursorDepth:    2,
-	ActiveLiftY:       2,
-	StickyOverlayNav:  false,
+	MaxCursorDepth: 2,
+	ActiveLiftY:    2,
 
 	BorderTL: '╭',
 	BorderTR: '╮',
@@ -88,9 +79,7 @@ var DefaultSettings = Settings{
 	BorderH:  '─',
 	BorderV:  '│',
 
-	NewFileLinkTemplate: "--> %s\n\n",
-	NewFileSameDir:      true,
-	NewFileEditor:       "inapp",
+	NewFileEditor: "inapp",
 	ContinueNameCmd:     "",
 	BranchNameCmd:       "",
 	AutoSplitOnLink:     true,
@@ -114,10 +103,7 @@ type Layout struct {
 	StackVisibleCount int
 	StackOffsetX      int
 	StackOffsetY      int
-	CardWidthFrac     float64
-	CardHeightFrac    float64
 	ActiveLiftY       int
-	StickyOverlayNav  *bool
 	MaxCursorDepth    int
 	BorderCorner      rune
 	BorderH           rune
@@ -130,11 +116,9 @@ type KeyBindings struct {
 	Down          []string
 	Random        []string
 	OverlayToggle []string
-	OpenInApp     []string
-	OpenExternal  []string
-	OpenBox       []string
-	NewFile       []string
-	Continue      []string
+	OpenInApp    []string
+	OpenExternal []string
+	Continue     []string
 	Branch        []string
 	NextRoot      []string
 	SuspendEditor []string
@@ -160,11 +144,9 @@ func DefaultBindings() KeyBindings {
 		Down:          []string{"j", "down"},
 		Random:        []string{"r"},
 		OverlayToggle: []string{"enter"},
-		OpenInApp:     []string{"e"},
-		OpenExternal:  []string{"E"},
-		OpenBox:       []string{"b"},
-		NewFile:       []string{"a"},
-		Continue:      []string{"c"},
+		OpenInApp:    []string{"e"},
+		OpenExternal: []string{"E"},
+		Continue:     []string{"c"},
 		Branch:        []string{"C"},
 		NextRoot:      []string{"N"},
 		SuspendEditor: []string{"ctrl+b"},
@@ -186,8 +168,6 @@ func DefaultBindings() KeyBindings {
 
 // FileCreation holds configuration for the continue/branch file-creation feature.
 type FileCreation struct {
-	LinkTemplate    string
-	SameDir         *bool
 	NewFileEditor   string
 	ContinueCmd     string
 	BranchCmd       string
@@ -234,17 +214,8 @@ func (m *Model) ApplyLayout(l Layout) {
 	if l.StackOffsetY != 0 {
 		m.settings.StackOffsetY = l.StackOffsetY
 	}
-	if l.CardWidthFrac > 0 {
-		m.settings.CardWidthFrac = l.CardWidthFrac
-	}
-	if l.CardHeightFrac > 0 {
-		m.settings.CardHeightFrac = l.CardHeightFrac
-	}
 	if l.ActiveLiftY != 0 {
 		m.settings.ActiveLiftY = l.ActiveLiftY
-	}
-	if l.StickyOverlayNav != nil {
-		m.settings.StickyOverlayNav = *l.StickyOverlayNav
 	}
 	if l.MaxCursorDepth > 0 {
 		m.settings.MaxCursorDepth = l.MaxCursorDepth
@@ -272,8 +243,6 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	}
 	override(&m.bindings.OpenInApp, b.OpenInApp)
 	override(&m.bindings.OpenExternal, b.OpenExternal)
-	override(&m.bindings.OpenBox, b.OpenBox)
-	override(&m.bindings.NewFile, b.NewFile)
 	override(&m.bindings.Continue, b.Continue)
 	override(&m.bindings.Branch, b.Branch)
 	override(&m.bindings.NextRoot, b.NextRoot)
@@ -298,12 +267,6 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 
 // ApplyFileCreation overrides file-creation settings with non-zero values.
 func (m *Model) ApplyFileCreation(fc FileCreation) {
-	if fc.LinkTemplate != "" {
-		m.settings.NewFileLinkTemplate = fc.LinkTemplate
-	}
-	if fc.SameDir != nil {
-		m.settings.NewFileSameDir = *fc.SameDir
-	}
 	if fc.NewFileEditor != "" {
 		m.settings.NewFileEditor = fc.NewFileEditor
 	}

@@ -198,49 +198,6 @@ func openInAppCmd(path string) tea.Cmd {
 	}
 }
 
-// createFileCmd makes sure the file exists under boxRoot, creates directories,
-// and opens it in the external editor.
-func (m Model) createFileCmd(boxRoot, userPath string) tea.Cmd {
-	root := cleanBoxPath(boxRoot)
-	defaultExt := m.defaultExt()
-	return func() tea.Msg {
-		raw := strings.TrimSpace(userPath)
-		if raw == "" {
-			return newFileResult{box: root, err: errors.New("file name required")}
-		}
-
-		target := raw
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(root, target)
-		}
-		target = filepath.Clean(target)
-		if filepath.Ext(target) == "" && defaultExt != "" {
-			target += defaultExt
-		}
-
-		dir := filepath.Dir(target)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return newFileResult{box: root, path: target, err: fmt.Errorf("make dir: %w", err)}
-		}
-
-		// Create the file if missing; preserve existing content otherwise.
-		if _, err := os.Stat(target); err != nil {
-			if !errors.Is(err, os.ErrNotExist) {
-				return newFileResult{box: root, path: target, err: fmt.Errorf("stat: %w", err)}
-			}
-			if err := os.WriteFile(target, []byte{}, 0o644); err != nil {
-				return newFileResult{box: root, path: target, err: fmt.Errorf("create: %w", err)}
-			}
-		}
-
-		if err := launchEditor(target); err != nil {
-			return newFileResult{box: root, path: target, err: fmt.Errorf("open: %w", err)}
-		}
-
-		return newFileResult{box: root, path: target, seekPath: target}
-	}
-}
-
 // createLinkedFileCmd creates stem+ext in targetDir with initialContent, then
 // opens it in the external editor.
 func (m Model) createLinkedFileCmd(box, targetDir, stem, ext, initialContent string) tea.Cmd {
@@ -296,7 +253,7 @@ func watchDirCmd(stop <-chan struct{}, root string, opts notes.LoadOptions) tea.
 			return nil
 		}
 		defer w.Close()
-		if err := watchAddDirs(w, root, opts.IgnoreGlobs); err != nil {
+		if err := watchAddDirs(w, root); err != nil {
 			return nil
 		}
 
@@ -317,11 +274,11 @@ func watchDirCmd(stop <-chan struct{}, root string, opts notes.LoadOptions) tea.
 				// Watch newly created subdirectories.
 				if event.Op&fsnotify.Create != 0 {
 					if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-						_ = watchAddDirs(w, event.Name, opts.IgnoreGlobs)
+						_ = watchAddDirs(w, event.Name)
 					}
 				}
-				// Only trigger on files with a matching extension.
-				if !watchFileMatches(event.Name, opts.IncludeExts, opts.IgnoreGlobs) {
+				// Only trigger on .txt files.
+				if strings.ToLower(filepath.Ext(event.Name)) != ".txt" {
 					continue
 				}
 				if debounce != nil {
@@ -344,9 +301,8 @@ func watchDirCmd(stop <-chan struct{}, root string, opts notes.LoadOptions) tea.
 	}
 }
 
-// watchAddDirs recursively adds root and all subdirectories to w, skipping
-// directories that match ignoreGlobs.
-func watchAddDirs(w *fsnotify.Watcher, root string, ignoreGlobs []string) error {
+// watchAddDirs recursively adds root and all subdirectories to w.
+func watchAddDirs(w *fsnotify.Watcher, root string) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -354,46 +310,9 @@ func watchAddDirs(w *fsnotify.Watcher, root string, ignoreGlobs []string) error 
 		if !d.IsDir() {
 			return nil
 		}
-		if watchPathIgnored(path, ignoreGlobs) {
-			return filepath.SkipDir
-		}
 		_ = w.Add(path)
 		return nil
 	})
-}
-
-// watchFileMatches returns true when path has a matching extension and is not ignored.
-func watchFileMatches(path string, exts []string, ignoreGlobs []string) bool {
-	if watchPathIgnored(path, ignoreGlobs) {
-		return false
-	}
-	if len(exts) == 0 {
-		return true
-	}
-	ext := strings.ToLower(filepath.Ext(path))
-	for _, e := range exts {
-		if strings.ToLower(e) == ext {
-			return true
-		}
-	}
-	return false
-}
-
-// watchPathIgnored returns true when path or its base name matches any ignore glob.
-func watchPathIgnored(path string, patterns []string) bool {
-	base := filepath.Base(path)
-	for _, pat := range patterns {
-		if pat == "" {
-			continue
-		}
-		if ok, _ := filepath.Match(pat, path); ok {
-			return true
-		}
-		if ok, _ := filepath.Match(pat, base); ok {
-			return true
-		}
-	}
-	return false
 }
 
 // ---------------------------------------------------------------------------

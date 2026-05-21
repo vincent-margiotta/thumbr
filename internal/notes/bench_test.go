@@ -63,7 +63,7 @@ func prepareBenchData(b *testing.B) (string, int) {
 func BenchmarkLoadCardsFromDir90k(b *testing.B) {
 	root, total := prepareBenchData(b)
 
-	opts := LoadOptions{IncludeExts: []string{".txt"}}
+	opts := LoadOptions{}
 
 	b.ReportAllocs()
 	b.ResetTimer()

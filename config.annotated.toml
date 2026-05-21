@@ -10,18 +10,6 @@ noteRoot = "samples/notes"
 # Use terminal alternate screen buffer; set false to stay on main screen.
 altScreen = true
 
-# File extensions to include (case-insensitive). Leading dot required.
-includeExts = [".txt"]
-
-# Glob patterns to ignore (matched on path and basename).
-ignoreGlobs = ["Archive/*", "**/*.tmp"]
-
-# Sorting: "natural" vs "lexical"; pattern controls which names use sortMode.
-sortMode = "natural"
-sortPattern = "^[0-9]+[A-Za-z0-9]*$"
-# When true, names matching sortPattern come first; false puts them after.
-sortPatternFirst = false
-
 # Colors (hex). Override to match your theme.
 colorMark = "#6CCB5F"
 colorMuted = "#444444"
@@ -40,14 +28,7 @@ navMinDt   = 50.0         # minimum interval floor (ms); key-hold == pressing at
 stackVisible = 7          # cards shown in stack
 stackOffsetX = 2
 stackOffsetY = 1
-# Card dimensions. Set to 0 (default) for automatic sizing:
-#   width  → derived from textWidth + 4 (borders + inner margin); falls back to 60% viewport
-#   height → derived from width to preserve a 4"×6" landscape aspect ratio
-# Set a value in (0,1] to fix the dimension as a fraction of the viewport instead.
-cardWidthFrac = 0
-cardHeightFrac = 0
 activeLiftY = 2
-stickyOverlayNav = false  # keep overlay nav active when toggling?
 maxCursorDepth = 2        # how deep the active card can sit in stack
 
 # Border characters (single rune each).
@@ -63,8 +44,6 @@ bindOverlay = ["enter"]
 bindEdit = ["E"]           # open card in external $EDITOR
 bindInApp = ["e"]         # open card in in-app vim editor; resumes a suspended editor if one exists
 bindSuspendEditor = ["ctrl+b"]  # suspend in-app editor and return to browse (press e to resume)
-bindBox = ["b"]
-bindNewFile = ["a"]
 bindMark = ["m"]
 bindFilter = ["t"]
 bindHelp = ["?", "h"]
@@ -102,14 +81,6 @@ bindNavLast = ["G"]
 
 # Same override for branch derivation.
 # branchNameCmd = ""
-
-# printf template for the backwards link written at the top of newly created files.
-# %s is replaced with the source card's filename stem. Set to "" to disable.
-newFileLinkTemplate = "--> %s\n\n"
-
-# When true, linked files are created in the same directory as the focused card.
-# When false, they are always created in the box root.
-newFileSameDir = true
 
 # What to open when c/C creates a new card: "inapp" (default), "external" ($EDITOR), "none".
 newFileEditor = "inapp"

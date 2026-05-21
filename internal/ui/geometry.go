@@ -147,27 +147,19 @@ func (m Model) cardSize() (int, int) {
 
 	// Target width.
 	var maxW float64
-	switch {
-	case m.settings.CardWidthFrac > 0:
-		maxW = vw * m.settings.CardWidthFrac
-	case m.settings.TextWidth > 0:
+	if m.settings.TextWidth > 0 {
 		// Anchor to the configured line width: +2 for left/right borders,
 		// +2 for one column of inner margin on each side.
 		maxW = float64(m.settings.TextWidth + 4)
-	default:
+	} else {
 		maxW = vw * 0.6
 	}
 	if maxW > vw-2 {
 		maxW = vw - 2
 	}
 
-	// Target height.
-	var maxH float64
-	if m.settings.CardHeightFrac > 0 {
-		maxH = vh * m.settings.CardHeightFrac
-	} else {
-		maxH = vh - 2 // unconstrained; aspect ratio drives the actual height
-	}
+	// Target height: aspect ratio drives the actual height.
+	maxH := vh - 2
 	if maxH > vh-2 {
 		maxH = vh - 2
 	}

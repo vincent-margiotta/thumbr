@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -24,10 +23,9 @@ import (
 type State int
 
 const (
-	StateBrowsing  State = iota // navigating the card stack
-	StateViewing                // reading a card in the overlay
-	StatePrompting              // entering text in a prompt (box path, new file)
-	StateEditing                // in-app vim editor is active
+	StateBrowsing State = iota // navigating the card stack
+	StateViewing               // reading a card in the overlay
+	StateEditing               // in-app vim editor is active
 )
 
 func (s State) String() string {
@@ -36,8 +34,6 @@ func (s State) String() string {
 		return "Browsing"
 	case StateViewing:
 		return "Viewing"
-	case StatePrompting:
-		return "Prompting"
 	case StateEditing:
 		return "Editing"
 	default:
@@ -45,13 +41,6 @@ func (s State) String() string {
 	}
 }
 
-type promptKind int
-
-const (
-	promptNone promptKind = iota
-	promptBox
-	promptNewFile
-)
 
 // ---------------------------------------------------------------------------
 // Rendering internals
@@ -106,17 +95,11 @@ type Model struct {
 	showHelp        bool
 	showDebug       bool
 	marked          map[string]bool // absolute file paths of marked cards
-	boxFilters      map[string]bool // per-box filter state
 	filterMarked    bool
 	overlayPage     int
 	overlayPageStep int // overrides computed half-page step when > 0
 
-	loadOpts  notes.LoadOptions
-	boxes     []string
-	activeBox int
-
-	prompt            promptState
-	stateBeforePrompt State
+	loadOpts notes.LoadOptions
 
 	err      error
 	noteRoot string
@@ -161,12 +144,6 @@ type Model struct {
 	pendingSourcePath string
 }
 
-type promptState struct {
-	kind        promptKind
-	input       textinput.Model
-	selectedBox int
-}
-
 // ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
@@ -176,22 +153,18 @@ type promptState struct {
 func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, rng *rand.Rand) Model {
 	root := cleanBoxPath(noteRoot)
 	m := Model{
-		cards:    cards,
-		cursor:   0,
-		state:    StateBrowsing,
-		settings: DefaultSettings,
-		bindings: DefaultBindings(),
-		rng:      rng,
-		marked:   make(map[string]bool),
-		boxFilters: map[string]bool{
-			root: false,
-		},
+		cards:       cards,
+		cursor:      0,
+		state:       StateBrowsing,
+		settings:    DefaultSettings,
+		bindings:    DefaultBindings(),
+		rng:         rng,
+		marked:      make(map[string]bool),
 		noteRoot:    root,
 		loadOpts:    loadOpts,
 		watchStop:   make(chan struct{}),
 		watchingBox: root,
 	}
-	m = m.setActiveBox(root)
 	return m
 }
 
@@ -210,7 +183,7 @@ func (m Model) Init() tea.Cmd {
 		cmds = append(cmds, preloadCardsCmd(m.cards, vis[:n]))
 	}
 	if m.settings.LiveReload {
-		cmds = append(cmds, watchDirCmd(m.watchStop, m.currentBox(), m.loadOpts))
+		cmds = append(cmds, watchDirCmd(m.watchStop, m.noteRoot, m.loadOpts))
 	}
 	if len(cmds) == 0 {
 		return nil
@@ -221,9 +194,6 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	if m.pendingQuit && time.Now().After(m.pendingQuitUntil) {
 		m.pendingQuit = false
-	}
-	if m.state == StatePrompting {
-		return m.renderPrompt()
 	}
 	if m.state == StateEditing {
 		return m.renderEditor()
@@ -330,11 +300,7 @@ func (m Model) markedCountCurrent() int {
 }
 
 func (m Model) setFilterForCurrent(state bool) Model {
-	if m.boxFilters == nil {
-		m.boxFilters = make(map[string]bool)
-	}
 	m.filterMarked = state
-	m.boxFilters[m.currentBox()] = state
 	return m
 }
 
@@ -425,10 +391,7 @@ func (m Model) withUpdateSample(start time.Time) Model {
 }
 
 func (m Model) defaultExt() string {
-	if len(m.loadOpts.IncludeExts) > 0 {
-		return m.loadOpts.IncludeExts[0]
-	}
-	return ".md"
+	return ".txt"
 }
 
 // ensureVisibleContent synchronously loads content for the depth-0 card in the
@@ -475,77 +438,11 @@ func (m Model) attemptQuit() (Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) setActiveBox(path string) Model {
-	path = cleanBoxPath(path)
-	for i, b := range m.boxes {
-		if b == path {
-			m.activeBox = i
-			m.noteRoot = path
-			return m
-		}
-	}
-	m.boxes = append(m.boxes, path)
-	m.activeBox = len(m.boxes) - 1
-	m.noteRoot = path
-	return m
-}
-
-func (m Model) currentBox() string {
-	if len(m.boxes) == 0 {
-		return m.noteRoot
-	}
-	if m.activeBox < 0 || m.activeBox >= len(m.boxes) {
-		return m.noteRoot
-	}
-	return m.boxes[m.activeBox]
-}
-
-func (m Model) startPrompt(kind promptKind, initial string) Model {
-	ti := textinput.New()
-	ti.Prompt = "> "
-	ti.SetValue(initial)
-	if m.viewport.Width > 4 {
-		ti.Width = m.viewport.Width - 4
-	} else {
-		ti.Width = 40
-	}
-	ti.Focus()
-	m.prompt = promptState{
-		kind:        kind,
-		input:       ti,
-		selectedBox: m.activeBox,
-	}
-	m.stateBeforePrompt = m.state
-	m.state = StatePrompting
-	m.showHelp = false
-	m.showDebug = false
-	return m
-}
-
-func (m Model) startBoxPrompt() Model {
-	return m.startPrompt(promptBox, m.noteRoot)
-}
-
-func (m Model) startNewFilePrompt() Model {
-	return m.startPrompt(promptNewFile, "")
-}
-
 func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
-	prev := m.currentBox()
-	if m.boxFilters == nil {
-		m.boxFilters = make(map[string]bool)
-	}
-	m.boxFilters[prev] = m.filterMarked
-
-	m = m.setActiveBox(root)
-	if state, ok := m.boxFilters[m.currentBox()]; ok {
-		m.filterMarked = state
-	} else {
-		m.filterMarked = false
-		m.boxFilters[m.currentBox()] = false
-	}
+	m.noteRoot = cleanBoxPath(root)
 	m.cards = cards
 	m.cursor = 0
+	m.filterMarked = false
 	if m.pendingSeekPath != "" {
 		for i, c := range cards {
 			if c.Path == m.pendingSeekPath {
@@ -558,14 +455,6 @@ func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
 	m.overlayPage = 0
 	m.state = StateBrowsing
 	return m.ensureCursorVisible()
-}
-
-func (m Model) clearPrompt() Model {
-	m.prompt = promptState{}
-	if m.state == StatePrompting {
-		m.state = m.stateBeforePrompt
-	}
-	return m
 }
 
 func (m Model) toggleMark() Model {

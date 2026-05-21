@@ -4,6 +4,7 @@ package notes
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -41,39 +42,17 @@ func TestLoadCardsFromDir_DefaultsToTxtExtension(t *testing.T) {
 	}
 }
 
-func TestLoadCardsFromDir_FiltersByExtAndIgnore(t *testing.T) {
+func TestLoadCardsFromDir_OnlyTxtLoaded(t *testing.T) {
 	dir := t.TempDir()
-	files := map[string]string{
-		"keep1.md":              "# one",
-		"keep2.txt":             "# two",
-		"skip.tmp":              "tmp",
-		"ignored/keep3.md":      "# nested",
-		"ignored/skip2.txt":     "# nested skip",
-		"nested/keep4.md":       "# nested keep",
-		"nested/skipme.tmp":     "tmp",
-		"nested/.hidden.md":     "# hidden",
-		"nested/file.TXT":       "# case",
-		"nested/ignore.me":      "meh",
-		"Archive/keep5.md":      "# archived",
-		"Archive/skip.foo":      "foo",
-		"Archive/deep/keep.md":  "# deep keep",
-		"Archive/deep/keep2.md": "# deep keep2",
-	}
-	for name, content := range files {
+	files := []string{"1.txt", "1a.txt", "skip.md", "skip.tmp", "2.txt"}
+	for _, name := range files {
 		path := filepath.Join(dir, name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatalf("mkdir: %v", err)
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("content"), 0o644); err != nil {
 			t.Fatalf("write: %v", err)
 		}
 	}
 
-	opts := LoadOptions{
-		IncludeExts: []string{".md", ".txt"},
-		IgnoreGlobs: []string{"Archive/*", "ignored", "*.tmp"},
-	}
-	cards, err := LoadCardsFromDir(dir, opts)
+	cards, err := LoadCardsFromDir(dir)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -83,51 +62,46 @@ func TestLoadCardsFromDir_FiltersByExtAndIgnore(t *testing.T) {
 		got[filepath.Base(c.Path)] = true
 	}
 
-	want := []string{"keep1.md", "keep2.txt", "keep4.md", ".hidden.md", "file.TXT"}
-	for _, name := range want {
+	for _, name := range []string{"1.txt", "1a.txt", "2.txt"} {
 		if !got[name] {
 			t.Fatalf("expected to include %s", name)
 		}
 	}
-
-	notWanted := []string{"skip.tmp", "skipme.tmp", "keep3.md", "skip2.txt", "keep5.md", "keep.md"}
-	for _, name := range notWanted {
+	for _, name := range []string{"skip.md", "skip.tmp"} {
 		if got[name] {
 			t.Fatalf("did not expect to include %s", name)
 		}
 	}
 }
 
-func TestApplySort_NaturalDefault(t *testing.T) {
+func TestNaturalSort(t *testing.T) {
 	cases := []struct {
 		name   string
 		input  []string
 		expect []string
 	}{
 		{
-			name: "case1 lexical sorting",
-			input: []string{
-				"1", "2", "3", "9", "10", "11", "20",
-			},
+			name:   "numeric ordering",
+			input:  []string{"1", "2", "3", "9", "10", "11", "20"},
 			expect: []string{"1", "2", "3", "9", "10", "11", "20"},
 		},
 		{
-			name:   "case2 double-digit siblings",
+			name:   "double-digit siblings",
 			input:  []string{"1", "1a", "1a1", "1a2", "1a3", "1a9", "1a10", "1a11", "1b"},
 			expect: []string{"1", "1a", "1a1", "1a2", "1a3", "1a9", "1a10", "1a11", "1b"},
 		},
 		{
-			name:   "case3 deep nesting",
+			name:   "deep nesting",
 			input:  []string{"1", "1a", "1a1", "1a1a", "1a1b", "1a1b1", "1a1b2", "1a1b9", "1a1b10", "1a1b11", "1a2", "1b", "2"},
 			expect: []string{"1", "1a", "1a1", "1a1a", "1a1b", "1a1b1", "1a1b2", "1a1b9", "1a1b10", "1a1b11", "1a2", "1b", "2"},
 		},
 		{
-			name:   "case4 mixed depth",
+			name:   "mixed depth",
 			input:  []string{"1", "1a", "1a1", "1a1a", "1a1a1", "1a1a2", "1a1a9", "1a1a10", "1a1b", "1a2", "1a9", "1a10", "1a10a", "1a10b", "1a11", "1b", "1b1", "1b2", "1b9", "1b10", "2", "10", "10a"},
 			expect: []string{"1", "1a", "1a1", "1a1a", "1a1a1", "1a1a2", "1a1a9", "1a1a10", "1a1b", "1a2", "1a9", "1a10", "1a10a", "1a10b", "1a11", "1b", "1b1", "1b2", "1b9", "1b10", "2", "10", "10a"},
 		},
 		{
-			name:   "case5 smoke",
+			name:   "smoke",
 			input:  []string{"1", "1a1", "1a2", "1a9", "1a10", "1a11", "2", "10"},
 			expect: []string{"1", "1a1", "1a2", "1a9", "1a10", "1a11", "2", "10"},
 		},
@@ -136,52 +110,13 @@ func TestApplySort_NaturalDefault(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			cards := cardsFromNames(tc.input)
-			if err := applySort(cards, LoadOptions{SortPatternFirst: boolPtr(true)}); err != nil {
-				t.Fatalf("applySort error: %v", err)
-			}
+			sort.SliceStable(cards, func(i, j int) bool {
+				return naturalCompare(cards[i].Title, cards[j].Title) < 0
+			})
 			got := namesFromCards(cards)
 			assertSliceEquals(t, tc.expect, got)
 		})
 	}
-}
-
-func TestApplySort_LexicalFallback(t *testing.T) {
-	input := []string{"1", "1a", "1a10", "1a2"}
-	want := []string{"1", "1a", "1a10", "1a2"} // lexical puts 10 before 2
-	cards := cardsFromNames(input)
-	if err := applySort(cards, LoadOptions{SortMode: "lexical", SortPattern: ".*", SortPatternFirst: boolPtr(true)}); err != nil {
-		t.Fatalf("applySort error: %v", err)
-	}
-	got := namesFromCards(cards)
-	assertSliceEquals(t, want, got)
-}
-
-func TestApplySort_PatternOnlyMatchesSome(t *testing.T) {
-	input := []string{"abc", "1", "10", "2"}
-	want := []string{"1", "2", "10", "abc"} // numeric matches come first sorted naturally; abc last via lexical
-	cards := cardsFromNames(input)
-	if err := applySort(cards, LoadOptions{SortMode: "natural", SortPattern: "^[0-9]+$", SortPatternFirst: boolPtr(true)}); err != nil {
-		t.Fatalf("applySort error: %v", err)
-	}
-	got := namesFromCards(cards)
-	assertSliceEquals(t, want, got)
-}
-
-func TestApplySort_InvalidRegex(t *testing.T) {
-	if err := applySort(cardsFromNames([]string{"1"}), LoadOptions{SortPattern: "("}); err == nil {
-		t.Fatalf("expected regex error")
-	}
-}
-
-func TestApplySort_PatternAfter(t *testing.T) {
-	input := []string{"abc", "1", "2"}
-	want := []string{"abc", "1", "2"} // pattern matches come after non-matching when configured
-	cards := cardsFromNames(input)
-	if err := applySort(cards, LoadOptions{SortMode: "natural", SortPattern: "^[0-9]+$", SortPatternFirst: boolPtr(false)}); err != nil {
-		t.Fatalf("applySort error: %v", err)
-	}
-	got := namesFromCards(cards)
-	assertSliceEquals(t, want, got)
 }
 
 func cardsFromNames(names []string) []Card {
@@ -201,6 +136,7 @@ func namesFromCards(cards []Card) []string {
 }
 
 func assertSliceEquals(t *testing.T, expect, got []string) {
+	t.Helper()
 	if len(expect) != len(got) {
 		t.Fatalf("length mismatch: want %d got %d\nwant: %v\ngot:  %v", len(expect), len(got), expect, got)
 	}
@@ -210,5 +146,3 @@ func assertSliceEquals(t *testing.T, expect, got []string) {
 		}
 	}
 }
-
-func boolPtr(b bool) *bool { return &b }

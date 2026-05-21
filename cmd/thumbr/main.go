@@ -26,72 +26,60 @@ import (
 var version = "dev"
 
 type config struct {
-	NoteRoot            string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
-	RandomSeed          *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
-	AltScreen           *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
-	IncludeExts         []string `json:"includeExts" yaml:"includeExts" toml:"includeExts"`
-	IgnoreGlobs         []string `json:"ignoreGlobs" yaml:"ignoreGlobs" toml:"ignoreGlobs"`
-	ColorMark           string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
-	ColorMuted          string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
-	ColorHi             string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
-	ColorDim            string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
-	ColorStatusBG       string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
-	ColorStatusFG       string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
-	ColorStatusDim      string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
-	PageStep            int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavMaxStep int     `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
-	NavTau     float64 `json:"navTau"     yaml:"navTau"     toml:"navTau"`
-	NavGamma   float64 `json:"navGamma"   yaml:"navGamma"   toml:"navGamma"`
-	NavMinDt   float64 `json:"navMinDt"   yaml:"navMinDt"   toml:"navMinDt"`
-	StackVisible        int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
-	StackOffsetX        int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
-	StackOffsetY        int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
-	CardWidthFrac       float64  `json:"cardWidthFrac" yaml:"cardWidthFrac" toml:"cardWidthFrac"`
-	CardHeightFrac      float64  `json:"cardHeightFrac" yaml:"cardHeightFrac" toml:"cardHeightFrac"`
-	ActiveLiftY         int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
-	StickyOverlayNav    *bool    `json:"stickyOverlayNav" yaml:"stickyOverlayNav" toml:"stickyOverlayNav"`
-	MaxCursorDepth      int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
-	BorderCorner        string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
-	BorderH             string   `json:"borderH" yaml:"borderH" toml:"borderH"`
-	BorderV             string   `json:"borderV" yaml:"borderV" toml:"borderV"`
-	BindUp              []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
-	BindDown            []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
-	BindRandom          []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
-	BindOverlay         []string `json:"bindOverlay" yaml:"bindOverlay" toml:"bindOverlay"`
-	BindEdit            []string `json:"bindEdit" yaml:"bindEdit" toml:"bindEdit"`
-	BindBox             []string `json:"bindBox" yaml:"bindBox" toml:"bindBox"`
-	BindNewFile         []string `json:"bindNewFile" yaml:"bindNewFile" toml:"bindNewFile"`
-	BindMark            []string `json:"bindMark" yaml:"bindMark" toml:"bindMark"`
-	BindFilter          []string `json:"bindFilter" yaml:"bindFilter" toml:"bindFilter"`
-	BindHelp            []string `json:"bindHelp" yaml:"bindHelp" toml:"bindHelp"`
-	BindQuit            []string `json:"bindQuit" yaml:"bindQuit" toml:"bindQuit"`
-	BindPageNext        []string `json:"bindPageNext" yaml:"bindPageNext" toml:"bindPageNext"`
-	BindPagePrev        []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
-	BindOverlayUp       []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
-	BindOverlayDown     []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
-	BindReload          []string `json:"bindReload"          yaml:"bindReload"          toml:"bindReload"`
-	BindContinue        []string `json:"bindContinue"        yaml:"bindContinue"        toml:"bindContinue"`
-	BindBranch          []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
-	BindNextRoot        []string `json:"bindNextRoot"        yaml:"bindNextRoot"        toml:"bindNextRoot"`
-	BindSuspendEditor   []string `json:"bindSuspendEditor"   yaml:"bindSuspendEditor"   toml:"bindSuspendEditor"`
-	BindNavFirst        []string `json:"bindNavFirst"        yaml:"bindNavFirst"        toml:"bindNavFirst"`
-	BindNavLast         []string `json:"bindNavLast"         yaml:"bindNavLast"         toml:"bindNavLast"`
-	ContinueNameCmd     string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
-	BranchNameCmd       string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
-	NewFileLinkTemplate string   `json:"newFileLinkTemplate" yaml:"newFileLinkTemplate" toml:"newFileLinkTemplate"`
-	NewFileSameDir      *bool    `json:"newFileSameDir"      yaml:"newFileSameDir"      toml:"newFileSameDir"`
-	NewFileEditor       string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
-	BindInApp           []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
-	BindSwitchPane      []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
-	AutoSplitOnLink     *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
-	SortMode            string   `json:"sortMode"            yaml:"sortMode"            toml:"sortMode"`
-	SortPattern         string   `json:"sortPattern" yaml:"sortPattern" toml:"sortPattern"`
-	SortPatternFirst    *bool    `json:"sortPatternFirst" yaml:"sortPatternFirst" toml:"sortPatternFirst"`
-	TextWidth           *int     `json:"textWidth"      yaml:"textWidth"      toml:"textWidth"`
-	LiveReload          *bool    `json:"liveReload"     yaml:"liveReload"     toml:"liveReload"`
-	EditMode            string   `json:"editMode"       yaml:"editMode"       toml:"editMode"`
-	EnableDebugUI       *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
-	CrashLogPath        string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
+	NoteRoot       string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
+	RandomSeed     *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
+	AltScreen      *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
+	ColorMark      string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
+	ColorMuted     string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
+	ColorHi        string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
+	ColorDim       string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
+	ColorStatusBG  string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
+	ColorStatusFG  string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
+	ColorStatusDim string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
+	PageStep       int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
+	NavMaxStep     int      `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
+	NavTau         float64  `json:"navTau"     yaml:"navTau"     toml:"navTau"`
+	NavGamma       float64  `json:"navGamma"   yaml:"navGamma"   toml:"navGamma"`
+	NavMinDt       float64  `json:"navMinDt"   yaml:"navMinDt"   toml:"navMinDt"`
+	StackVisible   int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
+	StackOffsetX   int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
+	StackOffsetY   int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
+	ActiveLiftY    int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
+	MaxCursorDepth int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
+	BorderCorner   string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
+	BorderH        string   `json:"borderH" yaml:"borderH" toml:"borderH"`
+	BorderV        string   `json:"borderV" yaml:"borderV" toml:"borderV"`
+	BindUp             []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
+	BindDown           []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
+	BindRandom         []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
+	BindOverlay        []string `json:"bindOverlay" yaml:"bindOverlay" toml:"bindOverlay"`
+	BindEdit           []string `json:"bindEdit" yaml:"bindEdit" toml:"bindEdit"`
+	BindMark           []string `json:"bindMark" yaml:"bindMark" toml:"bindMark"`
+	BindFilter         []string `json:"bindFilter" yaml:"bindFilter" toml:"bindFilter"`
+	BindHelp           []string `json:"bindHelp" yaml:"bindHelp" toml:"bindHelp"`
+	BindQuit           []string `json:"bindQuit" yaml:"bindQuit" toml:"bindQuit"`
+	BindPageNext       []string `json:"bindPageNext" yaml:"bindPageNext" toml:"bindPageNext"`
+	BindPagePrev       []string `json:"bindPagePrev" yaml:"bindPagePrev" toml:"bindPagePrev"`
+	BindOverlayUp      []string `json:"bindOverlayUp" yaml:"bindOverlayUp" toml:"bindOverlayUp"`
+	BindOverlayDown    []string `json:"bindOverlayDown" yaml:"bindOverlayDown" toml:"bindOverlayDown"`
+	BindReload         []string `json:"bindReload"          yaml:"bindReload"          toml:"bindReload"`
+	BindContinue       []string `json:"bindContinue"        yaml:"bindContinue"        toml:"bindContinue"`
+	BindBranch         []string `json:"bindBranch"          yaml:"bindBranch"          toml:"bindBranch"`
+	BindNextRoot       []string `json:"bindNextRoot"        yaml:"bindNextRoot"        toml:"bindNextRoot"`
+	BindSuspendEditor  []string `json:"bindSuspendEditor"   yaml:"bindSuspendEditor"   toml:"bindSuspendEditor"`
+	BindNavFirst       []string `json:"bindNavFirst"        yaml:"bindNavFirst"        toml:"bindNavFirst"`
+	BindNavLast        []string `json:"bindNavLast"         yaml:"bindNavLast"         toml:"bindNavLast"`
+	ContinueNameCmd    string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
+	BranchNameCmd      string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
+	NewFileEditor      string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
+	BindInApp          []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
+	BindSwitchPane     []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
+	AutoSplitOnLink    *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
+	TextWidth          *int     `json:"textWidth"      yaml:"textWidth"      toml:"textWidth"`
+	LiveReload         *bool    `json:"liveReload"     yaml:"liveReload"     toml:"liveReload"`
+	EditMode           string   `json:"editMode"       yaml:"editMode"       toml:"editMode"`
+	EnableDebugUI      *bool    `json:"enableDebugUI" yaml:"enableDebugUI" toml:"enableDebugUI"`
+	CrashLogPath       string   `json:"crashLogPath" yaml:"crashLogPath" toml:"crashLogPath"`
 }
 
 type int64Flag struct {
@@ -176,52 +164,42 @@ func main() {
 	}
 
 	var (
-		configPath          string
-		showVersion         bool
-		randomSeedArg       int64Flag
-		altScreenArg        bool
-		noAltScreen         bool
-		includeExtsArg      string
-		ignoreGlobsArg      string
-		colorMarkArg        string
-		colorMutedArg       string
-		colorHiArg          string
-		colorDimArg         string
-		colorStatusBGArg    string
-		colorStatusFGArg    string
-		colorStatusDimArg   string
-		pageStepArg         int
-		cfgNavMaxStep int
-		cfgNavTau     float64
-		cfgNavGamma   float64
-		cfgNavMinDt   float64
-		stackVisibleArg     int
-		stackOffsetXArg     int
-		stackOffsetYArg     int
-		cardWidthFracArg    float64
-		cardHeightFracArg   float64
-		activeLiftYArg      int
-		stickyOverlayNavArg bool
-		maxCursorDepthArg   int
-		borderCornerArg     string
-		borderHArg          string
-		borderVArg          string
-		sortModeArg         string
-		sortPatternArg      string
-		sortPatternFirstArg bool
-		textWidthArg        int
-		noLiveReloadArg     bool
+		configPath        string
+		showVersion       bool
+		randomSeedArg     int64Flag
+		altScreenArg      bool
+		noAltScreen       bool
+		colorMarkArg      string
+		colorMutedArg     string
+		colorHiArg        string
+		colorDimArg       string
+		colorStatusBGArg  string
+		colorStatusFGArg  string
+		colorStatusDimArg string
+		pageStepArg       int
+		cfgNavMaxStep     int
+		cfgNavTau         float64
+		cfgNavGamma       float64
+		cfgNavMinDt       float64
+		stackVisibleArg   int
+		stackOffsetXArg   int
+		stackOffsetYArg   int
+		activeLiftYArg    int
+		maxCursorDepthArg int
+		borderCornerArg   string
+		borderHArg        string
+		borderVArg        string
+		textWidthArg      int
+		noLiveReloadArg   bool
 		externalEditModeArg bool
 	)
 
-	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen, includeExts, ignoreGlobs)")
+	flagSet.StringVar(&configPath, "config", "", "path to optional JSON/YAML/TOML config file (fields: noteRoot, randomSeed, altScreen)")
 	flagSet.BoolVar(&showVersion, "version", false, "print version and exit")
 	flagSet.BoolVar(&showVersion, "v", false, "print version and exit (shorthand)")
 	flagSet.Var(&randomSeedArg, "random-seed", "set RNG seed for reproducible random jumps (int64)")
 	flagSet.BoolVar(&altScreenArg, "alt-screen", true, "use alternate screen buffer; set to false to stay on the main screen")
 	flagSet.BoolVar(&noAltScreen, "no-alt-screen", false, "run without the alternate screen buffer (same as --alt-screen=false)")
-	flagSet.StringVar(&includeExtsArg, "include-exts", "", "comma-separated list of file extensions to include (e.g., .md,.txt)")
-	flagSet.StringVar(&ignoreGlobsArg, "ignore", "", "comma-separated list of glob patterns to skip (matched on full path and basename)")
 	flagSet.StringVar(&colorMarkArg, "color-mark", "", "hex color for marked indicator (e.g., #6CCB5F)")
 	flagSet.StringVar(&colorMutedArg, "color-muted", "", "hex color for muted/unmarked headers when marks exist (e.g., #444444)")
 	flagSet.StringVar(&colorHiArg, "color-hi", "", "hex color for highlight accents")
@@ -237,17 +215,11 @@ func main() {
 	flagSet.IntVar(&stackVisibleArg, "stack-visible", 0, "number of cards visible in the stack (0 to use default)")
 	flagSet.IntVar(&stackOffsetXArg, "stack-offset-x", 0, "horizontal offset between stacked cards (0 to use default)")
 	flagSet.IntVar(&stackOffsetYArg, "stack-offset-y", 0, "vertical offset between stacked cards (0 to use default)")
-	flagSet.Float64Var(&cardWidthFracArg, "card-width-frac", 0, "card width fraction of viewport (0 to use default)")
-	flagSet.Float64Var(&cardHeightFracArg, "card-height-frac", 0, "card height fraction of viewport (0 to use default)")
 	flagSet.IntVar(&activeLiftYArg, "active-lift-y", 0, "active card vertical lift (0 to use default)")
-	flagSet.BoolVar(&stickyOverlayNavArg, "sticky-overlay-nav", ui.DefaultSettings.StickyOverlayNav, "allow overlay to retain nav keys without exiting")
 	flagSet.IntVar(&maxCursorDepthArg, "max-cursor-depth", 0, "max depth the active card can sit in the stack (0 to use default)")
 	flagSet.StringVar(&borderCornerArg, "border-corner", "", "single rune for card corners (default '+')")
 	flagSet.StringVar(&borderHArg, "border-h", "", "single rune for horizontal card borders (default '-')")
 	flagSet.StringVar(&borderVArg, "border-v", "", "single rune for vertical card borders (default '|')")
-	flagSet.StringVar(&sortModeArg, "sort-mode", "", "card sort mode: lexical or natural (default natural)")
-	flagSet.StringVar(&sortPatternArg, "sort-pattern", "", "regex for names to apply sort-mode to; others use lexical (default ^[0-9]+[A-Za-z0-9]*$)")
-	flagSet.BoolVar(&sortPatternFirstArg, "sort-pattern-first", false, "when true, names matching sort-pattern come before non-matching; when false, they come after")
 	flagSet.IntVar(&textWidthArg, "text-width", -1, "hard-wrap column for the in-app editor (0 to disable, default 80)")
 	flagSet.BoolVar(&noLiveReloadArg, "no-live-reload", false, "disable automatic card-list reload when notes change on disk")
 	flagSet.BoolVar(&externalEditModeArg, "external-edit", false, "make e open $EDITOR instead of the in-app editor")
@@ -260,8 +232,6 @@ func main() {
 		bindRandomArg        string
 		bindOverlayArg       string
 		bindEditArg          string
-		bindBoxArg           string
-		bindNewFileArg       string
 		bindMarkArg          string
 		bindFilterArg        string
 		bindHelpArg          string
@@ -281,19 +251,15 @@ func main() {
 		bindSwitchPaneArg    string
 	)
 	var (
-		continueNameCmdArg     string
-		branchNameCmdArg       string
-		newFileLinkTemplateArg string
-		newFileSameDirArg      bool
-		newFileEditorArg       string
+		continueNameCmdArg string
+		branchNameCmdArg   string
+		newFileEditorArg   string
 	)
 	flagSet.StringVar(&bindUpArg, "bind-up", "", "comma-separated keys for up navigation")
 	flagSet.StringVar(&bindDownArg, "bind-down", "", "comma-separated keys for down navigation")
 	flagSet.StringVar(&bindRandomArg, "bind-random", "", "comma-separated keys for random jump")
 	flagSet.StringVar(&bindOverlayArg, "bind-overlay", "", "comma-separated keys to toggle overlay")
 	flagSet.StringVar(&bindEditArg, "bind-edit", "", "comma-separated keys to open the current card in the editor")
-	flagSet.StringVar(&bindBoxArg, "bind-box", "", "comma-separated keys to open/switch boxes")
-	flagSet.StringVar(&bindNewFileArg, "bind-new", "", "comma-separated keys to create a new file in the active box")
 	flagSet.StringVar(&bindMarkArg, "bind-mark", "", "comma-separated keys to mark/unmark")
 	flagSet.StringVar(&bindFilterArg, "bind-filter", "", "comma-separated keys to toggle marked filter")
 	flagSet.StringVar(&bindHelpArg, "bind-help", "", "comma-separated keys to toggle help")
@@ -311,8 +277,6 @@ func main() {
 	flagSet.StringVar(&bindNavLastArg, "bind-nav-last", "", "comma-separated keys to jump to the last card")
 	flagSet.StringVar(&continueNameCmdArg, "continue-name-cmd", "", "shell command to derive continuation filename stem")
 	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
-	flagSet.StringVar(&newFileLinkTemplateArg, "new-file-link-template", "", "printf template for backwards link written to new files (default '--> %s\\n\\n'; empty to disable)")
-	flagSet.BoolVar(&newFileSameDirArg, "new-file-same-dir", true, "create linked files in the same directory as the focused card")
 	flagSet.StringVar(&newFileEditorArg, "new-file-editor", "", "editor to open after c/C creates a file: inapp, external, or none (default inapp)")
 	flagSet.StringVar(&bindInAppArg, "bind-inapp", "", "comma-separated keys to open card in in-app editor")
 	flagSet.StringVar(&bindSwitchPaneArg, "bind-switch-pane", "", "comma-separated keys to switch focus between split editor panes")
@@ -327,96 +291,72 @@ func main() {
 	}
 
 	opts := struct {
-		noteRoot            string
-		randomSeed          int64
-		useAlternateScreen  bool
-		includeExts         []string
-		ignoreGlobs         []string
-		sortMode            string
-		sortPattern         string
-		sortPatternFirst    bool
-		colorMark           string
-		colorMuted          string
-		colorHi             string
-		colorDim            string
-		colorStatusBG       string
-		colorStatusFG       string
-		colorStatusDim      string
-		pageStep   int
-		navMaxStep int
-		navTau     float64
-		navGamma   float64
-		navMinDt   float64
-		bindings            ui.KeyBindings
-		stackVisible        int
-		stackOffsetX        int
-		stackOffsetY        int
-		cardWidthFrac       float64
-		cardHeightFrac      float64
-		activeLiftY         int
-		stickyOverlayNav    bool
-		maxCursorDepth      int
-		borderCorner        string
-		borderH             string
-		borderV             string
-		enableDebugUI       bool
-		crashLogPath        string
-		bindNavFirstArg     string
-		bindNavLastArg      string
-		continueNameCmd     string
-		branchNameCmd       string
-		newFileLinkTemplate string
-		newFileSameDir      bool
-		newFileEditor       string
-		autoSplitOnLink     bool
-		textWidth           int
-		liveReload          bool
-		externalEditMode    bool
+		noteRoot           string
+		randomSeed         int64
+		useAlternateScreen bool
+		colorMark          string
+		colorMuted         string
+		colorHi            string
+		colorDim           string
+		colorStatusBG      string
+		colorStatusFG      string
+		colorStatusDim     string
+		pageStep           int
+		navMaxStep         int
+		navTau             float64
+		navGamma           float64
+		navMinDt           float64
+		bindings           ui.KeyBindings
+		stackVisible       int
+		stackOffsetX       int
+		stackOffsetY       int
+		activeLiftY        int
+		maxCursorDepth     int
+		borderCorner       string
+		borderH            string
+		borderV            string
+		enableDebugUI      bool
+		crashLogPath       string
+		continueNameCmd    string
+		branchNameCmd      string
+		newFileEditor      string
+		autoSplitOnLink    bool
+		textWidth          int
+		liveReload         bool
+		externalEditMode   bool
 	}{
-		noteRoot:            ".",
-		randomSeed:          time.Now().UnixNano(),
-		useAlternateScreen:  true,
-		includeExts:         nil,
-		ignoreGlobs:         nil,
-		sortMode:            "",
-		sortPattern:         "",
-		sortPatternFirst:    false,
-		colorMark:           "",
-		colorMuted:          "",
-		colorHi:             "",
-		colorDim:            "",
-		colorStatusBG:       "",
-		colorStatusFG:       "",
-		colorStatusDim:      "",
-		pageStep:   0,
-		navMaxStep: 0,
-		navTau:     0,
-		navGamma:   0,
-		navMinDt:   0,
-		bindings:            ui.DefaultBindings(),
-		stackVisible:        0,
-		stackOffsetX:        0,
-		stackOffsetY:        0,
-		cardWidthFrac:       0,
-		cardHeightFrac:      0,
-		activeLiftY:         0,
-		stickyOverlayNav:    ui.DefaultSettings.StickyOverlayNav,
-		maxCursorDepth:      0,
-		borderCorner:        "",
-		borderH:             "",
-		borderV:             "",
-		enableDebugUI:       false,
-		crashLogPath:        "",
-		bindNavFirstArg:     "",
-		bindNavLastArg:      "",
-		continueNameCmd:     "",
-		branchNameCmd:       "",
-		newFileLinkTemplate: "",
-		newFileSameDir:      true,
-		newFileEditor:       "",
-		autoSplitOnLink:     ui.DefaultSettings.AutoSplitOnLink,
-		textWidth:           ui.DefaultSettings.TextWidth,
-		liveReload:          ui.DefaultSettings.LiveReload,
+		noteRoot:           ".",
+		randomSeed:         time.Now().UnixNano(),
+		useAlternateScreen: true,
+		colorMark:          "",
+		colorMuted:         "",
+		colorHi:            "",
+		colorDim:           "",
+		colorStatusBG:      "",
+		colorStatusFG:      "",
+		colorStatusDim:     "",
+		pageStep:           0,
+		navMaxStep:         0,
+		navTau:             0,
+		navGamma:           0,
+		navMinDt:           0,
+		bindings:           ui.DefaultBindings(),
+		stackVisible:       0,
+		stackOffsetX:       0,
+		stackOffsetY:       0,
+		activeLiftY:        0,
+		maxCursorDepth:     0,
+		borderCorner:       "",
+		borderH:            "",
+		borderV:            "",
+		enableDebugUI:      false,
+		crashLogPath:       "",
+		continueNameCmd:    "",
+		branchNameCmd:      "",
+		newFileEditor:      "",
+		autoSplitOnLink:    ui.DefaultSettings.AutoSplitOnLink,
+		textWidth:          ui.DefaultSettings.TextWidth,
+		liveReload:         ui.DefaultSettings.LiveReload,
 	}
 
 	if configPath == "" {
@@ -436,21 +376,6 @@ func main() {
 		}
 		if cfg.AltScreen != nil {
 			opts.useAlternateScreen = *cfg.AltScreen
-		}
-		if len(cfg.IncludeExts) > 0 {
-			opts.includeExts = cfg.IncludeExts
-		}
-		if len(cfg.IgnoreGlobs) > 0 {
-			opts.ignoreGlobs = cfg.IgnoreGlobs
-		}
-		if cfg.SortMode != "" {
-			opts.sortMode = cfg.SortMode
-		}
-		if cfg.SortPattern != "" {
-			opts.sortPattern = cfg.SortPattern
-		}
-		if cfg.SortPatternFirst != nil {
-			opts.sortPatternFirst = *cfg.SortPatternFirst
 		}
 		if cfg.ColorMark != "" {
 			opts.colorMark = cfg.ColorMark
@@ -515,23 +440,8 @@ func main() {
 		if cfg.StackOffsetY != 0 {
 			opts.stackOffsetY = cfg.StackOffsetY
 		}
-		if cfg.CardWidthFrac > 0 {
-			opts.cardWidthFrac = cfg.CardWidthFrac
-		}
-		if cfg.CardHeightFrac > 0 {
-			opts.cardHeightFrac = cfg.CardHeightFrac
-		}
 		if cfg.ActiveLiftY != 0 {
 			opts.activeLiftY = cfg.ActiveLiftY
-		}
-		if cfg.StickyOverlayNav != nil {
-			opts.stickyOverlayNav = *cfg.StickyOverlayNav
-		}
-		if cfg.SortMode != "" {
-			opts.sortMode = cfg.SortMode
-		}
-		if cfg.SortPattern != "" {
-			opts.sortPattern = cfg.SortPattern
 		}
 		mergeBinding := func(dst *[]string, src []string) {
 			if len(src) > 0 {
@@ -544,8 +454,6 @@ func main() {
 		mergeBinding(&opts.bindings.OverlayToggle, cfg.BindOverlay)
 		mergeBinding(&opts.bindings.OpenExternal, cfg.BindEdit)
 		mergeBinding(&opts.bindings.OpenInApp, cfg.BindInApp)
-		mergeBinding(&opts.bindings.OpenBox, cfg.BindBox)
-		mergeBinding(&opts.bindings.NewFile, cfg.BindNewFile)
 		mergeBinding(&opts.bindings.Mark, cfg.BindMark)
 		mergeBinding(&opts.bindings.Filter, cfg.BindFilter)
 		mergeBinding(&opts.bindings.Help, cfg.BindHelp)
@@ -580,12 +488,6 @@ func main() {
 		if cfg.BranchNameCmd != "" {
 			opts.branchNameCmd = cfg.BranchNameCmd
 		}
-		if cfg.NewFileLinkTemplate != "" {
-			opts.newFileLinkTemplate = cfg.NewFileLinkTemplate
-		}
-		if cfg.NewFileSameDir != nil {
-			opts.newFileSameDir = *cfg.NewFileSameDir
-		}
 		if cfg.NewFileEditor != "" {
 			opts.newFileEditor = cfg.NewFileEditor
 		}
@@ -599,33 +501,6 @@ func main() {
 		opts.useAlternateScreen = false
 	} else {
 		opts.useAlternateScreen = altScreenArg
-	}
-	if includeExtsArg != "" {
-		parts := strings.Split(includeExtsArg, ",")
-		var exts []string
-		for _, p := range parts {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				continue
-			}
-			if !strings.HasPrefix(p, ".") {
-				p = "." + p
-			}
-			exts = append(exts, p)
-		}
-		opts.includeExts = exts
-	}
-	if ignoreGlobsArg != "" {
-		parts := strings.Split(ignoreGlobsArg, ",")
-		var globs []string
-		for _, p := range parts {
-			p = strings.TrimSpace(p)
-			if p == "" {
-				continue
-			}
-			globs = append(globs, p)
-		}
-		opts.ignoreGlobs = globs
 	}
 	if colorMarkArg != "" {
 		opts.colorMark = colorMarkArg
@@ -648,13 +523,6 @@ func main() {
 	if colorStatusDimArg != "" {
 		opts.colorStatusDim = colorStatusDimArg
 	}
-	if sortModeArg != "" {
-		opts.sortMode = sortModeArg
-	}
-	if sortPatternArg != "" {
-		opts.sortPattern = sortPatternArg
-	}
-	opts.sortPatternFirst = sortPatternFirstArg
 	if textWidthArg >= 0 {
 		opts.textWidth = textWidthArg
 	}
@@ -700,16 +568,9 @@ func main() {
 	if stackOffsetYArg != 0 {
 		opts.stackOffsetY = stackOffsetYArg
 	}
-	if cardWidthFracArg > 0 {
-		opts.cardWidthFrac = cardWidthFracArg
-	}
-	if cardHeightFracArg > 0 {
-		opts.cardHeightFrac = cardHeightFracArg
-	}
 	if activeLiftYArg != 0 {
 		opts.activeLiftY = activeLiftYArg
 	}
-	opts.stickyOverlayNav = stickyOverlayNavArg
 	opts.enableDebugUI = *enableDebugUIArg
 	if crashLogPathArg != nil && *crashLogPathArg != "" {
 		opts.crashLogPath = *crashLogPathArg
@@ -745,12 +606,6 @@ func main() {
 	}
 	if v := parseBinding(bindInAppArg); len(v) > 0 {
 		opts.bindings.OpenInApp = v
-	}
-	if v := parseBinding(bindBoxArg); len(v) > 0 {
-		opts.bindings.OpenBox = v
-	}
-	if v := parseBinding(bindNewFileArg); len(v) > 0 {
-		opts.bindings.NewFile = v
 	}
 	if v := parseBinding(bindMarkArg); len(v) > 0 {
 		opts.bindings.Mark = v
@@ -806,10 +661,6 @@ func main() {
 	if branchNameCmdArg != "" {
 		opts.branchNameCmd = branchNameCmdArg
 	}
-	if newFileLinkTemplateArg != "" {
-		opts.newFileLinkTemplate = newFileLinkTemplateArg
-	}
-	opts.newFileSameDir = newFileSameDirArg
 	if newFileEditorArg != "" {
 		opts.newFileEditor = newFileEditorArg
 	}
@@ -822,13 +673,7 @@ func main() {
 	// Seed RNG once for the whole process (random card jumps).
 	rng := rand.New(rand.NewSource(opts.randomSeed))
 
-	loadOpts := notes.LoadOptions{
-		IncludeExts:      opts.includeExts,
-		IgnoreGlobs:      opts.ignoreGlobs,
-		SortMode:         opts.sortMode,
-		SortPattern:      opts.sortPattern,
-		SortPatternFirst: &opts.sortPatternFirst,
-	}
+	loadOpts := notes.LoadOptions{}
 
 	var loadTimings notes.LoadTimings
 	loadOpts.Timings = &loadTimings
@@ -885,10 +730,7 @@ func main() {
 		StackVisibleCount: opts.stackVisible,
 		StackOffsetX:      opts.stackOffsetX,
 		StackOffsetY:      opts.stackOffsetY,
-		CardWidthFrac:     opts.cardWidthFrac,
-		CardHeightFrac:    opts.cardHeightFrac,
 		ActiveLiftY:       opts.activeLiftY,
-		StickyOverlayNav:  &opts.stickyOverlayNav,
 		MaxCursorDepth:    opts.maxCursorDepth,
 	}
 	if opts.borderCorner != "" {
@@ -902,8 +744,6 @@ func main() {
 	}
 	m.ApplyLayout(layout)
 	fc := ui.FileCreation{
-		LinkTemplate:    opts.newFileLinkTemplate,
-		SameDir:         &opts.newFileSameDir,
 		NewFileEditor:   opts.newFileEditor,
 		ContinueCmd:     opts.continueNameCmd,
 		BranchCmd:       opts.branchNameCmd,

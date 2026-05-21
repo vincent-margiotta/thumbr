@@ -4,7 +4,6 @@ package notes
 import (
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -20,16 +19,10 @@ type Card struct {
 	ContentErr    error
 }
 
-// LoadOptions controls which files are included, how they are sorted, and
-// whether timing data is captured. All fields are optional; zero values
-// produce the built-in defaults (include .txt, natural sort).
+// LoadOptions controls optional behaviour during a load. All fields are
+// optional; the zero value is valid.
 type LoadOptions struct {
-	IncludeExts      []string // e.g. []string{".txt", ".md"}; empty means default .txt
-	IgnoreGlobs      []string // file/dir patterns to skip
-	SortMode         string   // "natural" (default) or "lexical"
-	SortPattern      string   // regex to apply sort mode to; others fall back to lexical (default numeric-ish)
-	SortPatternFirst *bool    // when true (default), names matching SortPattern come first; when false they come after
-	Timings          *LoadTimings
+	Timings *LoadTimings
 }
 
 // LoadTimings captures coarse timings for load phases.
@@ -38,18 +31,16 @@ type LoadTimings struct {
 	Sort time.Duration
 }
 
-// LoadCardsFromDir walks the given root directory and returns all matching files as Cards,
-// using the filename (sans extension) as the title. Content is not read; callers
-// should load it lazily when needed (e.g., when opening a card).
+// LoadCardsFromDir walks root and returns all .txt files as Cards, sorted in
+// Luhmann natural order. Subdirectories are traversed but all cards land in a
+// single flat list. Content is not read; call Card.LoadContent lazily.
 func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
-	var cards []Card
 	var opt LoadOptions
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
-	if len(opt.IncludeExts) == 0 {
-		opt.IncludeExts = []string{".txt"}
-	}
+
+	var cards []Card
 
 	walkStart := time.Now()
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
@@ -57,43 +48,33 @@ func LoadCardsFromDir(root string, opts ...LoadOptions) ([]Card, error) {
 			return err
 		}
 		if d.IsDir() {
-			if ignoreFilter(path, opt.IgnoreGlobs) {
-				return filepath.SkipDir
-			}
 			return nil
 		}
-		if ignoreFilter(path, opt.IgnoreGlobs) {
-			return nil
-		}
-		if !includeFilter(d.Name(), opt.IncludeExts) {
+		if !strings.EqualFold(filepath.Ext(d.Name()), ".txt") {
 			return nil
 		}
 
-		title := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
+		stem := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 		absPath, err := filepath.Abs(path)
 		if err != nil {
 			absPath = filepath.Clean(path)
 		}
 
-		card := Card{
-			ID:    "",
-			Title: title,
+		cards = append(cards, Card{
+			Title: stem,
 			Path:  absPath,
-		}
-		cards = append(cards, card)
+		})
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
-
 	walkDur := time.Since(walkStart)
 
 	sortStart := time.Now()
-	if err := applySort(cards, opt); err != nil {
-		return nil, err
-	}
+	sort.SliceStable(cards, func(i, j int) bool {
+		return naturalCompare(cards[i].Title, cards[j].Title) < 0
+	})
 	sortDur := time.Since(sortStart)
 
 	if opt.Timings != nil {
@@ -117,63 +98,6 @@ func (c *Card) LoadContent() error {
 	c.Content = string(data)
 	c.ContentLoaded = true
 	c.ContentErr = nil
-	return nil
-}
-
-const defaultSortPattern = `^[0-9]+[A-Za-z0-9]*$`
-
-func applySort(cards []Card, opt LoadOptions) error {
-	mode := strings.ToLower(opt.SortMode)
-	if mode == "" {
-		mode = "natural"
-	}
-	patternFirst := false
-	if opt.SortPatternFirst != nil {
-		patternFirst = *opt.SortPatternFirst
-	}
-	pattern := opt.SortPattern
-	if pattern == "" {
-		pattern = defaultSortPattern
-	}
-
-	var re *regexp.Regexp
-	if pattern != "" {
-		var err error
-		re, err = regexp.Compile(pattern)
-		if err != nil {
-			return err
-		}
-	}
-
-	less := func(a, b Card) bool {
-		an := a.Title
-		bn := b.Title
-
-		matchAll := re == nil
-		matchA := matchAll || re.MatchString(an)
-		matchB := matchAll || re.MatchString(bn)
-
-		useMode := func() int {
-			if mode == "lexical" {
-				return strings.Compare(an, bn)
-			}
-			return naturalCompare(an, bn)
-		}
-
-		switch {
-		case matchA && matchB:
-			return useMode() < 0
-		case matchA && !matchB:
-			// Matched names before/after based on config.
-			return patternFirst
-		case !matchA && matchB:
-			return !patternFirst
-		default:
-			return strings.Compare(an, bn) < 0
-		}
-	}
-
-	sort.SliceStable(cards, func(i, j int) bool { return less(cards[i], cards[j]) })
 	return nil
 }
 

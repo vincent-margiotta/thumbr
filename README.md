@@ -1,6 +1,6 @@
 # Thumbr
 
-**Thumbr** is a terminal card box emulator for plain-text notes. It walks a directory of note files (`.txt` by default; extensions are configurable), renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content is shown as plain text—no rendering).
+**Thumbr** is a terminal card box emulator for Luhmann-style zettelkasten notes. It walks a directory of `.txt` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content shown as plain text — no rendering).
 
 ## Influence
 
@@ -8,14 +8,10 @@ Notes are files. Thumbr keeps them that way — plain text on disk, no database,
 
 ## Features
 - **TUI Interface:** Built with Bubble Tea for a responsive terminal experience.
-- **Simple Titles:** Uses the filename (minus extension) as the card title; order follows directory traversal.
+- **Luhmann Addressing:** Filename IS the card address. Continue (`c`), branch (`C`), and create the next integer root (`N`) using Luhmann alphanumeric addressing. Custom shell commands can override the derivation.
 - **Focus Mode:** Pull cards into an overlay to read long content without distraction.
 - **In-App Editor:** Browse, create, and edit notes without leaving Thumbr. Built-in vim-style editing (normal/insert/command modes) with `:w`/`ctrl+s` to save and `:q`/`:wq` to exit. When `c`/`C` creates a linked card, both notes open in a split pane (source top, new card bottom); `ctrl+w` switches focus between panes.
-- **Luhmann Addressing:** Continue (`c`), branch (`C`), and create the next integer root (`N`) using Luhmann-style alphanumeric addressing. Custom shell commands can override the derivation.
-- **Organization:** Mark important cards, toggle "marked-only" filters, and jump to random notes.
-- **Multi-Box Sessions:** Switch note roots on the fly and create new notes from inside Thumbr.
-- **Persistent Marks/Filters:** Marks and filter state stick to each box during a session (cleared when you quit).
-- **Highly Configurable:** Tune extensions, sorting, layout, colors, and keys via flags or config files.
+- **Organization:** Mark important cards (`m`) and toggle "marked-only" filters (`t`) — the digital equivalent of pulling slips or orienting cards sideways.
 - **Fast Loads:** On an i7-4770HQ with SSD and warm cache, loading/sorting ~90k notes benchmarks at ~0.23s (`make bench`).
 
 ## Requirements
@@ -76,11 +72,9 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 | **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). Opens in a split pane by default (`autoSplitOnLink`). |
 | **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). Opens in a split pane by default (`autoSplitOnLink`). |
 | **Next root** | `N` | Create the next integer root card (e.g. `17` if `16` is highest). |
-| **New file** | `a` | Prompt for a new filename and create it. |
-| **Mark card** | `m` | Toggle mark (`*`). Unmarked cards dim when any are marked. |
+| **Mark card** | `m` | Toggle mark (`*`). |
 | **Filter** | `t` | Toggle "Marked-Only" view. |
-| **Switch box** | `b` | Open a different note root within the same session. |
-| **Reload** | `R` | Reload the current box from disk. |
+| **Reload** | `R` | Reload the card list from disk. |
 | **Help** | `?` / `h` | Show current keybindings. |
 | **Quit** | `q` / `Ctrl+c` | Quit. |
 
@@ -169,13 +163,11 @@ If you prefer inline documentation, use `config.annotated.toml` as a commented r
 ### Configuration (quick scan)
 
 Common tweaks:
-- **Files:** `includeExts` (defaults to `.txt`), `ignoreGlobs`.
-- **Sorting:** `sortMode`, `sortPattern`, `sortPatternFirst` to control natural vs lexical ordering and grouping.
-- **Layout/Styling:** `stackVisible`, `cardWidthFrac`, `colors`, border characters.
+- **Layout/Styling:** `stackVisible`, `textWidth`, `colors`, border characters.
 - **Bindings:** `bind*` keys to remap navigation, overlay, marks, etc.
 - **Editor:** `editMode` (`"inapp"` / `"external"`) — redirect `e` to `$EDITOR`; `textWidth` for hard-wrap column; `autoSplitOnLink` for split-pane on `c`/`C`.
 
-Full reference lives in `config.example.json` (JSON) and is supported via YAML/TOML too.
+Full reference lives in `config.annotated.toml` (TOML with inline docs); JSON and YAML are also supported.
 
 On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--crash-log`).
 
