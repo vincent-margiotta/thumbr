@@ -88,7 +88,7 @@ func (m Model) renderSplitEditor() string {
 
 // Rendering-related methods: drawing cards, overlay, status bar, etc.
 
-func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
+func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 	if g.w <= 0 || g.h <= 0 {
 		return
 	}
@@ -110,9 +110,9 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	}
 	maxX := len(grid[0])
 
-	// Front-of-window card (depth 0) should also be filled,
-	// even if it's not the active card.
-	fillInterior := g.active || g.depth == 0
+	// Cards at depth <= activeDepth occlude the active card and must be solid
+	// so the active card doesn't bleed through their wireframe interiors.
+	fillInterior := g.depth <= activeDepth
 
 	// Draw border / interior
 	for dy := 0; dy < g.h; dy++ {

@@ -92,9 +92,10 @@ func (m Model) computeStackGeometry() []cardGeom {
 		x := baseX - layer*dx
 		y := baseY - layer*dy
 
-		// Active card always gets a vertical boost so the title peeks.
+		// Active card gets a vertical boost so the title peeks — but not
+		// in StateViewing, where the card is "set down" to read via the overlay.
 		cardIdx := vis[idx]
-		if cardIdx == m.cursor {
+		if cardIdx == m.cursor && m.state != StateViewing {
 			y -= s.ActiveLiftY
 		}
 

@@ -277,17 +277,28 @@ func (m Model) View() string {
 
 	geoms := m.computeStackGeometry()
 
+	// Cards at depth <= activeDepth occlude the active card and must be solid.
+	// Scan before clearing active flags (StateViewing clears them below).
+	activeDepth := 0
+	for _, g := range geoms {
+		if g.active {
+			activeDepth = g.depth
+			break
+		}
+	}
+
 	if m.state == StateViewing {
 		for i := range geoms {
 			geoms[i].active = false
 		}
+		activeDepth = 0 // overlay mode: only front card fills
 	}
 
 	sort.Slice(geoms, func(i, j int) bool {
 		return geoms[i].depth > geoms[j].depth
 	})
 	for _, g := range geoms {
-		m.drawCardOntoGrid(grid, g)
+		m.drawCardOntoGrid(grid, g, activeDepth)
 	}
 
 	if m.state == StateViewing {
