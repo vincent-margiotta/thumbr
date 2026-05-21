@@ -195,16 +195,12 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 	}
 
 	markerLen := len(markerRunes)
-	hasMarks := m.markedCountCurrent() > 0
 	for i, r := range headerRunes {
 		x := g.x + 1 + i
 		if x < 0 || x >= maxX {
 			continue
 		}
 		style := headerID
-		if hasMarks && !isMarked {
-			style = styleCardMuted
-		}
 		if isMarked && i < markerLen {
 			style = styleCardMark
 		}
@@ -258,12 +254,16 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom) {
 						runes = runes[:previewWidth]
 					}
 				}
+				contentStyle := styleCardDim
+				if g.active {
+					contentStyle = styleOverlayBody
+				}
 				for i, r := range runes {
 					x := previewX + i
 					if x < 0 || x >= maxX {
 						continue
 					}
-					grid[py][x] = cell{ch: r, styleID: styleCardDim}
+					grid[py][x] = cell{ch: r, styleID: contentStyle}
 				}
 			}
 		}
