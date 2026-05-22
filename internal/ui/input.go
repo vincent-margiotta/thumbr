@@ -30,6 +30,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.viewport.Height = msg.Height
 		}
+		if m.state == StatePrompting {
+			width := m.viewport.Width - 4
+			if width < 10 {
+				width = m.viewport.Width
+			}
+			if width < 10 {
+				width = 10
+			}
+			m.prompt.input.Width = width
+		}
 		if m.state == StateEditing || m.paneCount >= 1 {
 			if m.paneCount == 2 {
 				topVP, botVP := splitViewports(m.viewport)
@@ -237,6 +247,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), tea.Quit
 		}
 
+		if m.state == StatePrompting {
+			return m.handlePromptKey(msg, start)
+		}
+
 		// When editing, all keys go to the editor — no global actions should fire.
 		if m.state == StateEditing {
 			return m.handleEditorKey(msg, start)
@@ -278,10 +292,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = m.toggleFilter()
 			return m, nil
 		case m.isBinding(key, m.bindings.Continue):
+			if m.settings.FreeMode {
+				m = m.setStatus("Not available in free mode", 2*time.Second)
+				return m.withUpdateSample(start), nil
+			}
 			return m.startContinueOrBranch(true, start)
 		case m.isBinding(key, m.bindings.Branch):
+			if m.settings.FreeMode {
+				m = m.setStatus("Not available in free mode", 2*time.Second)
+				return m.withUpdateSample(start), nil
+			}
 			return m.startContinueOrBranch(false, start)
 		case m.isBinding(key, m.bindings.NextRoot):
+			if m.settings.FreeMode {
+				m = m.startNewFilePrompt()
+				return m.withUpdateSample(start), nil
+			}
 			return m.startNextRoot(start)
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
@@ -429,6 +455,44 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.withUpdateSample(start), nil
+}
+
+func (m Model) handlePromptKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc":
+		m = m.clearPrompt()
+		return m.withUpdateSample(start), nil
+	case "enter":
+		return m.submitPrompt(start)
+	}
+	var cmd tea.Cmd
+	m.prompt.input, cmd = m.prompt.input.Update(msg)
+	return m.withUpdateSample(start), cmd
+}
+
+func (m Model) submitPrompt(start time.Time) (tea.Model, tea.Cmd) {
+	name := strings.TrimSpace(m.prompt.input.Value())
+	if name == "" {
+		m = m.setStatus("Enter a file name", 2*time.Second)
+		return m.withUpdateSample(start), nil
+	}
+	if filepath.Ext(name) == "" {
+		name += ".txt"
+	}
+	stem := strings.TrimSuffix(name, filepath.Ext(name))
+	ext := filepath.Ext(name)
+	m = m.clearPrompt()
+	m = m.setStatus(fmt.Sprintf("Creating %s…", name), 1*time.Second)
+	var cmd tea.Cmd
+	switch m.settings.NewFileEditor {
+	case "external":
+		cmd = m.createLinkedFileCmd(m.noteRoot, m.noteRoot, stem, ext, "")
+	case "none":
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, m.noteRoot, stem, ext, "", false)
+	default: // "inapp"
+		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, m.noteRoot, stem, ext, "", true)
+	}
+	return m.withUpdateSample(start), cmd
 }
 
 // ==== Navigation ====

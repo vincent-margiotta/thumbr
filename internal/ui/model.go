@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -23,9 +24,10 @@ import (
 type State int
 
 const (
-	StateBrowsing State = iota // navigating the card stack
-	StateViewing               // reading a card in the overlay
-	StateEditing               // in-app vim editor is active
+	StateBrowsing  State = iota // navigating the card stack
+	StateViewing                // reading a card in the overlay
+	StateEditing                // in-app vim editor is active
+	StatePrompting              // text prompt (free-mode new card)
 )
 
 func (s State) String() string {
@@ -36,6 +38,8 @@ func (s State) String() string {
 		return "Viewing"
 	case StateEditing:
 		return "Editing"
+	case StatePrompting:
+		return "Prompting"
 	default:
 		return "Unknown"
 	}
@@ -96,6 +100,8 @@ type Model struct {
 	showDebug       bool
 	marked          map[string]bool // absolute file paths of marked cards
 	filterMarked    bool
+	prompt            promptState
+	stateBeforePrompt State
 	overlayPage     int
 	overlayPageStep int // overrides computed half-page step when > 0
 
@@ -142,6 +148,10 @@ type Model struct {
 	pendingEditorLine int
 	// pendingSourcePath, when non-empty alongside pendingEditorPath, triggers auto-split.
 	pendingSourcePath string
+}
+
+type promptState struct {
+	input textinput.Model
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +204,9 @@ func (m Model) Init() tea.Cmd {
 func (m Model) View() string {
 	if m.pendingQuit && time.Now().After(m.pendingQuitUntil) {
 		m.pendingQuit = false
+	}
+	if m.state == StatePrompting {
+		return m.renderPrompt()
 	}
 	if m.state == StateEditing {
 		return m.renderEditor()
@@ -436,6 +449,31 @@ func (m Model) attemptQuit() (Model, tea.Cmd) {
 	m.pendingQuitUntil = time.Now().Add(3 * time.Second)
 	m = m.setStatus("Press quit again within 3s to exit", 3*time.Second)
 	return m, nil
+}
+
+func (m Model) startNewFilePrompt() Model {
+	ti := textinput.New()
+	ti.Prompt = "> "
+	if m.viewport.Width > 4 {
+		ti.Width = m.viewport.Width - 4
+	} else {
+		ti.Width = 40
+	}
+	ti.Focus()
+	m.prompt = promptState{input: ti}
+	m.stateBeforePrompt = m.state
+	m.state = StatePrompting
+	m.showHelp = false
+	m.showDebug = false
+	return m
+}
+
+func (m Model) clearPrompt() Model {
+	m.prompt = promptState{}
+	if m.state == StatePrompting {
+		m.state = m.stateBeforePrompt
+	}
+	return m
 }
 
 func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {

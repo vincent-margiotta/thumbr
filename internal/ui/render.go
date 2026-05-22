@@ -691,6 +691,8 @@ func (m Model) renderStatusBar() string {
 		switch {
 		case m.showHelp:
 			hint = "esc close · ?/h toggle"
+		case m.state == StatePrompting:
+			hint = "enter create · esc cancel"
 		case m.state == StateEditing:
 			if m.paneCount == 2 {
 				hint = "ctrl+s save · ctrl+w switch · :wq quit · ctrl+b browse"
@@ -725,6 +727,23 @@ func (m Model) renderEmpty() string {
 	return body + "\n" + status
 }
 
+func (m Model) renderPrompt() string {
+	if m.viewport.Width == 0 {
+		return "New Card\n"
+	}
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	var sb strings.Builder
+	sb.WriteString(hi.Render("New Card"))
+	sb.WriteString("\n\n")
+	sb.WriteString(fmt.Sprintf("Directory: %s\n\n", m.noteRoot))
+	sb.WriteString(m.prompt.input.View())
+	sb.WriteString("\n\n")
+	sb.WriteString(dim.Render("[enter] create  [esc] cancel"))
+	return sb.String() + "\n" + m.renderStatusBar()
+}
+
 func (m Model) renderHelp() string {
 	if m.viewport.Width == 0 {
 		return "Help\n"
@@ -743,9 +762,24 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.Random, desc: "jump to random card"},
 		{keys: m.bindings.Mark, desc: "mark/unmark card"},
 		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
-		{keys: m.bindings.Continue, desc: "continue card (Luhmann)"},
-		{keys: m.bindings.Branch, desc: "branch card (Luhmann)"},
-		{keys: m.bindings.NextRoot, desc: "create next integer root card"},
+		{keys: m.bindings.Continue, desc: func() string {
+			if m.settings.FreeMode {
+				return "continue card (Luhmann) — disabled in free mode"
+			}
+			return "continue card (Luhmann)"
+		}()},
+		{keys: m.bindings.Branch, desc: func() string {
+			if m.settings.FreeMode {
+				return "branch card (Luhmann) — disabled in free mode"
+			}
+			return "branch card (Luhmann)"
+		}()},
+		{keys: m.bindings.NextRoot, desc: func() string {
+			if m.settings.FreeMode {
+				return "create new card (free mode)"
+			}
+			return "create next integer root card"
+		}()},
 		{keys: m.bindings.OpenInApp, desc: func() string {
 			if m.settings.ExternalEditMode {
 				return "open card in $EDITOR"

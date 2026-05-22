@@ -51,6 +51,7 @@ type Settings struct {
 	TextWidth        int  // hard-wrap column in the editor; 0 disables
 	LiveReload       bool // reload card list when files change on disk
 	ExternalEditMode bool // e key opens $EDITOR instead of the in-app editor
+	FreeMode         bool // disables c/C; N prompts for arbitrary filename
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -333,6 +334,11 @@ func (m *Model) EnableDebugUI(enabled bool) {
 	if !enabled {
 		m.showDebug = false
 	}
+}
+
+// EnableFreeMode disables Luhmann c/C and replaces N with an arbitrary filename prompt.
+func (m *Model) EnableFreeMode(enabled bool) {
+	m.settings.FreeMode = enabled
 }
 
 // SetLoadDuration stores the initial load duration for the debug view.

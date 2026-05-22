@@ -225,6 +225,7 @@ func main() {
 	flagSet.BoolVar(&externalEditModeArg, "external-edit", false, "make e open $EDITOR instead of the in-app editor")
 	enableDebugUIArg := flagSet.Bool("enable-debug-ui", false, "enable in-app debug overlay (default disabled)")
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
+	freeModeArg := flagSet.Bool("free", false, "free mode: c/C disabled, N prompts for arbitrary filename")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg            string
@@ -754,6 +755,9 @@ func main() {
 	m.EnableLiveReload(opts.liveReload)
 	m.SetExternalEditMode(opts.externalEditMode)
 	m.EnableDebugUI(opts.enableDebugUI)
+	if *freeModeArg {
+		m.EnableFreeMode(true)
+	}
 
 	programOptions := []tea.ProgramOption{}
 	if opts.useAlternateScreen {
