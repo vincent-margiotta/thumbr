@@ -210,9 +210,22 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 		}
 	}
 
+	// Back indicator: show ↻ at top-right of the active (depth-0) card when it has a back side.
+	if g.active && card.ContentLoaded {
+		_, _, hasBack := splitCardSides(card.Content)
+		if hasBack {
+			indicX := g.x + g.w - 2
+			if indicX >= 0 && indicX < maxX && headerY >= 0 && headerY < maxY {
+				grid[headerY][indicX] = cell{ch: '↻', styleID: styleCardMuted}
+			}
+		}
+	}
+
 	// Content preview. Depth-0 (frontmost) fills all available interior rows;
 	// inner cards only expose their left edge so one line is enough.
+	// Always use the front side only — strip any back content.
 	if g.h > 3 && card.ContentLoaded && card.Content != "" {
+		frontContent, _, _ := splitCardSides(card.Content)
 		previewWidth := g.w - 4 // 1-char inner margin each side, matching the overlay
 		previewX := g.x + 2
 		maxRows := 1
@@ -224,11 +237,11 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 			// Back cards: skip leading blanks/links so the one visible row is useful.
 			var displayLines []string
 			if g.depth == 0 {
-				displayLines = wrapText(card.Content, previewWidth, maxRows)
+				displayLines = wrapText(frontContent, previewWidth, maxRows)
 			} else {
 				var filteredLines []string
 				seenContent := false
-				for _, line := range strings.SplitN(card.Content, "\n", 500) {
+				for _, line := range strings.SplitN(frontContent, "\n", 500) {
 					t := strings.TrimSpace(line)
 					if !seenContent && (strings.HasPrefix(t, "-->") || t == "") {
 						continue
@@ -281,7 +294,9 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	}
 
 	card := m.cards[m.cursor]
-	content := card.Content
+	_, _, hasBack := splitCardSides(card.Content)
+	content := m.overlayContent()
+	backIsEmpty := m.overlayFlipped && !hasBack
 
 	maxY := len(grid)
 	if maxY == 0 {
@@ -367,15 +382,31 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 		headerRunes = append(markerRunes, headerRunes...)
 	}
 
+	// Reserve right-side space in the header for the back indicator.
+	backIndicator := []rune{}
+	if m.overlayFlipped {
+		backIndicator = []rune("BACK")
+	} else if hasBack {
+		backIndicator = []rune("↻")
+	}
+
 	headerY := y + 1
 	if headerY >= 0 && headerY < maxY {
 		headerMaxWidth := cardW - 2
 		if headerMaxWidth > 0 {
-			if len(headerRunes) > headerMaxWidth {
-				if headerMaxWidth > 3 {
-					headerRunes = append(headerRunes[:headerMaxWidth-3], []rune("...")...)
+			// Truncate header text to leave room for the back indicator.
+			availWidth := headerMaxWidth
+			if len(backIndicator) > 0 {
+				availWidth -= len(backIndicator) + 1 // +1 for a space gap
+				if availWidth < 0 {
+					availWidth = 0
+				}
+			}
+			if len(headerRunes) > availWidth {
+				if availWidth > 3 {
+					headerRunes = append(headerRunes[:availWidth-3], []rune("...")...)
 				} else {
-					headerRunes = headerRunes[:headerMaxWidth]
+					headerRunes = headerRunes[:availWidth]
 				}
 			}
 			markerLen := len(markerRunes)
@@ -389,6 +420,21 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 					style = styleCardMark
 				}
 				grid[headerY][xx] = cell{ch: r, styleID: style}
+			}
+			// Draw back indicator right-aligned in the header row.
+			if len(backIndicator) > 0 {
+				indicStyle := styleCardMuted
+				if m.overlayFlipped {
+					indicStyle = styleOverlayHeader
+				}
+				startX := x + cardW - 1 - len(backIndicator)
+				for i, r := range backIndicator {
+					xx := startX + i
+					if xx < 0 || xx >= maxX {
+						continue
+					}
+					grid[headerY][xx] = cell{ch: r, styleID: indicStyle}
+				}
 			}
 		}
 	}
@@ -433,6 +479,21 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 				continue
 			}
 			grid[yy][xx] = cell{ch: r, styleID: bodyID}
+		}
+	}
+
+	// Placeholder when flipped to a back side that doesn't exist yet.
+	if backIsEmpty && bodyH > 0 && bodyY < maxY {
+		placeholder := []rune("(no back — press e to write one)")
+		if len(placeholder) > bodyW {
+			placeholder = placeholder[:bodyW]
+		}
+		for i, r := range placeholder {
+			xx := bodyX + i
+			if xx < 0 || xx >= maxX {
+				continue
+			}
+			grid[bodyY][xx] = cell{ch: r, styleID: styleCardMuted}
 		}
 	}
 
@@ -703,7 +764,18 @@ func (m Model) renderStatusBar() string {
 				hint = "ctrl+s save · :wq quit · ctrl+b browse"
 			}
 		case m.state == StateViewing:
-			hint = "j/k scroll · n/p page · esc back"
+			if m.overlayFlipped {
+				hint = "e edit back · f front · esc back"
+			} else if len(m.cards) > 0 {
+				_, _, hasBack := splitCardSides(m.cards[m.cursor].Content)
+				if hasBack {
+					hint = "j/k scroll · n/p page · f flip · esc back"
+				} else {
+					hint = "j/k scroll · n/p page · f add back · esc back"
+				}
+			} else {
+				hint = "j/k scroll · n/p page · esc back"
+			}
 		default:
 			hint = "j/k · r random · ? help · q quit"
 		}
@@ -837,6 +909,7 @@ func (m Model) renderHelp() string {
 		{keys: m.bindings.OverlayDown, desc: "scroll overlay by 1 line"},
 		{keys: m.bindings.PageNext, desc: "next page"},
 		{keys: m.bindings.PagePrev, desc: "previous page"},
+		{keys: []string{"f"}, desc: "flip card to back / front (when back side exists)"},
 		{keys: nil, desc: ""},
 		{keys: m.bindings.Quit, desc: "quit (from stack) / back (from overlay)"},
 		{keys: []string{"esc"}, desc: "close overlay or help"},

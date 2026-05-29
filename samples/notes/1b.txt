@@ -14,3 +14,8 @@ the confirmation that the cut was clean.
 
 Cards that resist compression are drafts.
 Cards that compress cleanly are notes.
+---back---
+Luhmann on compression: a card that runs long
+is evidence that the thinking is not finished.
+The card is not the thought; it is proof that
+the thought was completed.

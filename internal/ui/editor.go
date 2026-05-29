@@ -52,6 +52,24 @@ type editorState struct {
 	insertLog      string                        // chars typed since insert-mode entry (for dot repeat)
 	insertEntry    func(editorState) editorState // pre-insert action to replay on dot repeat
 	lastRepeat     func(editorState) editorState // nil until a repeatable change is made
+
+	// section editing: when section is "front" or "back", the textarea holds only
+	// that side of the card and otherSide holds the other half. save() reconstructs
+	// the full file. section == "" means the whole file is in the textarea.
+	section   string
+	otherSide string
+}
+
+// fullContent returns the complete file content, reconstructing from section parts if needed.
+func (es editorState) fullContent() string {
+	v := es.ta.Value()
+	switch es.section {
+	case "front":
+		return joinCardSides(v, es.otherSide)
+	case "back":
+		return joinCardSides(es.otherSide, v)
+	}
+	return v
 }
 
 type editorAction int
@@ -130,7 +148,7 @@ func newEditorState(path, content string, vp Viewport, textWidth, cursorLine int
 }
 
 func (es *editorState) save() error {
-	err := os.WriteFile(es.path, []byte(es.ta.Value()), 0o644)
+	err := os.WriteFile(es.path, []byte(es.fullContent()), 0o644)
 	if err != nil {
 		es.saveErr = err
 		return err
@@ -182,7 +200,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 		} else {
 			m.editors[m.activePane] = es
-			m = m.syncCardContent(es.path, es.ta.Value())
+			m = m.syncCardContent(es.path, es.fullContent())
 			m = m.setStatus("Saved", 2*time.Second)
 		}
 		return m.withUpdateSample(start), nil
@@ -272,7 +290,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			return m.withUpdateSample(start), nil
 		}
 		m.editors[m.activePane] = es
-		m = m.syncCardContent(es.path, es.ta.Value())
+		m = m.syncCardContent(es.path, es.fullContent())
 		m = m.setStatus("Saved", 2*time.Second)
 		return m.withUpdateSample(start), nil
 
@@ -293,7 +311,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 			m = m.setStatus(fmt.Sprintf("Save failed: %v", err), 3*time.Second)
 			return m.withUpdateSample(start), nil
 		}
-		m = m.syncCardContent(es.path, es.ta.Value())
+		m = m.syncCardContent(es.path, es.fullContent())
 		return m.closeFocusedPane(start)
 
 	case editorActionSaveQuitAll:
@@ -305,7 +323,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 				return m.withUpdateSample(start), nil
 			}
 			m.editors[i] = pane
-			m = m.syncCardContent(pane.path, pane.ta.Value())
+			m = m.syncCardContent(pane.path, pane.fullContent())
 		}
 		m.editors = [2]editorState{}
 		m.paneCount = 0

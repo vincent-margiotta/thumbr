@@ -107,6 +107,7 @@ type Model struct {
 	stateBeforePrompt State
 	overlayPage     int
 	overlayPageStep int // overrides computed half-page step when > 0
+	overlayFlipped  bool // true when the overlay is showing the back side of a card
 
 	loadOpts notes.LoadOptions
 
@@ -619,8 +620,50 @@ func (m Model) overlayLimits() (bodyH int, totalLines int) {
 	if bodyW <= 0 || bodyH <= 0 {
 		return bodyH, 0
 	}
-	lines := wrapText(m.cards[m.cursor].Content, bodyW, -1)
+	lines := wrapText(m.overlayContent(), bodyW, -1)
 	return bodyH, len(lines)
+}
+
+// ---------------------------------------------------------------------------
+// Card back support
+// ---------------------------------------------------------------------------
+
+const backDelimiter = "---back---"
+
+// splitCardSides splits content on the first line that is exactly "---back---".
+// If no delimiter is found, the full content is returned as front with hasBack=false.
+func splitCardSides(content string) (front, back string, hasBack bool) {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.TrimSpace(line) == backDelimiter {
+			return strings.Join(lines[:i], "\n"), strings.Join(lines[i+1:], "\n"), true
+		}
+	}
+	return content, "", false
+}
+
+func joinCardSides(front, back string) string {
+	return front + "\n" + backDelimiter + "\n" + back
+}
+
+// overlayContent returns the content to display in the overlay, respecting
+// overlayFlipped to show either the front or back side of the card.
+func (m Model) overlayContent() string {
+	if len(m.cards) == 0 {
+		return ""
+	}
+	content := m.cards[m.cursor].Content
+	front, back, hasBack := splitCardSides(content)
+	if m.overlayFlipped {
+		if hasBack {
+			return back
+		}
+		return "" // back doesn't exist yet
+	}
+	if hasBack {
+		return front
+	}
+	return content
 }
 
 // ---------------------------------------------------------------------------

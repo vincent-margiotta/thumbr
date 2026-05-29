@@ -8,8 +8,23 @@ as cutting guides. Cards are sorted in natural Luhmann order (1, 1a, 1a1, 2, …
 Cards that exceed the printable area are refused with an error message; they must
 be split before printing.
 
+Cards with a "---back---" delimiter are printed with a back face. By default,
+backs are printed as separate cards labeled "1a (back)". With --duplex, each
+sheet carries the front on the top slot and the back on the bottom slot so the
+sheet can be cut and folded to produce a two-sided card.
+
 Usage:
-    python3 scripts/print_cards.py <directory> [output.pdf]
+    python3 scripts/print_cards.py <directory> [output.pdf] [--duplex] [--back-offset dx,dy]
+    <tool> | python3 scripts/print_cards.py - [output.pdf] [--duplex] [--back-offset dx,dy]
+
+    Pass "-" instead of a directory to read a newline-separated list of .txt
+    file paths from stdin. Useful for printing only cards changed since a date:
+
+        scripts/changed-since "2024-01-01" ~/notes | python3 scripts/print_cards.py - out.pdf
+
+    --back-offset dx,dy   Shift the back page by dx mm (right) and dy mm (up) to
+                          correct duplex registration. Negative values go left/down.
+                          Example: --back-offset 1,-0.5
 
 Requires:
     pip install reportlab
@@ -109,6 +124,20 @@ def _natural_key(path: Path):
     parts = re.split(r'(\d+)', path.stem)
     return [int(p) if p.isdigit() else p.lower() for p in parts]
 
+# ── card back splitting ───────────────────────────────────────────────────────
+
+BACK_DELIMITER = "---back---"
+
+def _split_sides(content: str) -> tuple[str, str | None]:
+    """Return (front, back) where back is None if no ---back--- line exists."""
+    lines = content.splitlines()
+    for i, line in enumerate(lines):
+        if line.strip() == BACK_DELIMITER:
+            front = "\n".join(lines[:i])
+            back  = "\n".join(lines[i + 1:])
+            return front, back
+    return content, None
+
 # ── drawing ───────────────────────────────────────────────────────────────────
 
 def _tick(c: canvas.Canvas, cx: float, cy: float, size: float = 0.08 * inch):
@@ -154,55 +183,129 @@ def draw_card(c: canvas.Canvas, x: float, y: float, stem: str, content: str):
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    if len(sys.argv) < 2:
+    MM = 72 / 25.4  # points per millimetre
+
+    args = sys.argv[1:]
+    duplex = "--duplex" in args
+    args = [a for a in args if a != "--duplex"]
+
+    back_dx = back_dy = 0.0
+    for i, a in enumerate(args):
+        if a == "--back-offset" and i + 1 < len(args):
+            try:
+                parts = args[i + 1].split(",")
+                back_dx = float(parts[0]) * MM
+                back_dy = float(parts[1]) * MM if len(parts) > 1 else 0.0
+            except (ValueError, IndexError):
+                print("error: --back-offset expects dx,dy in mm (e.g. 1,-0.5)", file=sys.stderr)
+                sys.exit(1)
+    args = [a for i, a in enumerate(args)
+            if a != "--back-offset" and (i == 0 or args[i - 1] != "--back-offset")]
+
+    if not args:
         print(__doc__)
         sys.exit(1)
 
-    box_dir = Path(sys.argv[1]).expanduser().resolve()
-    if not box_dir.is_dir():
-        print(f"error: {box_dir} is not a directory", file=sys.stderr)
-        sys.exit(1)
+    output = args[1] if len(args) > 1 else "cards.pdf"
 
-    output = sys.argv[2] if len(sys.argv) > 2 else "cards.pdf"
-
-    all_cards = sorted(box_dir.glob("*.txt"), key=_natural_key)
-    if not all_cards:
-        print(f"no .txt files found in {box_dir}", file=sys.stderr)
-        sys.exit(1)
+    if args[0] == "-":
+        lines = sys.stdin.read().splitlines()
+        all_paths = sorted(
+            (Path(l.strip()) for l in lines if l.strip()),
+            key=_natural_key,
+        )
+        if not all_paths:
+            print("no .txt files on stdin", file=sys.stderr)
+            sys.exit(1)
+    else:
+        box_dir = Path(args[0]).expanduser().resolve()
+        if not box_dir.is_dir():
+            print(f"error: {box_dir} is not a directory", file=sys.stderr)
+            sys.exit(1)
+        all_paths = sorted(box_dir.glob("*.txt"), key=_natural_key)
+        if not all_paths:
+            print(f"no .txt files found in {box_dir}", file=sys.stderr)
+            sys.exit(1)
 
     max_lines = _content_max_lines()
     max_chars = _content_max_chars()
 
+    # Each entry: (stem_label, content_to_print)
     cards   = []
     refused = []
-    for path in all_cards:
-        content = path.read_text(encoding="utf-8", errors="replace")
-        lines   = _visual_line_count(content, max_chars)
+    for path in all_paths:
+        raw     = path.read_text(encoding="utf-8", errors="replace")
+        front, back = _split_sides(raw)
+
+        lines = _visual_line_count(front, max_chars)
         if lines > max_lines:
-            refused.append((path.stem, lines))
+            refused.append((path.stem, lines, "front"))
         else:
-            cards.append((path, content))
+            cards.append((path.stem, front, back))
+
+        if back is not None:
+            blines = _visual_line_count(back, max_chars)
+            if blines > max_lines:
+                refused.append((path.stem + " (back)", blines, "back"))
+            # back is always paired with its front; refusal is warned but still printed
+            # if it fits, or skipped in --duplex if it was refused.
 
     if refused:
         print("refused (exceeds card face — split before printing):", file=sys.stderr)
-        for stem, lines in refused:
+        for stem, lines, side in refused:
             print(f"  {stem}  ({lines} lines, limit {max_lines})", file=sys.stderr)
 
     if not cards:
         print("no printable cards.", file=sys.stderr)
         sys.exit(1)
 
-    pages = (len(cards) + 1) // 2
-    print(f"{len(cards)} card(s) → {pages} page(s) → {output}")
-
     c = canvas.Canvas(output, pagesize=letter)
-    slots = [CARD_TOP_Y, CARD_BOT_Y]
 
-    for i, (path, content) in enumerate(cards):
-        slot = i % 2
-        if slot == 0 and i > 0:
-            c.showPage()
-        draw_card(c, CARD_X, slots[slot], path.stem, content)
+    if duplex:
+        # Duplex mode (long-edge binding):
+        #   PDF page N   — fronts for this sheet (top + bottom slots, up to 2 cards)
+        #   PDF page N+1 — backs in the SAME slots, so they land physically behind
+        #                  the fronts when the printer flips on the long edge.
+        # After printing, cut the sheet horizontally to get two-sided cards.
+        slots = [CARD_TOP_Y, CARD_BOT_Y]
+        num_sheets = (len(cards) + 1) // 2
+        pdf_pages = 0
+        for sheet in range(num_sheets):
+            sheet_cards = cards[sheet * 2 : sheet * 2 + 2]
+            # Front page
+            if pdf_pages > 0:
+                c.showPage()
+            for i, (stem, front, back) in enumerate(sheet_cards):
+                draw_card(c, CARD_X, slots[i], stem, front)
+            pdf_pages += 1
+            # Back page — only if at least one card in this sheet has a back
+            backs = [(i, stem, back) for i, (stem, front, back) in enumerate(sheet_cards)
+                     if back is not None and _visual_line_count(back, max_chars) <= max_lines]
+            if backs:
+                c.showPage()
+                pdf_pages += 1
+                for i, stem, back in backs:
+                    draw_card(c, CARD_X + back_dx, slots[i] + back_dy, stem + " (back)", back)
+        print(f"{len(cards)} card(s) → {num_sheets} sheet(s) → {pdf_pages} page(s) duplex (long-edge) → {output}")
+    else:
+        # Default mode: collect all faces (fronts + backs labeled separately).
+        faces = []
+        for stem, front, back in cards:
+            faces.append((stem, front))
+            if back is not None:
+                back_lines = _visual_line_count(back, max_chars)
+                if back_lines <= max_lines:
+                    faces.append((stem + " (back)", back))
+
+        pages = (len(faces) + 1) // 2
+        print(f"{len(faces)} face(s) → {pages} page(s) → {output}")
+
+        slots = [CARD_TOP_Y, CARD_BOT_Y]
+        for i, (label, content) in enumerate(faces):
+            slot = i % 2
+            if slot == 0 and i > 0:
+                c.showPage()
+            draw_card(c, CARD_X, slots[slot], label, content)
 
     c.save()
     print(f"saved {output}")

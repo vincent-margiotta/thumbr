@@ -333,6 +333,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m.withUpdateSample(start), nil
 			}
+			// Section-aware open when the overlay is showing a specific card side.
+			if m.state == StateViewing && len(m.cards) > 0 {
+				return m.openSectionInAppFromOverlay(start)
+			}
 			currentPath := ""
 			if len(m.cards) > 0 {
 				currentPath = m.cards[m.cursor].Path
@@ -398,6 +402,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Pull current card out into viewing overlay
 				m.state = StateViewing
 				m.overlayPage = 0
+				m.overlayFlipped = false
 				m = m.ensureCardContent(m.cursor)
 			case m.isBinding(key, m.bindings.Down):
 				m = m.moveCursor(-1)
@@ -443,10 +448,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Drop back into stack browsing
 				m.state = StateBrowsing
 				m.overlayPage = 0
+				m.overlayFlipped = false
 
 			case m.isBinding(key, m.bindings.OverlayToggle):
 				// Toggle viewing off (back to browsing)
 				m.state = StateBrowsing
+				m.overlayPage = 0
+				m.overlayFlipped = false
+
+			case key == "f":
+				m.overlayFlipped = !m.overlayFlipped
 				m.overlayPage = 0
 
 			case m.isBinding(key, m.bindings.OverlayDown):
@@ -469,6 +480,51 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.withUpdateSample(start), nil
+}
+
+// openSectionInAppFromOverlay opens the currently visible card side (front or back)
+// in a fresh single-pane editor, with section tracking so save reconstructs the full file.
+func (m Model) openSectionInAppFromOverlay(start time.Time) (tea.Model, tea.Cmd) {
+	m = m.ensureCardContent(m.cursor)
+	card := m.cards[m.cursor]
+	front, back, hasBack := splitCardSides(card.Content)
+
+	var sectionContent, section, otherSide string
+	if m.overlayFlipped {
+		// Open back side — may be empty if no back exists yet; save creates the delimiter.
+		sectionContent = back // "" when !hasBack
+		section = "back"
+		otherSide = front
+	} else if hasBack {
+		sectionContent = front
+		section = "front"
+		otherSide = back
+	} else {
+		sectionContent = card.Content
+	}
+
+	// Warn if dirty editor already suspended.
+	if m.paneCount >= 1 {
+		for i := 0; i < m.paneCount; i++ {
+			if m.editors[i].dirty {
+				m = m.setStatus("Unsaved changes in editor — save or :q! first", 4*time.Second)
+				return m.withUpdateSample(start), nil
+			}
+		}
+	}
+
+	m.overlayFlipped = false
+	m.overlayPage = 0
+	es, cmd := newEditorState(card.Path, sectionContent, m.viewport, m.settings.TextWidth, 0)
+	es.section = section
+	es.otherSide = otherSide
+	m.editors[0] = es
+	m.editors[1] = editorState{}
+	m.paneCount = 1
+	m.activePane = 0
+	m.state = StateEditing
+	m = m.warnIfOversized(sectionContent)
+	return m.withUpdateSample(start), cmd
 }
 
 func (m Model) handleBoxMenuKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
