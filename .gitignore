@@ -34,5 +34,9 @@ go.work.sum
 *.tmp
 *.log
 
+# Python
+__pycache__/
+*.pyc
+
 # Sample notes
 samples/notes/Archive/

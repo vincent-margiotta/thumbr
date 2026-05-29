@@ -206,7 +206,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.paneCount = 2
 		m.activePane = 1
 		m.state = StateEditing
+		prevStatus := m.statusMsg
 		m = m.warnIfOversized(msg.topContent)
+		if m.statusMsg == prevStatus {
+			m = m.warnIfOversized(msg.bottomContent)
+		}
 		return m.withUpdateSample(start), cmd
 
 	case cardContentResult:
