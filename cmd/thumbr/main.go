@@ -154,12 +154,16 @@ func findDefaultConfig() string {
 	return ""
 }
 
-// multiStringFlag is a flag.Value that accumulates repeated uses of a flag.
-type multiStringFlag []string
+// orderedBoxFlag appends to a shared []ui.BoxConfig slice so that --box and
+// --free-box flags are recorded in the order they appear on the command line.
+type orderedBoxFlag struct {
+	entries *[]ui.BoxConfig
+	free    bool
+}
 
-func (f *multiStringFlag) String() string { return strings.Join(*f, ", ") }
-func (f *multiStringFlag) Set(s string) error {
-	*f = append(*f, s)
+func (f *orderedBoxFlag) String() string { return "" }
+func (f *orderedBoxFlag) Set(s string) error {
+	*f.entries = append(*f.entries, ui.BoxConfig{Path: s, Free: f.free})
 	return nil
 }
 
@@ -237,10 +241,9 @@ func main() {
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
 	freeModeArg := flagSet.Bool("free", false, "free mode for all boxes: c/C disabled, N prompts for arbitrary filename")
 	noCardLimitArg := flagSet.Bool("no-card-limit", false, "allow card content to exceed one card face (enables editor scrolling)")
-	var boxArgs multiStringFlag
-	var freeBoxArgs multiStringFlag
-	flagSet.Var(&boxArgs, "box", "add a note directory as a normal-mode box (repeatable; use before positional args)")
-	flagSet.Var(&freeBoxArgs, "free-box", "add a note directory as a free-mode box (repeatable)")
+	var orderedBoxes []ui.BoxConfig
+	flagSet.Var(&orderedBoxFlag{entries: &orderedBoxes, free: false}, "box", "add a note directory as a normal-mode box (repeatable)")
+	flagSet.Var(&orderedBoxFlag{entries: &orderedBoxes, free: true}, "free-box", "add a note directory as a free-mode box (repeatable)")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg            string
@@ -682,15 +685,12 @@ func main() {
 	}
 
 	// Build the ordered box list.
-	// --box / --free-box flags take precedence; positional arg is a fallback for the
-	// simple single-box case (thumbr ~/notes or thumbr --free ~/notes).
+	// --box / --free-box flags take precedence and preserve argument order;
+	// positional arg is a fallback for the simple single-box case.
 	var boxConfigs []ui.BoxConfig
-	if len(boxArgs) > 0 || len(freeBoxArgs) > 0 {
-		for _, p := range boxArgs {
-			boxConfigs = append(boxConfigs, ui.BoxConfig{Path: p, Free: *freeModeArg})
-		}
-		for _, p := range freeBoxArgs {
-			boxConfigs = append(boxConfigs, ui.BoxConfig{Path: p, Free: true})
+	if len(orderedBoxes) > 0 {
+		for _, b := range orderedBoxes {
+			boxConfigs = append(boxConfigs, ui.BoxConfig{Path: b.Path, Free: b.Free || *freeModeArg})
 		}
 	} else {
 		path := opts.noteRoot
