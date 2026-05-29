@@ -562,7 +562,7 @@ func navStep(dt, tau, gamma, minDt float64, sameDir bool, maxStep int) int {
 }
 
 func (m Model) warnIfOversized(content string) Model {
-	if !m.settings.CardSizeLimit || m.settings.FreeMode {
+	if !m.settings.CardSizeLimit {
 		return m
 	}
 	_, cardH := m.cardSize()

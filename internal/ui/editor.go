@@ -41,7 +41,7 @@ type editorState struct {
 	mode           vimMode
 	path           string
 	dirty          bool
-	pending        string // partial multi-char sequence: "g", "d", "y", "r", "c"
+	pending        string // partial multi-char sequence: "g", "d", "dg", "y", "yg", "r", "c"
 	yankBuf        string
 	yankLinewise   bool   // true for line yanks (yy/dd), false for char yanks (yw/D/x)
 	cmdLine        string // content after : in command mode
@@ -188,7 +188,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 		return m.withUpdateSample(start), nil
 	}
 
-	if m.settings.CardSizeLimit && !m.settings.FreeMode {
+	if m.settings.CardSizeLimit {
 		_, cardH := m.cardSize()
 		maxLines := cardH - 3
 		if maxLines > 0 {
@@ -203,7 +203,11 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 						(key == "p" && es.yankLinewise))
 				}
 				if blocked {
-					m = m.setStatus("Card full — use c/C to continue or branch", 3*time.Second)
+					msg := "Card full — use --no-card-limit to disable"
+					if !m.settings.FreeMode {
+						msg = "Card full — use c/C to continue or branch"
+					}
+					m = m.setStatus(msg, 3*time.Second)
 					return m.withUpdateSample(start), nil
 				}
 			}
@@ -665,8 +669,35 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					return s
 				}
 			}
+		case "G":
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				es.yankBuf = strings.Join(lines[lineIdx:], "\n")
+				es.yankLinewise = true
+				es.ta.SetValue(strings.Join(lines[:lineIdx], "\n"))
+				es = es.setCursorToLineCol(max(0, lineIdx-1), 0)
+				es.dirty = true
+			}
+		case "g":
+			es.pending = "dg"
 		case "i":
 			es.pending = "di"
+		}
+
+	case "dg":
+		if key == "g" {
+			es = es.pushUndo()
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				es.yankBuf = strings.Join(lines[:lineIdx+1], "\n")
+				es.yankLinewise = true
+				es.ta.SetValue(strings.Join(lines[lineIdx+1:], "\n"))
+				es = es.setCursorToLineCol(0, 0)
+				es.dirty = true
+			}
 		}
 
 	case "di":
@@ -723,8 +754,27 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 				es.yankBuf = string(runes[col:end])
 				es.yankLinewise = false
 			}
+		case "G":
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				es.yankBuf = strings.Join(lines[lineIdx:], "\n")
+				es.yankLinewise = true
+			}
+		case "g":
+			es.pending = "yg"
 		case "i":
 			es.pending = "yi"
+		}
+
+	case "yg":
+		if key == "g" {
+			lines := strings.Split(es.ta.Value(), "\n")
+			lineIdx := es.ta.Line()
+			if lineIdx >= 0 && lineIdx < len(lines) {
+				es.yankBuf = strings.Join(lines[:lineIdx+1], "\n")
+				es.yankLinewise = true
+			}
 		}
 
 	case "yi":
