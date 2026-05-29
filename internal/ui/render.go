@@ -46,7 +46,7 @@ func (m Model) renderSingleEditor() string {
 	if es.mode == vimCommand {
 		footer = hi.Render(":") + es.cmdLine + "█"
 	} else {
-		footer = dim.Render("ctrl+s save  :w save  :wq save+quit  :q quit  :q! discard")
+		footer = dim.Render("ctrl+s save  :w save  :wq save+quit  :q quit  :q! discard  :back/:front flip")
 	}
 
 	return header + "\n" + body + "\n" + footer + "\n" + m.renderStatusBar()
@@ -92,7 +92,7 @@ func (m Model) renderSplitEditor() string {
 	if activeES.mode == vimCommand {
 		footer = hi.Render(":") + activeES.cmdLine + "█"
 	} else {
-		footer = dim.Render("ctrl+s save  ctrl+w switch  :wq save+quit  :q quit  :q! discard")
+		footer = dim.Render("ctrl+s save  ctrl+w switch  :wq save+quit  :q quit  :q! discard  :back/:front flip")
 	}
 
 	return topHeader + "\n" + topBody + "\n" + divider + "\n" + botHeader + "\n" + botBody + "\n" + footer + "\n" + m.renderStatusBar()
