@@ -26,11 +26,17 @@ func (m Model) renderSingleEditor() string {
 
 	label := modeLabel(es.mode)
 	modeStr := hi.Render("[" + label + "]")
+	sectionTag := ""
+	if es.section == "back" {
+		sectionTag = " [back]"
+	} else if es.section == "front" {
+		sectionTag = " [front]"
+	}
 	dirtyFlag := ""
 	if es.dirty {
 		dirtyFlag = " [*]"
 	}
-	headerLeft := hi.Render(filepath.Base(es.path) + dirtyFlag)
+	headerLeft := hi.Render(filepath.Base(es.path) + sectionTag + dirtyFlag)
 	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
 	header := headerLeft + strings.Repeat(" ", padLen) + modeStr
 
@@ -51,13 +57,19 @@ func (m Model) renderSplitEditor() string {
 	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
 
 	renderPaneHeader := func(es editorState, active bool) string {
+		sectionTag := ""
+		if es.section == "back" {
+			sectionTag = " [back]"
+		} else if es.section == "front" {
+			sectionTag = " [front]"
+		}
 		dirtyFlag := ""
 		if es.dirty {
 			dirtyFlag = " [*]"
 		}
 		label := modeLabel(es.mode)
 		modeStr := "[" + label + "]"
-		headerLeft := filepath.Base(es.path) + dirtyFlag
+		headerLeft := filepath.Base(es.path) + sectionTag + dirtyFlag
 		if active {
 			modeStr = hi.Render(modeStr)
 			headerLeft = hi.Render(headerLeft)

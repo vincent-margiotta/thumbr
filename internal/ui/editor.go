@@ -61,10 +61,15 @@ type editorState struct {
 }
 
 // fullContent returns the complete file content, reconstructing from section parts if needed.
+// When editing the front and the back is empty, the delimiter is omitted so saving a
+// front-only edit does not create a spurious empty back section.
 func (es editorState) fullContent() string {
 	v := es.ta.Value()
 	switch es.section {
 	case "front":
+		if strings.TrimSpace(es.otherSide) == "" {
+			return v
+		}
 		return joinCardSides(v, es.otherSide)
 	case "back":
 		return joinCardSides(es.otherSide, v)
@@ -82,6 +87,8 @@ const (
 	editorActionSaveQuitAll
 	editorActionForceQuit
 	editorActionSort
+	editorActionSwitchBack
+	editorActionSwitchFront
 )
 
 // splitViewports returns per-pane Viewports for a 35/65 split.
@@ -331,6 +338,12 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		m.state = StateBrowsing
 		return m.withUpdateSample(start), nil
 
+	case editorActionSwitchBack:
+		return m.switchEditorSection(m.activePane, "back", start)
+
+	case editorActionSwitchFront:
+		return m.switchEditorSection(m.activePane, "front", start)
+
 	case editorActionSort:
 		lines := strings.Split(es.ta.Value(), "\n")
 		sorted := make([]string, len(lines))
@@ -351,6 +364,55 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 	}
 
 	return m.withUpdateSample(start), nil
+}
+
+// switchEditorSection transitions the active pane to editing only the front or back
+// section of a card. It handles three entry states:
+//
+//   - section == "": whole file is in the textarea; split at ---back--- (or treat
+//     the entire content as front if no delimiter exists) and load the target section.
+//   - section == "front" → "back" (or vice versa): swap current content into otherSide
+//     and load the other half.
+//   - section == target: no-op with a status hint.
+func (m Model) switchEditorSection(pane int, target string, start time.Time) (tea.Model, tea.Cmd) {
+	es := m.editors[pane]
+	current := es.ta.Value()
+
+	if es.section == target {
+		m = m.setStatus("Already editing "+target, 2*time.Second)
+		return m.withUpdateSample(start), nil
+	}
+
+	var newContent, newOther string
+	switch es.section {
+	case "":
+		front, back, _ := splitCardSides(current)
+		if target == "back" {
+			newContent, newOther = back, front
+		} else {
+			newContent, newOther = front, back
+		}
+	default:
+		// section is "front" or "back" — swap
+		newContent, newOther = es.otherSide, current
+	}
+
+	vp := m.viewport
+	if m.paneCount == 2 {
+		topVP, botVP := splitViewports(m.viewport)
+		if pane == 0 {
+			vp = topVP
+		} else {
+			vp = botVP
+		}
+	}
+
+	newES, cmd := newEditorState(es.path, newContent, vp, m.settings.TextWidth, 0)
+	newES.section = target
+	newES.otherSide = newOther
+	newES.dirty = es.dirty
+	m.editors[pane] = newES
+	return m.withUpdateSample(start), cmd
 }
 
 // closeFocusedPane closes the active pane. If split, the other pane expands to
@@ -1249,6 +1311,10 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionSaveQuitAll
 		case "sort":
 			return es, editorActionSort
+		case "back":
+			return es, editorActionSwitchBack
+		case "front":
+			return es, editorActionSwitchFront
 		}
 		return es, editorActionNone
 	case "backspace":
