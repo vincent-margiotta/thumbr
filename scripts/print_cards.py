@@ -69,15 +69,39 @@ def _content_max_lines() -> int:
     available       = first_line_y - PAD
     return max(1, int(available / LEADING))
 
-def _visual_line_count(content: str, max_chars: int) -> int:
-    """Count the visual lines a card will occupy, accounting for wrapping."""
-    count = 0
+def _reflow(content: str, max_chars: int) -> list:
+    """Convert card content to visual lines, re-flowing paragraphs.
+
+    Paragraph text is re-joined and re-wrapped to max_chars so that lines
+    authored for a narrow terminal card face fill the wider PDF card. Blank
+    lines (paragraph separators) and link lines (starting with -->) are kept
+    as-is and never merged into surrounding text.
+    """
+    visual = []
+    paragraph = []
+
+    def flush():
+        if paragraph:
+            for line in textwrap.wrap(" ".join(paragraph), width=max_chars) or [""]:
+                visual.append(line)
+            paragraph.clear()
+
     for raw in content.splitlines():
-        if not raw.strip():
-            count += 1
+        stripped = raw.strip()
+        if not stripped:
+            flush()
+            visual.append("")
+        elif stripped.startswith("-->"):
+            flush()
+            visual.append(stripped)
         else:
-            count += max(1, len(textwrap.wrap(raw, width=max_chars)))
-    return count
+            paragraph.append(stripped)
+
+    flush()
+    return visual
+
+def _visual_line_count(content: str, max_chars: int) -> int:
+    return len(_reflow(content, max_chars))
 
 # ── natural sort ──────────────────────────────────────────────────────────────
 
@@ -119,19 +143,12 @@ def draw_card(c: canvas.Canvas, x: float, y: float, stem: str, content: str):
     current_y  = rule_y - LEADING
 
     c.setFont(BODY_FONT, BODY_PT)
-    for raw_line in content.splitlines():
-        if not raw_line.strip():
-            current_y -= LEADING
-            if current_y < min_body_y:
-                break
-            continue
-        for wrapped in textwrap.wrap(raw_line, width=max_chars) or [""]:
-            if current_y < min_body_y:
-                break
-            c.drawString(x + PAD, current_y, wrapped)
-            current_y -= LEADING
+    for line in _reflow(content, max_chars):
         if current_y < min_body_y:
             break
+        if line:
+            c.drawString(x + PAD, current_y, line)
+        current_y -= LEADING
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
