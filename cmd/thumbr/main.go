@@ -154,13 +154,23 @@ func findDefaultConfig() string {
 	return ""
 }
 
+// multiStringFlag is a flag.Value that accumulates repeated uses of a flag.
+type multiStringFlag []string
+
+func (f *multiStringFlag) String() string { return strings.Join(*f, ", ") }
+func (f *multiStringFlag) Set(s string) error {
+	*f = append(*f, s)
+	return nil
+}
+
 func main() {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] [path]\n\n", os.Args[0])
 		fmt.Fprintln(flag.CommandLine.Output(), "Options:")
 		flagSet.PrintDefaults()
-		fmt.Fprintln(flag.CommandLine.Output(), "\nPath defaults to the current directory if omitted.")
+		fmt.Fprintln(flag.CommandLine.Output(), "\nFor multiple boxes use --box/--free-box flags (all flags must precede positional args).")
+		fmt.Fprintln(flag.CommandLine.Output(), "Path defaults to the current directory if omitted.")
 	}
 
 	var (
@@ -225,7 +235,12 @@ func main() {
 	flagSet.BoolVar(&externalEditModeArg, "external-edit", false, "make e open $EDITOR instead of the in-app editor")
 	enableDebugUIArg := flagSet.Bool("enable-debug-ui", false, "enable in-app debug overlay (default disabled)")
 	crashLogPathArg := flagSet.String("crash-log", "", "path to write crash log on panic (default ~/.thumbr/crash.log)")
-	freeModeArg := flagSet.Bool("free", false, "free mode: c/C disabled, N prompts for arbitrary filename")
+	freeModeArg := flagSet.Bool("free", false, "free mode for all boxes: c/C disabled, N prompts for arbitrary filename")
+	noCardLimitArg := flagSet.Bool("no-card-limit", false, "allow card content to exceed one card face (enables editor scrolling)")
+	var boxArgs multiStringFlag
+	var freeBoxArgs multiStringFlag
+	flagSet.Var(&boxArgs, "box", "add a note directory as a normal-mode box (repeatable; use before positional args)")
+	flagSet.Var(&freeBoxArgs, "free-box", "add a note directory as a free-mode box (repeatable)")
 	// Keybinding overrides (comma-separated lists)
 	var (
 		bindUpArg            string
@@ -666,10 +681,25 @@ func main() {
 		opts.newFileEditor = newFileEditorArg
 	}
 
-	// Positional path overrides everything else.
-	if args := flagSet.Args(); len(args) > 0 {
-		opts.noteRoot = args[0]
+	// Build the ordered box list.
+	// --box / --free-box flags take precedence; positional arg is a fallback for the
+	// simple single-box case (thumbr ~/notes or thumbr --free ~/notes).
+	var boxConfigs []ui.BoxConfig
+	if len(boxArgs) > 0 || len(freeBoxArgs) > 0 {
+		for _, p := range boxArgs {
+			boxConfigs = append(boxConfigs, ui.BoxConfig{Path: p, Free: *freeModeArg})
+		}
+		for _, p := range freeBoxArgs {
+			boxConfigs = append(boxConfigs, ui.BoxConfig{Path: p, Free: true})
+		}
+	} else {
+		path := opts.noteRoot
+		if args := flagSet.Args(); len(args) > 0 {
+			path = args[0]
+		}
+		boxConfigs = []ui.BoxConfig{{Path: path, Free: *freeModeArg}}
 	}
+	opts.noteRoot = boxConfigs[0].Path
 
 	// Seed RNG once for the whole process (random card jumps).
 	rng := rand.New(rand.NewSource(opts.randomSeed))
@@ -755,8 +785,9 @@ func main() {
 	m.EnableLiveReload(opts.liveReload)
 	m.SetExternalEditMode(opts.externalEditMode)
 	m.EnableDebugUI(opts.enableDebugUI)
-	if *freeModeArg {
-		m.EnableFreeMode(true)
+	m.SetBoxes(boxConfigs)
+	if *noCardLimitArg {
+		m.EnableCardSizeLimit(false)
 	}
 
 	programOptions := []tea.ProgramOption{}

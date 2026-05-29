@@ -177,6 +177,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.paneCount = 2
 			m.activePane = 1
 			m.state = StateEditing
+			m = m.warnIfOversized(msg.content)
 			return m.withUpdateSample(start), cmd
 		}
 		// Fresh single-pane open.
@@ -186,6 +187,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.paneCount = 1
 		m.activePane = 0
 		m.state = StateEditing
+		m = m.warnIfOversized(msg.content)
 		return m.withUpdateSample(start), cmd
 
 	case openSplitResult:
@@ -204,6 +206,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.paneCount = 2
 		m.activePane = 1
 		m.state = StateEditing
+		m = m.warnIfOversized(msg.topContent)
 		return m.withUpdateSample(start), cmd
 
 	case cardContentResult:
@@ -249,6 +252,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.state == StatePrompting {
 			return m.handlePromptKey(msg, start)
+		}
+
+		if m.state == StateBoxMenu {
+			return m.handleBoxMenuKey(msg, start)
 		}
 
 		// When editing, all keys go to the editor — no global actions should fire.
@@ -309,6 +316,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.withUpdateSample(start), nil
 			}
 			return m.startNextRoot(start)
+		case m.isBinding(key, m.bindings.OpenBox):
+			if len(m.boxes) <= 1 {
+				return m.withUpdateSample(start), nil
+			}
+			m.boxMenuCursor = m.activeBox
+			m.state = StateBoxMenu
+			return m.withUpdateSample(start), nil
 		case m.isBinding(key, m.bindings.Reload):
 			m = m.setStatus("Reloading…", 1*time.Second)
 			return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
@@ -457,6 +471,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.withUpdateSample(start), nil
 }
 
+func (m Model) handleBoxMenuKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
+	key := msg.String()
+	switch {
+	case key == "esc" || key == "q" || m.isBinding(key, m.bindings.OpenBox):
+		m.state = StateBrowsing
+	case m.isBinding(key, m.bindings.Down):
+		m.boxMenuCursor = (m.boxMenuCursor + 1) % len(m.boxes)
+	case m.isBinding(key, m.bindings.Up):
+		m.boxMenuCursor = (m.boxMenuCursor - 1 + len(m.boxes)) % len(m.boxes)
+	case key == "enter":
+		if m.boxMenuCursor != m.activeBox {
+			m.state = StateBrowsing
+			m, cmd := m.switchToBox(m.boxMenuCursor)
+			return m.withUpdateSample(start), cmd
+		}
+		m.state = StateBrowsing
+	}
+	return m.withUpdateSample(start), nil
+}
+
 func (m Model) handlePromptKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
@@ -525,6 +559,22 @@ func navStep(dt, tau, gamma, minDt float64, sameDir bool, maxStep int) int {
 		step = maxStep
 	}
 	return step
+}
+
+func (m Model) warnIfOversized(content string) Model {
+	if !m.settings.CardSizeLimit || m.settings.FreeMode {
+		return m
+	}
+	_, cardH := m.cardSize()
+	maxLines := cardH - 3
+	if maxLines <= 0 {
+		return m
+	}
+	n := len(strings.Split(content, "\n"))
+	if n > maxLines {
+		return m.setStatus(fmt.Sprintf("Oversized card (%d lines, limit %d) — new lines blocked; use --no-card-limit to disable", n, maxLines), 6*time.Second)
+	}
+	return m
 }
 
 func (m Model) moveCursor(dir int) Model {

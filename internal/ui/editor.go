@@ -117,14 +117,8 @@ func newEditorState(path, content string, vp Viewport, textWidth, cursorLine int
 	ta.SetHeight(h)
 	ta.SetValue(content)
 	cmd := ta.Focus()
-	// SetValue leaves cursor at end; always go to top first, then to cursorLine.
-	for i := 0; i < 1000; i++ {
-		prev := ta.Line()
-		ta = taKey(ta, tea.KeyUp)
-		if ta.Line() >= prev {
-			break
-		}
-	}
+	// SetValue leaves cursor at end; jump directly to the top then step down to cursorLine.
+	ta = taKey(ta, tea.KeyCtrlHome)
 	for i := 0; i < cursorLine; i++ {
 		ta = taKey(ta, tea.KeyDown)
 	}
@@ -192,6 +186,28 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 			m = m.setStatus("Saved", 2*time.Second)
 		}
 		return m.withUpdateSample(start), nil
+	}
+
+	if m.settings.CardSizeLimit && !m.settings.FreeMode {
+		_, cardH := m.cardSize()
+		maxLines := cardH - 3
+		if maxLines > 0 {
+			totalLines := len(strings.Split(es.ta.Value(), "\n"))
+			if totalLines >= maxLines {
+				blocked := false
+				switch es.mode {
+				case vimInsert:
+					blocked = msg.Type == tea.KeyEnter
+				case vimNormal:
+					blocked = es.pending == "" && (key == "o" || key == "O" ||
+						(key == "p" && es.yankLinewise))
+				}
+				if blocked {
+					m = m.setStatus("Card full — use c/C to continue or branch", 3*time.Second)
+					return m.withUpdateSample(start), nil
+				}
+			}
+		}
 	}
 
 	switch es.mode {

@@ -52,6 +52,7 @@ type Settings struct {
 	LiveReload       bool // reload card list when files change on disk
 	ExternalEditMode bool // e key opens $EDITOR instead of the in-app editor
 	FreeMode         bool // disables c/C; N prompts for arbitrary filename
+	CardSizeLimit    bool // block new lines when content exceeds one card face
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -86,6 +87,7 @@ var DefaultSettings = Settings{
 	AutoSplitOnLink:     true,
 	TextWidth:           80,
 	LiveReload:          true,
+	CardSizeLimit:       true,
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -136,6 +138,7 @@ type KeyBindings struct {
 	NavFirst      []string
 	NavLast       []string
 	SwitchPane    []string
+	OpenBox       []string
 }
 
 // DefaultBindings returns the out-of-the-box keybinding set.
@@ -164,7 +167,14 @@ func DefaultBindings() KeyBindings {
 		NavFirst:      []string{"g"},
 		NavLast:       []string{"G"},
 		SwitchPane:    []string{"ctrl+w"},
+		OpenBox:       []string{"b"},
 	}
+}
+
+// BoxConfig describes a single note directory and its per-box settings.
+type BoxConfig struct {
+	Path string
+	Free bool // when true, Luhmann c/C are disabled and N prompts for an arbitrary filename
 }
 
 // FileCreation holds configuration for the continue/branch file-creation feature.
@@ -264,6 +274,7 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.NavFirst, b.NavFirst)
 	override(&m.bindings.NavLast, b.NavLast)
 	override(&m.bindings.SwitchPane, b.SwitchPane)
+	override(&m.bindings.OpenBox, b.OpenBox)
 }
 
 // ApplyFileCreation overrides file-creation settings with non-zero values.
@@ -339,6 +350,13 @@ func (m *Model) EnableDebugUI(enabled bool) {
 // EnableFreeMode disables Luhmann c/C and replaces N with an arbitrary filename prompt.
 func (m *Model) EnableFreeMode(enabled bool) {
 	m.settings.FreeMode = enabled
+}
+
+// EnableCardSizeLimit controls whether the editor blocks new lines once the
+// content would exceed a single card face. Pass false (or use --no-card-limit)
+// to allow unlimited content with editor scrolling.
+func (m *Model) EnableCardSizeLimit(enabled bool) {
+	m.settings.CardSizeLimit = enabled
 }
 
 // SetLoadDuration stores the initial load duration for the debug view.

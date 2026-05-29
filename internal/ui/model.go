@@ -28,6 +28,7 @@ const (
 	StateViewing                // reading a card in the overlay
 	StateEditing                // in-app vim editor is active
 	StatePrompting              // text prompt (free-mode new card)
+	StateBoxMenu                // box-picker menu
 )
 
 func (s State) String() string {
@@ -40,6 +41,8 @@ func (s State) String() string {
 		return "Editing"
 	case StatePrompting:
 		return "Prompting"
+	case StateBoxMenu:
+		return "BoxMenu"
 	default:
 		return "Unknown"
 	}
@@ -143,6 +146,13 @@ type Model struct {
 	// watchingBox is the box path currently being watched.
 	watchingBox string
 
+	// Multi-box support: boxes holds all open directories; activeBox is the current index.
+	boxes         []string
+	activeBox     int
+	boxFreeMode   map[string]bool   // which boxes run in free mode
+	boxLastPath   map[string]string // last visited card path per box (for cursor restore)
+	boxMenuCursor int               // selected index in the box-picker menu
+
 	// pendingEditorPath causes the next boxLoadResult to open this file in-app.
 	pendingEditorPath string
 	pendingEditorLine int
@@ -174,6 +184,10 @@ func NewModel(cards []notes.Card, noteRoot string, loadOpts notes.LoadOptions, r
 		loadOpts:    loadOpts,
 		watchStop:   make(chan struct{}),
 		watchingBox: root,
+		boxes:       []string{root},
+		activeBox:   0,
+		boxFreeMode: make(map[string]bool),
+		boxLastPath: make(map[string]string),
 	}
 	return m
 }
@@ -207,6 +221,9 @@ func (m Model) View() string {
 	}
 	if m.state == StatePrompting {
 		return m.renderPrompt()
+	}
+	if m.state == StateBoxMenu {
+		return m.renderBoxMenu()
 	}
 	if m.state == StateEditing {
 		return m.renderEditor()
@@ -627,6 +644,53 @@ func stripANSI(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// SetBoxes registers one or more boxes from BoxConfig values. The first entry
+// becomes the active box and its free-mode setting is applied immediately.
+// Called from main after model construction.
+func (m *Model) SetBoxes(boxes []BoxConfig) {
+	if len(boxes) == 0 {
+		return
+	}
+	paths := make([]string, 0, len(boxes))
+	seen := map[string]bool{}
+	freeMode := make(map[string]bool)
+	for _, b := range boxes {
+		c := cleanBoxPath(b.Path)
+		if c == "" || seen[c] {
+			continue
+		}
+		seen[c] = true
+		paths = append(paths, c)
+		if b.Free {
+			freeMode[c] = true
+		}
+	}
+	if len(paths) == 0 {
+		return
+	}
+	m.boxes = paths
+	m.boxFreeMode = freeMode
+	m.activeBox = 0
+	m.noteRoot = paths[0]
+	m.watchingBox = paths[0]
+	m.settings.FreeMode = freeMode[paths[0]]
+}
+
+// switchToBox saves the current cursor position and switches to boxes[i], triggering a reload.
+func (m Model) switchToBox(i int) (Model, tea.Cmd) {
+	if len(m.boxes) <= 1 || i < 0 || i >= len(m.boxes) || i == m.activeBox {
+		return m, nil
+	}
+	if len(m.cards) > 0 && m.cursor < len(m.cards) {
+		m.boxLastPath[m.boxes[m.activeBox]] = m.cards[m.cursor].Path
+	}
+	m.activeBox = i
+	m.noteRoot = m.boxes[i]
+	m.pendingSeekPath = m.boxLastPath[m.noteRoot]
+	m.settings.FreeMode = m.boxFreeMode[m.noteRoot]
+	return m, m.loadBoxCmd(m.noteRoot)
 }
 
 func cleanBoxPath(path string) string {

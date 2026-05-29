@@ -638,6 +638,9 @@ func (m Model) renderStatusBar() string {
 	if boxLabel == "" || boxLabel == "." || boxLabel == "/" {
 		boxLabel = m.noteRoot
 	}
+	if len(m.boxes) > 1 {
+		boxLabel = fmt.Sprintf("%s [%d/%d]", boxLabel, m.activeBox+1, len(m.boxes))
+	}
 
 	left := hi.Render(" " + boxLabel + " ")
 
@@ -744,6 +747,44 @@ func (m Model) renderPrompt() string {
 	return sb.String() + "\n" + m.renderStatusBar()
 }
 
+func (m Model) renderBoxMenu() string {
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	var sb strings.Builder
+	sb.WriteString(hi.Render("Switch Box"))
+	sb.WriteString("\n\n")
+
+	for i, box := range m.boxes {
+		label := filepath.Base(box)
+		if label == "" || label == "." || label == "/" {
+			label = box
+		}
+		var tags []string
+		if i == m.activeBox {
+			tags = append(tags, "active")
+		}
+		if m.boxFreeMode[box] {
+			tags = append(tags, "free")
+		}
+		if len(tags) > 0 {
+			label += " (" + strings.Join(tags, ", ") + ")"
+		}
+		cursor := "  "
+		if i == m.boxMenuCursor {
+			cursor = "▶ "
+			sb.WriteString(hi.Render(cursor+label) + "\n")
+		} else {
+			sb.WriteString(dim.Render(cursor+label) + "\n")
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(dim.Render("j/k navigate  enter select  esc cancel"))
+	sb.WriteString("\n")
+	return sb.String() + "\n" + m.renderStatusBar()
+}
+
 func (m Model) renderHelp() string {
 	if m.viewport.Width == 0 {
 		return "Help\n"
@@ -757,6 +798,7 @@ func (m Model) renderHelp() string {
 	bindings := []binding{
 		{keys: m.bindings.Up, desc: "move into stack"},
 		{keys: m.bindings.Down, desc: "move back/out"},
+		{keys: m.bindings.OpenBox, desc: "open box picker (when multiple boxes are open)"},
 		{keys: m.bindings.NavFirst, desc: "jump to first card (gg), or g1–g9 for 10–90%"},
 		{keys: m.bindings.NavLast, desc: "jump to last card"},
 		{keys: m.bindings.Random, desc: "jump to random card"},
