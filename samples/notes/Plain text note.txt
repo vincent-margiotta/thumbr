@@ -1,8 +1,0 @@
-Plain text entry
-----------------
-
-This note uses a `.txt` extension to show that Thumbr can index non-Markdown files, too.
-
-- No markdown formatting is interpreted.
-- It sits alongside `.md` cards in the stack.
-- Use `--include-exts` to add or remove extensions.

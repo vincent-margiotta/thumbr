@@ -1,1 +1,0 @@
-Deep dive notes for extended scrolling demo.

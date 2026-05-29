@@ -1,0 +1,7 @@
+--> 1a
+
+Links in thumbr use the format: --> address
+
+One outgoing link per card. Multiple threads
+require multiple cards, each linking forward
+independently.

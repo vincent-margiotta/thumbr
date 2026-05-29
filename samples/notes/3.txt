@@ -1,0 +1,21 @@
+This card intentionally exceeds the maximum
+card face size and will be refused by the
+print script.
+
+It demonstrates that the size limit is enforced
+consistently between the in-app editor and the
+print utility.
+
+An oversized card contains either a single idea
+that has not yet been compressed, or multiple
+ideas that have not yet been separated.
+
+In either case the remedy is the same: cut.
+Find where this card becomes two cards and make
+the split. The address space is unlimited.
+There is no penalty for creating more cards.
+
+The only penalty is for keeping ideas together
+that belong apart.
+
+(This card should be split before printing.)

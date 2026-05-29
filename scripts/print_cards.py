@@ -5,6 +5,9 @@ print_cards.py — lay out Luhmann .txt cards on 8.5"×11" letter paper for prin
 Two 4"×6" landscape cards are printed per sheet, centered with corner tick marks
 as cutting guides. Cards are sorted in natural Luhmann order (1, 1a, 1a1, 2, …).
 
+Cards that exceed the printable area are refused with an error message; they must
+be split before printing.
+
 Usage:
     python3 scripts/print_cards.py <directory> [output.pdf]
 
@@ -12,7 +15,6 @@ Requires:
     pip install reportlab
 """
 
-import os
 import re
 import sys
 import textwrap
@@ -35,76 +37,90 @@ CARD_H = 4.0 * inch
 PAGE_W, PAGE_H = letter  # 8.5"×11" = 612pt × 792pt
 
 # Two cards per page, vertically centered with equal margins.
-# Total card area: 2×CARD_H = 8".  Page height 11".  Margin: (11-8)/2 = 1.5" split.
-_total_card_h = 2 * CARD_H
-_gap          = 0.5 * inch                          # space between cards (cutting room)
-_vertical     = PAGE_H - _total_card_h - _gap
-CARD_TOP_Y    = PAGE_H - (_vertical / 2) - CARD_H  # y origin of top card (bottom-left corner)
-CARD_BOT_Y    = CARD_TOP_Y - _gap - CARD_H         # y origin of bottom card
-CARD_X        = (PAGE_W - CARD_W) / 2              # horizontally centered
+_gap       = 0.5 * inch
+_vertical  = PAGE_H - 2 * CARD_H - _gap
+CARD_TOP_Y = PAGE_H - (_vertical / 2) - CARD_H
+CARD_BOT_Y = CARD_TOP_Y - _gap - CARD_H
+CARD_X     = (PAGE_W - CARD_W) / 2
 
-PAD           = 0.2 * inch   # interior padding
+PAD        = 0.2 * inch
 
 # ── typography ────────────────────────────────────────────────────────────────
 
-HEADER_FONT   = "Courier-Bold"
-BODY_FONT     = "Courier"
-HEADER_PT     = 11
-BODY_PT       = 9
-LEADING       = BODY_PT * 1.4   # line height
+HEADER_FONT = "Courier-Bold"
+BODY_FONT   = "Courier"
+HEADER_PT   = 11
+BODY_PT     = 10
+LEADING     = BODY_PT * 1.4
 
-# Courier is a fixed-pitch font; each character is roughly 0.6× the point size wide.
+# Courier is a fixed-pitch font; each character is ~0.6× the point size wide.
 _CHAR_W_RATIO = 0.6
+
+# ── size limits (derived from the typography constants above) ─────────────────
+
+def _content_max_chars() -> int:
+    content_w = CARD_W - 2 * PAD
+    return max(1, int(content_w / (BODY_PT * _CHAR_W_RATIO)))
+
+def _content_max_lines() -> int:
+    header_baseline = CARD_H - PAD - HEADER_PT
+    rule_y          = header_baseline - HEADER_PT * 0.35
+    first_line_y    = rule_y - LEADING
+    available       = first_line_y - PAD
+    return max(1, int(available / LEADING))
+
+def _visual_line_count(content: str, max_chars: int) -> int:
+    """Count the visual lines a card will occupy, accounting for wrapping."""
+    count = 0
+    for raw in content.splitlines():
+        if not raw.strip():
+            count += 1
+        else:
+            count += max(1, len(textwrap.wrap(raw, width=max_chars)))
+    return count
 
 # ── natural sort ──────────────────────────────────────────────────────────────
 
 def _natural_key(path: Path):
-    """Sort key that orders Luhmann addresses numerically then alphabetically."""
     parts = re.split(r'(\d+)', path.stem)
     return [int(p) if p.isdigit() else p.lower() for p in parts]
 
 # ── drawing ───────────────────────────────────────────────────────────────────
 
 def _tick(c: canvas.Canvas, cx: float, cy: float, size: float = 0.08 * inch):
-    """Draw a small cross at (cx, cy) as a corner cutting guide."""
     c.line(cx - size, cy, cx + size, cy)
     c.line(cx, cy - size, cx, cy + size)
 
 
 def draw_card(c: canvas.Canvas, x: float, y: float, stem: str, content: str):
-    """Render one card at bottom-left corner (x, y)."""
-
     # Border
     c.setStrokeColor(colors.black)
     c.setLineWidth(0.5)
     c.rect(x, y, CARD_W, CARD_H)
 
-    # Corner cutting guides (outside the border)
+    # Corner cutting guides
     c.setLineWidth(0.3)
     for cx, cy in [(x, y), (x + CARD_W, y), (x, y + CARD_H), (x + CARD_W, y + CARD_H)]:
         _tick(c, cx, cy)
 
-    # Header: filename stem
+    # Header
     header_baseline = y + CARD_H - PAD - HEADER_PT
     c.setFont(HEADER_FONT, HEADER_PT)
     c.drawString(x + PAD, header_baseline, stem)
 
-    # Thin rule below header
+    # Rule below header
     rule_y = header_baseline - HEADER_PT * 0.35
     c.setLineWidth(0.3)
     c.line(x + PAD, rule_y, x + CARD_W - PAD, rule_y)
 
     # Body text
-    content_w  = CARD_W - 2 * PAD
-    max_chars  = max(1, int(content_w / (BODY_PT * _CHAR_W_RATIO)))
+    max_chars  = _content_max_chars()
     min_body_y = y + PAD
+    current_y  = rule_y - LEADING
 
-    current_y = rule_y - LEADING
     c.setFont(BODY_FONT, BODY_PT)
-
     for raw_line in content.splitlines():
         if not raw_line.strip():
-            # Preserve blank lines as spacing
             current_y -= LEADING
             if current_y < min_body_y:
                 break
@@ -132,23 +148,43 @@ def main():
 
     output = sys.argv[2] if len(sys.argv) > 2 else "cards.pdf"
 
-    cards = sorted(box_dir.glob("*.txt"), key=_natural_key)
-    if not cards:
+    all_cards = sorted(box_dir.glob("*.txt"), key=_natural_key)
+    if not all_cards:
         print(f"no .txt files found in {box_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    max_lines = _content_max_lines()
+    max_chars = _content_max_chars()
+
+    cards   = []
+    refused = []
+    for path in all_cards:
+        content = path.read_text(encoding="utf-8", errors="replace")
+        lines   = _visual_line_count(content, max_chars)
+        if lines > max_lines:
+            refused.append((path.stem, lines))
+        else:
+            cards.append((path, content))
+
+    if refused:
+        print("refused (exceeds card face — split before printing):", file=sys.stderr)
+        for stem, lines in refused:
+            print(f"  {stem}  ({lines} lines, limit {max_lines})", file=sys.stderr)
+
+    if not cards:
+        print("no printable cards.", file=sys.stderr)
         sys.exit(1)
 
     pages = (len(cards) + 1) // 2
     print(f"{len(cards)} card(s) → {pages} page(s) → {output}")
 
     c = canvas.Canvas(output, pagesize=letter)
-
     slots = [CARD_TOP_Y, CARD_BOT_Y]
 
-    for i, path in enumerate(cards):
+    for i, (path, content) in enumerate(cards):
         slot = i % 2
         if slot == 0 and i > 0:
             c.showPage()
-        content = path.read_text(encoding="utf-8", errors="replace")
         draw_card(c, CARD_X, slots[slot], path.stem, content)
 
     c.save()
