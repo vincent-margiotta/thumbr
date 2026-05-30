@@ -226,7 +226,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 	if g.active && card.ContentLoaded {
 		_, _, hasBack := splitCardSides(card.Content)
 		if hasBack {
-			indicX := g.x + g.w - 2
+			indicX := g.x + g.w - 3
 			if indicX >= 0 && indicX < maxX && headerY >= 0 && headerY < maxY {
 				grid[headerY][indicX] = cell{ch: '↻', styleID: styleCardMuted}
 			}
