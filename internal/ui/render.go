@@ -11,6 +11,35 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// highlightOverLimit applies a subtle background to textarea view lines that
+// exceed the card face capacity. cursorLine is es.ta.Line() — that visual row
+// is left untouched so the textarea cursor remains visible.
+func (m Model) highlightOverLimit(body string, cursorLine int) string {
+	if !m.settings.HighlightOverLimit {
+		return body
+	}
+	_, cardH := m.cardSize()
+	maxLines := cardH - 4
+	if maxLines <= 0 {
+		return body
+	}
+	lines := strings.Split(body, "\n")
+	if len(lines) <= maxLines {
+		return body
+	}
+	overStyle := lipgloss.NewStyle().Background(m.settings.ColorOverLimit)
+	for i := maxLines; i < len(lines); i++ {
+		if i == cursorLine {
+			continue // keep original textarea rendering so the cursor stays visible
+		}
+		text := strings.TrimRight(stripANSI(lines[i]), " ")
+		if text != "" {
+			lines[i] = overStyle.Render(text)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (m Model) renderEditor() string {
 	if m.paneCount == 2 {
 		return m.renderSplitEditor()
@@ -40,7 +69,7 @@ func (m Model) renderSingleEditor() string {
 	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
 	header := headerLeft + strings.Repeat(" ", padLen) + modeStr
 
-	body := es.ta.View()
+	body := m.highlightOverLimit(es.ta.View(), es.ta.Line())
 
 	var footer string
 	if es.mode == vimCommand {
@@ -82,10 +111,10 @@ func (m Model) renderSplitEditor() string {
 	}
 
 	topHeader := renderPaneHeader(m.editors[0], m.activePane == 0)
-	topBody := m.editors[0].ta.View()
+	topBody := m.highlightOverLimit(m.editors[0].ta.View(), m.editors[0].ta.Line())
 	divider := strings.Repeat(string(m.settings.BorderH), m.viewport.Width)
 	botHeader := renderPaneHeader(m.editors[1], m.activePane == 1)
-	botBody := m.editors[1].ta.View()
+	botBody := m.highlightOverLimit(m.editors[1].ta.View(), m.editors[1].ta.Line())
 
 	activeES := m.editors[m.activePane]
 	var footer string
@@ -439,7 +468,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 				if m.overlayFlipped {
 					indicStyle = styleOverlayHeader
 				}
-				startX := x + cardW - 1 - len(backIndicator)
+				startX := x + cardW - 2 - len(backIndicator)
 				for i, r := range backIndicator {
 					xx := startX + i
 					if xx < 0 || xx >= maxX {

@@ -167,27 +167,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		cursorLine := m.pendingEditorLine
 		m.pendingEditorLine = 0
+		// If the file has a back side, open only the front section so ---back---
+		// never appears raw in the textarea. The user can reach the back via :back.
+		editContent := msg.content
+		editSection := ""
+		editOther := ""
+		if front, back, hasBack := splitCardSides(msg.content); hasBack {
+			editContent = front
+			editSection = "front"
+			editOther = back
+		}
 		if m.paneCount == 1 && m.editors[0].path != "" {
 			// Companion open: resize pane 0 to top, open new file as bottom pane.
 			topVP, botVP := splitViewports(m.viewport)
 			m.editors[0].ta.SetWidth(editorWidth(topVP.Width, m.settings.TextWidth))
 			m.editors[0].ta.SetHeight(topVP.Height - 3)
-			es, cmd := newEditorState(msg.path, msg.content, botVP, m.settings.TextWidth, cursorLine)
+			es, cmd := newEditorState(msg.path, editContent, botVP, m.settings.TextWidth, cursorLine)
+			es.section = editSection
+			es.otherSide = editOther
 			m.editors[1] = es
 			m.paneCount = 2
 			m.activePane = 1
 			m.state = StateEditing
-			m = m.warnIfOversized(msg.content)
+			m = m.warnIfOversized(editContent)
 			return m.withUpdateSample(start), cmd
 		}
 		// Fresh single-pane open.
-		es, cmd := newEditorState(msg.path, msg.content, m.viewport, m.settings.TextWidth, cursorLine)
+		es, cmd := newEditorState(msg.path, editContent, m.viewport, m.settings.TextWidth, cursorLine)
+		es.section = editSection
+		es.otherSide = editOther
 		m.editors[0] = es
 		m.editors[1] = editorState{}
 		m.paneCount = 1
 		m.activePane = 0
 		m.state = StateEditing
-		m = m.warnIfOversized(msg.content)
+		m = m.warnIfOversized(editContent)
 		return m.withUpdateSample(start), cmd
 
 	case openSplitResult:
@@ -197,7 +211,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), nil
 		}
 		topVP, botVP := splitViewports(m.viewport)
-		topEs, _ := newEditorState(msg.topPath, msg.topContent, topVP, m.settings.TextWidth, 0)
+		topContent := msg.topContent
+		topSection := ""
+		topOther := ""
+		if front, back, hasBack := splitCardSides(msg.topContent); hasBack {
+			topContent = front
+			topSection = "front"
+			topOther = back
+		}
+		topEs, _ := newEditorState(msg.topPath, topContent, topVP, m.settings.TextWidth, 0)
+		topEs.section = topSection
+		topEs.otherSide = topOther
 		cursorLine := m.pendingEditorLine
 		m.pendingEditorLine = 0
 		botEs, cmd := newEditorState(msg.bottomPath, msg.bottomContent, botVP, m.settings.TextWidth, cursorLine)
@@ -626,7 +650,7 @@ func (m Model) warnIfOversized(content string) Model {
 		return m
 	}
 	_, cardH := m.cardSize()
-	maxLines := cardH - 3
+	maxLines := cardH - 4
 	if maxLines <= 0 {
 		return m
 	}
@@ -808,11 +832,11 @@ func (m Model) startContinueOrBranch(isContinue bool, start time.Time) (tea.Mode
 	case "none":
 		cmd = m.createLinkedFileCmdNoEditor(m.noteRoot, targetDir, newStem, ext, linkContent, false)
 	default: // "inapp" or ""
-		// Layout: \n[cursor]\n\n[reference]\n — cursor at line 1, above the link.
+		// Layout: \n[reference]\n[cursor]\n — cursor at line 2, below the link.
 		inAppContent := linkContent
 		if inAppContent != "" {
-			inAppContent = "\n\n\n" + strings.TrimSuffix(inAppContent, "\n")
-			m.pendingEditorLine = 1
+			inAppContent = "\n" + strings.TrimRight(inAppContent, "\n") + "\n\n"
+			m.pendingEditorLine = 2
 		}
 		if m.settings.AutoSplitOnLink {
 			m.pendingSourcePath = card.Path

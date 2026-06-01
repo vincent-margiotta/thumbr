@@ -52,7 +52,9 @@ type Settings struct {
 	LiveReload       bool // reload card list when files change on disk
 	ExternalEditMode bool // e key opens $EDITOR instead of the in-app editor
 	FreeMode         bool // disables c/C; N prompts for arbitrary filename
-	CardSizeLimit    bool // block new lines when content exceeds one card face
+	CardSizeLimit       bool // block new lines when content exceeds one card face
+	HighlightOverLimit  bool // subtly highlight editor lines that exceed the card face
+	ColorOverLimit      lipgloss.Color
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -88,6 +90,8 @@ var DefaultSettings = Settings{
 	TextWidth:           80,
 	LiveReload:          true,
 	CardSizeLimit:       true,
+	HighlightOverLimit:  true,
+	ColorOverLimit:      lipgloss.Color("#3a0000"),
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -99,6 +103,7 @@ type Colors struct {
 	ColorStatusBG  lipgloss.Color
 	ColorStatusFG  lipgloss.Color
 	ColorStatusDim lipgloss.Color
+	ColorOverLimit lipgloss.Color
 }
 
 // Layout groups the display-geometry overrides accepted by ApplyLayout.
@@ -179,10 +184,11 @@ type BoxConfig struct {
 
 // FileCreation holds configuration for the continue/branch file-creation feature.
 type FileCreation struct {
-	NewFileEditor   string
-	ContinueCmd     string
-	BranchCmd       string
-	AutoSplitOnLink *bool
+	NewFileEditor      string
+	ContinueCmd        string
+	BranchCmd          string
+	AutoSplitOnLink    *bool
+	HighlightOverLimit *bool
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +217,9 @@ func (m *Model) ApplyColors(c Colors) {
 	}
 	if c.ColorStatusDim != "" {
 		m.settings.ColorStatusDim = c.ColorStatusDim
+	}
+	if c.ColorOverLimit != "" {
+		m.settings.ColorOverLimit = c.ColorOverLimit
 	}
 }
 
@@ -290,6 +299,9 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 	if fc.AutoSplitOnLink != nil {
 		m.settings.AutoSplitOnLink = *fc.AutoSplitOnLink
+	}
+	if fc.HighlightOverLimit != nil {
+		m.settings.HighlightOverLimit = *fc.HighlightOverLimit
 	}
 }
 

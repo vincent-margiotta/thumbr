@@ -215,7 +215,7 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 
 	if m.settings.CardSizeLimit {
 		_, cardH := m.cardSize()
-		maxLines := cardH - 3
+		maxLines := cardH - 4
 		if maxLines > 0 {
 			totalLines := len(strings.Split(es.ta.Value(), "\n"))
 			if totalLines >= maxLines {

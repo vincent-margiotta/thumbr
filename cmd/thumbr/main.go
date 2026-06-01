@@ -75,6 +75,7 @@ type config struct {
 	BindInApp          []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
 	BindSwitchPane     []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
 	AutoSplitOnLink    *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
+	HighlightOverLimit *bool    `json:"highlightOverLimit"  yaml:"highlightOverLimit"  toml:"highlightOverLimit"`
 	TextWidth          *int     `json:"textWidth"      yaml:"textWidth"      toml:"textWidth"`
 	LiveReload         *bool    `json:"liveReload"     yaml:"liveReload"     toml:"liveReload"`
 	EditMode           string   `json:"editMode"       yaml:"editMode"       toml:"editMode"`
@@ -340,6 +341,7 @@ func main() {
 		branchNameCmd      string
 		newFileEditor      string
 		autoSplitOnLink    bool
+		highlightOverLimit bool
 		textWidth          int
 		liveReload         bool
 		externalEditMode   bool
@@ -374,6 +376,7 @@ func main() {
 		branchNameCmd:      "",
 		newFileEditor:      "",
 		autoSplitOnLink:    ui.DefaultSettings.AutoSplitOnLink,
+		highlightOverLimit: ui.DefaultSettings.HighlightOverLimit,
 		textWidth:          ui.DefaultSettings.TextWidth,
 		liveReload:         ui.DefaultSettings.LiveReload,
 	}
@@ -491,6 +494,9 @@ func main() {
 		mergeBinding(&opts.bindings.SwitchPane, cfg.BindSwitchPane)
 		if cfg.AutoSplitOnLink != nil {
 			opts.autoSplitOnLink = *cfg.AutoSplitOnLink
+		}
+		if cfg.HighlightOverLimit != nil {
+			opts.highlightOverLimit = *cfg.HighlightOverLimit
 		}
 		if cfg.TextWidth != nil {
 			opts.textWidth = *cfg.TextWidth
@@ -775,10 +781,11 @@ func main() {
 	}
 	m.ApplyLayout(layout)
 	fc := ui.FileCreation{
-		NewFileEditor:   opts.newFileEditor,
-		ContinueCmd:     opts.continueNameCmd,
-		BranchCmd:       opts.branchNameCmd,
-		AutoSplitOnLink: &opts.autoSplitOnLink,
+		NewFileEditor:      opts.newFileEditor,
+		ContinueCmd:        opts.continueNameCmd,
+		BranchCmd:          opts.branchNameCmd,
+		AutoSplitOnLink:    &opts.autoSplitOnLink,
+		HighlightOverLimit: &opts.highlightOverLimit,
 	}
 	m.ApplyFileCreation(fc)
 	m.SetTextWidth(opts.textWidth)
