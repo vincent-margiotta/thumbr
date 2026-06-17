@@ -21,10 +21,6 @@ colorStatusDim = "#999999"
 
 # Layout and motion tuning.
 pageStep = 0              # 0 = half the overlay body height
-navMaxStep = 8            # hard cap on cards skipped per keypress
-navTau     = 300.0        # breakeven interval (ms): pressing at this rate → step=1; faster → more
-navGamma   = 1.75         # power-law exponent; higher = sharper acceleration with pressing speed
-navMinDt   = 50.0         # minimum interval floor (ms); key-hold == pressing at top speed
 stackVisible = 7          # cards shown in stack
 stackOffsetX = 2
 stackOffsetY = 1
@@ -73,6 +69,25 @@ bindNavFirst = ["g"]
 
 # Jump to the last card in the deck.
 bindNavLast = ["G"]
+
+# Bisect navigation: jump to roughly the midpoint between the cursor and the end
+# of the deck (forward) or the start (backward). Each press halves the remaining
+# distance, so any card in a 1000-card deck is reachable in ~10 presses.
+bindBisectForward  = ["]"]
+bindBisectBackward = ["["]
+
+# Chunk navigation: jump forward or backward by a fixed handful of cards at a
+# time. The step is navChunkSize ± navJitter randomness.
+bindChunkForward  = ["J"]
+bindChunkBackward = ["K"]
+
+# Base step size for J/K chunk jumps.
+navChunkSize = 7
+
+# Fractional randomness added to bisect and chunk jumps (0.0 = deterministic,
+# 1.0 = full randomness). Default 0.15 means a chunk of 7 varies between 5-9.
+# Set to 0 if you want perfectly repeatable navigation.
+navJitter = 0.15
 
 # Shell command to derive the continuation filename stem instead of the built-in
 # Luhmann algorithm. Receives the source card stem as the first argument and must

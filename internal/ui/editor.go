@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,8 +57,16 @@ type editorState struct {
 	// section editing: when section is "front" or "back", the textarea holds only
 	// that side of the card and otherSide holds the other half. save() reconstructs
 	// the full file. section == "" means the whole file is in the textarea.
-	section   string
-	otherSide string
+	section     string
+	otherSide   string
+	backPortrait bool // true when the back side uses portrait orientation (---back:portrait---)
+
+	// count prefix support (normal mode)
+	countBuf             string // accumulated digit count for pending motion/insert
+	insertCount          int    // count passed into current insert session
+	insertEntryRepeatable bool  // true for o/O: entry should be repeated per count
+	pendingFillChar      rune   // character to use for :fill command
+	pendingRenameTarget  string // new filename stem for :rename command
 }
 
 // fullContent returns the complete file content, reconstructing from section parts if needed.
@@ -72,6 +81,9 @@ func (es editorState) fullContent() string {
 		}
 		return joinCardSides(v, es.otherSide)
 	case "back":
+		if es.backPortrait {
+			return joinCardSidesPortrait(es.otherSide, v)
+		}
 		return joinCardSides(es.otherSide, v)
 	}
 	return v
@@ -88,7 +100,11 @@ const (
 	editorActionForceQuit
 	editorActionSort
 	editorActionSwitchBack
+	editorActionSwitchBackPortrait
 	editorActionSwitchFront
+	editorActionFill
+	editorActionRename
+	editorActionHelp
 )
 
 // splitViewports returns per-pane Viewports for a 35/65 split.
@@ -196,6 +212,11 @@ func (m Model) handleEditorKey(msg tea.KeyMsg, start time.Time) (tea.Model, tea.
 
 	if m.isBinding(key, m.bindings.SuspendEditor) {
 		m.state = StateBrowsing
+		return m.withUpdateSample(start), nil
+	}
+
+	if m.editorHelpVisible {
+		m.editorHelpVisible = false
 		return m.withUpdateSample(start), nil
 	}
 
@@ -339,10 +360,110 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		return m.withUpdateSample(start), nil
 
 	case editorActionSwitchBack:
-		return m.switchEditorSection(m.activePane, "back", start)
+		return m.switchEditorSection(m.activePane, "back", false, start)
+
+	case editorActionSwitchBackPortrait:
+		return m.switchEditorSection(m.activePane, "back", true, start)
 
 	case editorActionSwitchFront:
-		return m.switchEditorSection(m.activePane, "front", start)
+		return m.switchEditorSection(m.activePane, "front", false, start)
+
+	case editorActionFill:
+		cardW, _ := m.cardSize()
+		// targetW is one less than the card body width: the textarea's wrap function
+		// uses >= (not >) for its final word flush, so a line of exactly bodyW chars
+		// wraps onto a second visual row. Filling to bodyW-1 avoids this edge case.
+		targetW := cardW - 5
+		if targetW <= 0 {
+			m = m.setStatus(":fill requires a visible card (resize terminal or set textWidth)", 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		fillChar := es.pendingFillChar
+		if fillChar == 0 {
+			fillChar = '.'
+		}
+		es.pendingFillChar = 0
+
+		lines := strings.Split(es.ta.Value(), "\n")
+		lineIdx := es.ta.Line()
+		if lineIdx >= 0 && lineIdx < len(lines) {
+			runes := []rune(lines[lineIdx])
+			// Find the first contiguous run of fillChar.
+			runStart, runEnd := -1, -1
+			for i, r := range runes {
+				if r == fillChar {
+					if runStart == -1 {
+						runStart = i
+					}
+					runEnd = i + 1
+				} else if runStart != -1 {
+					break
+				}
+			}
+			if runStart == -1 {
+				m.editors[m.activePane] = es
+				m = m.setStatus(fmt.Sprintf("No run of '%c' on current line", fillChar), 3*time.Second)
+				return m.withUpdateSample(start), nil
+			}
+			needed := targetW - (len(runes) - (runEnd - runStart))
+			if needed < 0 {
+				needed = 0
+			}
+			es = es.pushUndo()
+			lines[lineIdx] = string(runes[:runStart]) + strings.Repeat(string(fillChar), needed) + string(runes[runEnd:])
+			es.ta.SetValue(strings.Join(lines, "\n"))
+			es = es.setCursorToLineCol(lineIdx, runStart)
+			es.dirty = true
+			m.editors[m.activePane] = es
+			m = m.setStatus(fmt.Sprintf("Line filled to %d chars", targetW), 2*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		m.editors[m.activePane] = es
+		return m.withUpdateSample(start), nil
+
+	case editorActionRename:
+		newName := strings.TrimSpace(es.pendingRenameTarget)
+		es.pendingRenameTarget = ""
+		m.editors[m.activePane] = es
+		if newName == "" {
+			m = m.setStatus("Usage: :rename <newname>", 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		if !strings.HasSuffix(newName, ".txt") {
+			newName += ".txt"
+		}
+		dir := filepath.Dir(es.path)
+		newPath := filepath.Join(dir, newName)
+		if newPath == es.path {
+			m = m.setStatus("Same filename — nothing to rename", 2*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		if _, err := os.Stat(newPath); err == nil {
+			m = m.setStatus(fmt.Sprintf("File already exists: %s", newName), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		if err := os.Rename(es.path, newPath); err != nil {
+			m = m.setStatus(fmt.Sprintf("Rename failed: %v", err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		oldPath := es.path
+		es.path = newPath
+		m.editors[m.activePane] = es
+		// Update the matching card in the current list so the overlay stays correct.
+		stem := strings.TrimSuffix(newName, ".txt")
+		for i := range m.cards {
+			if m.cards[i].Path == oldPath {
+				m.cards[i].Path = newPath
+				m.cards[i].Title = stem
+				break
+			}
+		}
+		m = m.setStatus(fmt.Sprintf("Renamed to %s", newName), 3*time.Second)
+		return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
+
+	case editorActionHelp:
+		m.editorHelpVisible = true
+		return m.withUpdateSample(start), nil
 
 	case editorActionSort:
 		lines := strings.Split(es.ta.Value(), "\n")
@@ -374,7 +495,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 //   - section == "front" → "back" (or vice versa): swap current content into otherSide
 //     and load the other half.
 //   - section == target: no-op with a status hint.
-func (m Model) switchEditorSection(pane int, target string, start time.Time) (tea.Model, tea.Cmd) {
+func (m Model) switchEditorSection(pane int, target string, forcePortrait bool, start time.Time) (tea.Model, tea.Cmd) {
 	es := m.editors[pane]
 	current := es.ta.Value()
 
@@ -384,17 +505,20 @@ func (m Model) switchEditorSection(pane int, target string, start time.Time) (te
 	}
 
 	var newContent, newOther string
+	var newPortrait bool
 	switch es.section {
 	case "":
-		front, back, _ := splitCardSides(current)
+		front, back, _, filePortrait := splitCardSides(current)
 		if target == "back" {
 			newContent, newOther = back, front
+			newPortrait = filePortrait || forcePortrait
 		} else {
 			newContent, newOther = front, back
 		}
 	default:
 		// section is "front" or "back" — swap
 		newContent, newOther = es.otherSide, current
+		newPortrait = es.backPortrait || forcePortrait
 	}
 
 	vp := m.viewport
@@ -411,6 +535,9 @@ func (m Model) switchEditorSection(pane int, target string, start time.Time) (te
 	newES.section = target
 	newES.otherSide = newOther
 	newES.dirty = es.dirty
+	if target == "back" {
+		newES.backPortrait = newPortrait
+	}
 	m.editors[pane] = newES
 	return m.withUpdateSample(start), cmd
 }
@@ -445,21 +572,49 @@ func (m Model) closeFocusedPane(start time.Time) (tea.Model, tea.Cmd) {
 // ---------------------------------------------------------------------------
 
 func (es editorState) handleNormal(key string) (editorState, editorAction) {
+	// Accumulate count prefix: digits 1-9 start a count; 0 continues one.
+	if len([]rune(key)) == 1 {
+		d := []rune(key)[0]
+		if d >= '1' && d <= '9' || (d == '0' && es.countBuf != "") {
+			es.countBuf += key
+			return es, editorActionNone
+		}
+	}
+	count, _ := strconv.Atoi(es.countBuf)
+	if count < 1 {
+		count = 1
+	}
+	es.countBuf = ""
+
 	switch key {
 	case "h":
-		es.ta = taKey(es.ta, tea.KeyLeft)
+		for i := 0; i < count; i++ {
+			es.ta = taKey(es.ta, tea.KeyLeft)
+		}
 	case "l":
-		es.ta = taKey(es.ta, tea.KeyRight)
+		for i := 0; i < count; i++ {
+			es.ta = taKey(es.ta, tea.KeyRight)
+		}
 	case "j":
-		es.ta = taKey(es.ta, tea.KeyDown)
+		for i := 0; i < count; i++ {
+			es.ta = taKey(es.ta, tea.KeyDown)
+		}
 	case "k":
-		es.ta = taKey(es.ta, tea.KeyUp)
+		for i := 0; i < count; i++ {
+			es.ta = taKey(es.ta, tea.KeyUp)
+		}
 	case "w":
-		es = es.moveWordForward()
+		for i := 0; i < count; i++ {
+			es = es.moveWordForward()
+		}
 	case "b":
-		es = es.moveWordBackward()
+		for i := 0; i < count; i++ {
+			es = es.moveWordBackward()
+		}
 	case "e":
-		es = es.moveWordEnd()
+		for i := 0; i < count; i++ {
+			es = es.moveWordEnd()
+		}
 	case "0":
 		es.ta.CursorStart()
 	case "$":
@@ -477,13 +632,21 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		col := es.ta.LineInfo().CharOffset
 		if lineIdx >= 0 && lineIdx < len(lines) {
 			runes := []rune(lines[lineIdx])
-			if col < len(runes) {
-				es.yankBuf = string(runes[col])
+			end := col + count
+			if end > len(runes) {
+				end = len(runes)
+			}
+			if col < end {
+				es.yankBuf = string(runes[col:end])
 				es.yankLinewise = false
+				runes = append(runes[:col:col], runes[end:]...)
+				lines[lineIdx] = string(runes)
+				es.ta.SetValue(strings.Join(lines, "\n"))
+				es = es.setCursorToLineCol(lineIdx, col)
+				es.dirty = true
 			}
 		}
-		es.ta = taKey(es.ta, tea.KeyDelete)
-		es.dirty = true
+		finalCount := count
 		es.lastRepeat = func(s editorState) editorState {
 			s = s.pushUndo()
 			ls := strings.Split(s.ta.Value(), "\n")
@@ -491,13 +654,20 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			c := s.ta.LineInfo().CharOffset
 			if li >= 0 && li < len(ls) {
 				r := []rune(ls[li])
-				if c < len(r) {
-					s.yankBuf = string(r[c])
+				e := c + finalCount
+				if e > len(r) {
+					e = len(r)
+				}
+				if c < e {
+					s.yankBuf = string(r[c:e])
 					s.yankLinewise = false
+					r = append(r[:c:c], r[e:]...)
+					ls[li] = string(r)
+					s.ta.SetValue(strings.Join(ls, "\n"))
+					s = s.setCursorToLineCol(li, c)
+					s.dirty = true
 				}
 			}
-			s.ta = taKey(s.ta, tea.KeyDelete)
-			s.dirty = true
 			return s
 		}
 	case "u":
@@ -523,6 +693,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es.insertSnapshot = &snap
 		es.insertLog = ""
 		es.insertEntry = nil
+		es.insertEntryRepeatable = false
+		es.insertCount = count
 		es.mode = vimInsert
 	case "a":
 		snap := es.snapshot()
@@ -533,6 +705,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s.ta = taKey(s.ta, tea.KeyRight)
 			return s
 		}
+		es.insertEntryRepeatable = false
+		es.insertCount = count
 		es.mode = vimInsert
 	case "A":
 		snap := es.snapshot()
@@ -543,6 +717,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s.ta.CursorEnd()
 			return s
 		}
+		es.insertEntryRepeatable = false
+		es.insertCount = count
 		es.mode = vimInsert
 	case "o":
 		es = es.pushUndo()
@@ -559,6 +735,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s.dirty = true
 			return s
 		}
+		es.insertEntryRepeatable = true
+		es.insertCount = count
 		es.mode = vimInsert
 	case "O":
 		es = es.pushUndo()
@@ -577,6 +755,8 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s.dirty = true
 			return s
 		}
+		es.insertEntryRepeatable = true
+		es.insertCount = count
 		es.mode = vimInsert
 	case "p":
 		if es.yankBuf != "" {
@@ -667,12 +847,16 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			}
 			return s
 		}
+		es.insertEntryRepeatable = false
+		es.insertCount = 1
 		es.mode = vimInsert
 	case ":":
+		es.countBuf = ""
 		es.mode = vimCommand
 		es.cmdLine = ""
 	case "esc", "ctrl+[":
 		es.pending = ""
+		es.countBuf = ""
 	case "g", "d", "y", "r", "c":
 		es.pending = key
 	}
@@ -1244,23 +1428,73 @@ func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, 
 	key := msg.String()
 	switch key {
 	case "esc", "ctrl+[":
+		count := es.insertCount
+		if count < 1 {
+			count = 1
+		}
+		es.insertCount = 0
 		if es.insertSnapshot != nil && es.ta.Value() != es.insertSnapshot.content {
 			es.undoStack = append(es.undoStack, *es.insertSnapshot)
 			es.redoStack = nil
 			log := es.insertLog
 			entry := es.insertEntry
+			entryRepeatable := es.insertEntryRepeatable
+
+			// Replay typed log (count-1) more times.
+			replayLog := func(dst editorState) editorState {
+				for _, r := range []rune(log) {
+					if r == '\n' {
+						dst.ta = taKey(dst.ta, tea.KeyEnter)
+					} else {
+						dst.ta.InsertString(string(r))
+					}
+					dst.dirty = true
+				}
+				return dst
+			}
+			if entryRepeatable {
+				for i := 1; i < count; i++ {
+					if entry != nil {
+						es = entry(es)
+					}
+					es = replayLog(es)
+				}
+			} else {
+				for i := 1; i < count; i++ {
+					es = replayLog(es)
+				}
+			}
+
 			es.lastRepeat = func(s editorState) editorState {
 				s = s.pushUndo()
 				if entry != nil {
 					s = entry(s)
 				}
-				for _, r := range []rune(log) {
-					if r == '\n' {
-						s.ta = taKey(s.ta, tea.KeyEnter)
-					} else {
-						s.ta.InsertString(string(r))
+				if entryRepeatable {
+					for i := 0; i < count; i++ {
+						if i > 0 && entry != nil {
+							s = entry(s)
+						}
+						for _, r := range []rune(log) {
+							if r == '\n' {
+								s.ta = taKey(s.ta, tea.KeyEnter)
+							} else {
+								s.ta.InsertString(string(r))
+							}
+							s.dirty = true
+						}
 					}
-					s.dirty = true
+				} else {
+					for i := 0; i < count; i++ {
+						for _, r := range []rune(log) {
+							if r == '\n' {
+								s.ta = taKey(s.ta, tea.KeyEnter)
+							} else {
+								s.ta.InsertString(string(r))
+							}
+							s.dirty = true
+						}
+					}
 				}
 				return s
 			}
@@ -1268,6 +1502,7 @@ func (es editorState) handleInsert(msg tea.KeyMsg, textwidth int) (editorState, 
 		es.insertSnapshot = nil
 		es.insertLog = ""
 		es.insertEntry = nil
+		es.insertEntryRepeatable = false
 		es.mode = vimNormal
 		return es, nil
 	case "backspace":
@@ -1311,10 +1546,28 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			return es, editorActionSaveQuitAll
 		case "sort":
 			return es, editorActionSort
+		case "help":
+			return es, editorActionHelp
 		case "back":
 			return es, editorActionSwitchBack
+		case "back:portrait":
+			return es, editorActionSwitchBackPortrait
 		case "front":
 			return es, editorActionSwitchFront
+		default:
+			if cmd == "fill" || strings.HasPrefix(cmd, "fill ") {
+				fillChar := rune('.')
+				rest := strings.TrimSpace(strings.TrimPrefix(cmd, "fill"))
+				if runes := []rune(rest); len(runes) > 0 {
+					fillChar = runes[0]
+				}
+				es.pendingFillChar = fillChar
+				return es, editorActionFill
+			}
+			if strings.HasPrefix(cmd, "rename ") {
+				es.pendingRenameTarget = strings.TrimSpace(strings.TrimPrefix(cmd, "rename"))
+				return es, editorActionRename
+			}
 		}
 		return es, editorActionNone
 	case "backspace":

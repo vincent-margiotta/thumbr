@@ -37,10 +37,8 @@ type config struct {
 	ColorStatusFG  string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
 	ColorStatusDim string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
 	PageStep       int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavMaxStep     int      `json:"navMaxStep" yaml:"navMaxStep" toml:"navMaxStep"`
-	NavTau         float64  `json:"navTau"     yaml:"navTau"     toml:"navTau"`
-	NavGamma       float64  `json:"navGamma"   yaml:"navGamma"   toml:"navGamma"`
-	NavMinDt       float64  `json:"navMinDt"   yaml:"navMinDt"   toml:"navMinDt"`
+	NavChunkSize   int      `json:"navChunkSize"  yaml:"navChunkSize"  toml:"navChunkSize"`
+	NavJitter      float64  `json:"navJitter"     yaml:"navJitter"     toml:"navJitter"`
 	StackVisible   int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
 	StackOffsetX   int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
 	StackOffsetY   int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
@@ -69,6 +67,10 @@ type config struct {
 	BindSuspendEditor  []string `json:"bindSuspendEditor"   yaml:"bindSuspendEditor"   toml:"bindSuspendEditor"`
 	BindNavFirst       []string `json:"bindNavFirst"        yaml:"bindNavFirst"        toml:"bindNavFirst"`
 	BindNavLast        []string `json:"bindNavLast"         yaml:"bindNavLast"         toml:"bindNavLast"`
+	BindBisectForward  []string `json:"bindBisectForward"   yaml:"bindBisectForward"   toml:"bindBisectForward"`
+	BindBisectBackward []string `json:"bindBisectBackward"  yaml:"bindBisectBackward"  toml:"bindBisectBackward"`
+	BindChunkForward   []string `json:"bindChunkForward"    yaml:"bindChunkForward"    toml:"bindChunkForward"`
+	BindChunkBackward  []string `json:"bindChunkBackward"   yaml:"bindChunkBackward"   toml:"bindChunkBackward"`
 	ContinueNameCmd    string   `json:"continueNameCmd"     yaml:"continueNameCmd"     toml:"continueNameCmd"`
 	BranchNameCmd      string   `json:"branchNameCmd"       yaml:"branchNameCmd"       toml:"branchNameCmd"`
 	NewFileEditor      string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
@@ -192,10 +194,8 @@ func main() {
 		colorStatusFGArg  string
 		colorStatusDimArg string
 		pageStepArg       int
-		cfgNavMaxStep     int
-		cfgNavTau         float64
-		cfgNavGamma       float64
-		cfgNavMinDt       float64
+		cfgNavChunkSize   int
+		cfgNavJitter      float64
 		stackVisibleArg   int
 		stackOffsetXArg   int
 		stackOffsetYArg   int
@@ -223,10 +223,8 @@ func main() {
 	flagSet.StringVar(&colorStatusFGArg, "color-status-fg", "", "hex color for status bar foreground")
 	flagSet.StringVar(&colorStatusDimArg, "color-status-dim", "", "hex color for status bar muted text")
 	flagSet.IntVar(&pageStepArg, "page-step", 0, "override overlay page step (lines); defaults to half the overlay body height")
-	flagSet.IntVar(&cfgNavMaxStep, "nav-max-step", 0, "cap on step size per keypress (0 = default)")
-	flagSet.Float64Var(&cfgNavTau, "nav-tau", 0, "breakeven interval ms: pressing at this rate → step=1 (0 = default)")
-	flagSet.Float64Var(&cfgNavGamma, "nav-gamma", 0, "power-law exponent: higher = sharper acceleration (0 = default)")
-	flagSet.Float64Var(&cfgNavMinDt, "nav-min-dt", 0, "minimum interval floor ms: hold == pressing at top speed (0 = default)")
+	flagSet.IntVar(&cfgNavChunkSize, "nav-chunk-size", 0, "base step for J/K chunk jumps (0 = default 7)")
+	flagSet.Float64Var(&cfgNavJitter, "nav-jitter", -1, "fractional randomness for bisect and chunk jumps 0..1 (-1 = default 0.15)")
 	flagSet.IntVar(&stackVisibleArg, "stack-visible", 0, "number of cards visible in the stack (0 to use default)")
 	flagSet.IntVar(&stackOffsetXArg, "stack-offset-x", 0, "horizontal offset between stacked cards (0 to use default)")
 	flagSet.IntVar(&stackOffsetYArg, "stack-offset-y", 0, "vertical offset between stacked cards (0 to use default)")
@@ -266,9 +264,13 @@ func main() {
 		bindNextRootArg      string
 		bindSuspendEditorArg string
 		bindInAppArg         string
-		bindNavFirstArg      string
-		bindNavLastArg       string
-		bindSwitchPaneArg    string
+		bindNavFirstArg       string
+		bindNavLastArg        string
+		bindBisectForwardArg  string
+		bindBisectBackwardArg string
+		bindChunkForwardArg   string
+		bindChunkBackwardArg  string
+		bindSwitchPaneArg     string
 	)
 	var (
 		continueNameCmdArg string
@@ -295,6 +297,10 @@ func main() {
 	flagSet.StringVar(&bindSuspendEditorArg, "bind-suspend-editor", "", "comma-separated keys to suspend the in-app editor and return to browse")
 	flagSet.StringVar(&bindNavFirstArg, "bind-nav-first", "", "comma-separated keys to jump to the first card")
 	flagSet.StringVar(&bindNavLastArg, "bind-nav-last", "", "comma-separated keys to jump to the last card")
+	flagSet.StringVar(&bindBisectForwardArg, "bind-bisect-forward", "", "comma-separated keys to bisect toward the end of the deck")
+	flagSet.StringVar(&bindBisectBackwardArg, "bind-bisect-backward", "", "comma-separated keys to bisect toward the start of the deck")
+	flagSet.StringVar(&bindChunkForwardArg, "bind-chunk-forward", "", "comma-separated keys to jump forward by a chunk (default J)")
+	flagSet.StringVar(&bindChunkBackwardArg, "bind-chunk-backward", "", "comma-separated keys to jump backward by a chunk (default K)")
 	flagSet.StringVar(&continueNameCmdArg, "continue-name-cmd", "", "shell command to derive continuation filename stem")
 	flagSet.StringVar(&branchNameCmdArg, "branch-name-cmd", "", "shell command to derive branch filename stem")
 	flagSet.StringVar(&newFileEditorArg, "new-file-editor", "", "editor to open after c/C creates a file: inapp, external, or none (default inapp)")
@@ -322,10 +328,8 @@ func main() {
 		colorStatusFG      string
 		colorStatusDim     string
 		pageStep           int
-		navMaxStep         int
-		navTau             float64
-		navGamma           float64
-		navMinDt           float64
+		navChunkSize       int
+		navJitter          float64
 		bindings           ui.KeyBindings
 		stackVisible       int
 		stackOffsetX       int
@@ -357,10 +361,8 @@ func main() {
 		colorStatusFG:      "",
 		colorStatusDim:     "",
 		pageStep:           0,
-		navMaxStep:         0,
-		navTau:             0,
-		navGamma:           0,
-		navMinDt:           0,
+		navChunkSize:       0,
+		navJitter:          -1, // -1 means "use default from Settings"
 		bindings:           ui.DefaultBindings(),
 		stackVisible:       0,
 		stackOffsetX:       0,
@@ -423,18 +425,6 @@ func main() {
 		if cfg.PageStep > 0 {
 			opts.pageStep = cfg.PageStep
 		}
-		if cfg.NavMaxStep > 0 {
-			opts.navMaxStep = cfg.NavMaxStep
-		}
-		if cfg.NavTau > 0 {
-			opts.navTau = cfg.NavTau
-		}
-		if cfg.NavGamma > 0 {
-			opts.navGamma = cfg.NavGamma
-		}
-		if cfg.NavMinDt > 0 {
-			opts.navMinDt = cfg.NavMinDt
-		}
 		if cfg.MaxCursorDepth > 0 {
 			opts.maxCursorDepth = cfg.MaxCursorDepth
 		}
@@ -491,7 +481,17 @@ func main() {
 		mergeBinding(&opts.bindings.SuspendEditor, cfg.BindSuspendEditor)
 		mergeBinding(&opts.bindings.NavFirst, cfg.BindNavFirst)
 		mergeBinding(&opts.bindings.NavLast, cfg.BindNavLast)
+		mergeBinding(&opts.bindings.BisectForward, cfg.BindBisectForward)
+		mergeBinding(&opts.bindings.BisectBackward, cfg.BindBisectBackward)
+		mergeBinding(&opts.bindings.ChunkForward, cfg.BindChunkForward)
+		mergeBinding(&opts.bindings.ChunkBackward, cfg.BindChunkBackward)
 		mergeBinding(&opts.bindings.SwitchPane, cfg.BindSwitchPane)
+		if cfg.NavChunkSize > 0 {
+			opts.navChunkSize = cfg.NavChunkSize
+		}
+		if cfg.NavJitter >= 0 {
+			opts.navJitter = cfg.NavJitter
+		}
 		if cfg.AutoSplitOnLink != nil {
 			opts.autoSplitOnLink = *cfg.AutoSplitOnLink
 		}
@@ -559,18 +559,6 @@ func main() {
 	}
 	if pageStepArg > 0 {
 		opts.pageStep = pageStepArg
-	}
-	if cfgNavMaxStep > 0 {
-		opts.navMaxStep = cfgNavMaxStep
-	}
-	if cfgNavTau > 0 {
-		opts.navTau = cfgNavTau
-	}
-	if cfgNavGamma > 0 {
-		opts.navGamma = cfgNavGamma
-	}
-	if cfgNavMinDt > 0 {
-		opts.navMinDt = cfgNavMinDt
 	}
 	if maxCursorDepthArg > 0 {
 		opts.maxCursorDepth = maxCursorDepthArg
@@ -677,6 +665,24 @@ func main() {
 	if v := parseBinding(bindNavLastArg); len(v) > 0 {
 		opts.bindings.NavLast = v
 	}
+	if v := parseBinding(bindBisectForwardArg); len(v) > 0 {
+		opts.bindings.BisectForward = v
+	}
+	if v := parseBinding(bindBisectBackwardArg); len(v) > 0 {
+		opts.bindings.BisectBackward = v
+	}
+	if v := parseBinding(bindChunkForwardArg); len(v) > 0 {
+		opts.bindings.ChunkForward = v
+	}
+	if v := parseBinding(bindChunkBackwardArg); len(v) > 0 {
+		opts.bindings.ChunkBackward = v
+	}
+	if cfgNavChunkSize > 0 {
+		opts.navChunkSize = cfgNavChunkSize
+	}
+	if cfgNavJitter >= 0 {
+		opts.navJitter = cfgNavJitter
+	}
 	if v := parseBinding(bindSwitchPaneArg); len(v) > 0 {
 		opts.bindings.SwitchPane = v
 	}
@@ -760,8 +766,8 @@ func main() {
 	if opts.pageStep > 0 {
 		m.SetPageStep(opts.pageStep)
 	}
-	if opts.navMaxStep > 0 || opts.navTau > 0 || opts.navGamma > 0 || opts.navMinDt > 0 {
-		m.ApplyNav(opts.navMaxStep, opts.navTau, opts.navGamma, opts.navMinDt)
+	if opts.navChunkSize > 0 || opts.navJitter >= 0 {
+		m.ApplyNavChunk(opts.navChunkSize, opts.navJitter)
 	}
 	layout := ui.Layout{
 		StackVisibleCount: opts.stackVisible,

@@ -94,8 +94,6 @@ type Model struct {
 
 	enableDebug bool
 
-	lastNavDir  int
-	lastNavTime time.Time
 	navPending  string // pending nav prefix key ("g" waits for a second key)
 
 	rng             *rand.Rand
@@ -138,9 +136,10 @@ type Model struct {
 	pendingSeekPath string
 
 	// editors[0] is the top pane, editors[1] is the bottom pane.
-	editors    [2]editorState
-	activePane int // 0 or 1
-	paneCount  int // 0=none, 1=single, 2=split
+	editors          [2]editorState
+	activePane       int  // 0 or 1
+	paneCount        int  // 0=none, 1=single, 2=split
+	editorHelpVisible bool // true while :help overlay is shown
 
 	// watchStop is closed to signal the current watcher goroutine to exit.
 	watchStop chan struct{}
@@ -629,21 +628,31 @@ func (m Model) overlayLimits() (bodyH int, totalLines int) {
 // ---------------------------------------------------------------------------
 
 const backDelimiter = "---back---"
+const backPortraitDelimiter = "---back:portrait---"
 
-// splitCardSides splits content on the first line that is exactly "---back---".
-// If no delimiter is found, the full content is returned as front with hasBack=false.
-func splitCardSides(content string) (front, back string, hasBack bool) {
+// splitCardSides splits content on the first line that is exactly "---back---"
+// or "---back:portrait---". If no delimiter is found, the full content is
+// returned as front with hasBack=false.
+func splitCardSides(content string) (front, back string, hasBack, backPortrait bool) {
 	lines := strings.Split(content, "\n")
 	for i, line := range lines {
-		if strings.TrimSpace(line) == backDelimiter {
-			return strings.Join(lines[:i], "\n"), strings.Join(lines[i+1:], "\n"), true
+		trimmed := strings.TrimSpace(line)
+		if trimmed == backDelimiter {
+			return strings.Join(lines[:i], "\n"), strings.Join(lines[i+1:], "\n"), true, false
+		}
+		if trimmed == backPortraitDelimiter {
+			return strings.Join(lines[:i], "\n"), strings.Join(lines[i+1:], "\n"), true, true
 		}
 	}
-	return content, "", false
+	return content, "", false, false
 }
 
 func joinCardSides(front, back string) string {
 	return front + "\n" + backDelimiter + "\n" + back
+}
+
+func joinCardSidesPortrait(front, back string) string {
+	return front + "\n" + backPortraitDelimiter + "\n" + back
 }
 
 // overlayContent returns the content to display in the overlay, respecting
@@ -653,7 +662,7 @@ func (m Model) overlayContent() string {
 		return ""
 	}
 	content := m.cards[m.cursor].Content
-	front, back, hasBack := splitCardSides(content)
+	front, back, hasBack, _ := splitCardSides(content)
 	if m.overlayFlipped {
 		if hasBack {
 			return back
@@ -664,6 +673,22 @@ func (m Model) overlayContent() string {
 		return front
 	}
 	return content
+}
+
+// isPortraitContext returns true when the current UI state calls for portrait card dimensions:
+// editing the back section of a portrait-flagged card, or viewing the flipped side of one.
+func (m Model) isPortraitContext() bool {
+	switch m.state {
+	case StateEditing:
+		es := m.editors[m.activePane]
+		return es.section == "back" && es.backPortrait
+	case StateViewing:
+		if m.overlayFlipped && len(m.cards) > 0 {
+			_, _, _, backPortrait := splitCardSides(m.cards[m.cursor].Content)
+			return backPortrait
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

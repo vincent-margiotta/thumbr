@@ -4,7 +4,6 @@ package ui
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -172,10 +171,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		editContent := msg.content
 		editSection := ""
 		editOther := ""
-		if front, back, hasBack := splitCardSides(msg.content); hasBack {
+		editBackPortrait := false
+		if front, back, hasBack, backPortrait := splitCardSides(msg.content); hasBack {
 			editContent = front
 			editSection = "front"
 			editOther = back
+			editBackPortrait = backPortrait
 		}
 		if m.paneCount == 1 && m.editors[0].path != "" {
 			// Companion open: resize pane 0 to top, open new file as bottom pane.
@@ -185,6 +186,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			es, cmd := newEditorState(msg.path, editContent, botVP, m.settings.TextWidth, cursorLine)
 			es.section = editSection
 			es.otherSide = editOther
+			es.backPortrait = editBackPortrait
 			m.editors[1] = es
 			m.paneCount = 2
 			m.activePane = 1
@@ -196,6 +198,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		es, cmd := newEditorState(msg.path, editContent, m.viewport, m.settings.TextWidth, cursorLine)
 		es.section = editSection
 		es.otherSide = editOther
+		es.backPortrait = editBackPortrait
 		m.editors[0] = es
 		m.editors[1] = editorState{}
 		m.paneCount = 1
@@ -214,14 +217,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		topContent := msg.topContent
 		topSection := ""
 		topOther := ""
-		if front, back, hasBack := splitCardSides(msg.topContent); hasBack {
+		topBackPortrait := false
+		if front, back, hasBack, backPortrait := splitCardSides(msg.topContent); hasBack {
 			topContent = front
 			topSection = "front"
 			topOther = back
+			topBackPortrait = backPortrait
 		}
 		topEs, _ := newEditorState(msg.topPath, topContent, topVP, m.settings.TextWidth, 0)
 		topEs.section = topSection
 		topEs.otherSide = topOther
+		topEs.backPortrait = topBackPortrait
 		cursorLine := m.pendingEditorLine
 		m.pendingEditorLine = 0
 		botEs, cmd := newEditorState(msg.bottomPath, msg.bottomContent, botVP, m.settings.TextWidth, cursorLine)
@@ -459,9 +465,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m = m.jumpToEdge(1)
 				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
-			case m.navPending == "g" && len(key) == 1 && key[0] >= '1' && key[0] <= '9':
+			case m.isBinding(key, m.bindings.BisectForward):
 				m.navPending = ""
-				m = m.jumpToPercent(int(key[0]-'0') * 10)
+				m = m.jumpToBisect(1)
+				m = m.ensureVisibleContent()
+				navCmd = m.preloadVisibleCmd()
+			case m.isBinding(key, m.bindings.BisectBackward):
+				m.navPending = ""
+				m = m.jumpToBisect(-1)
+				m = m.ensureVisibleContent()
+				navCmd = m.preloadVisibleCmd()
+			case m.isBinding(key, m.bindings.ChunkForward):
+				m.navPending = ""
+				m = m.jumpToChunk(-1)
+				m = m.ensureVisibleContent()
+				navCmd = m.preloadVisibleCmd()
+			case m.isBinding(key, m.bindings.ChunkBackward):
+				m.navPending = ""
+				m = m.jumpToChunk(1)
 				m = m.ensureVisibleContent()
 				navCmd = m.preloadVisibleCmd()
 			default:
@@ -515,7 +536,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) openSectionInAppFromOverlay(start time.Time) (tea.Model, tea.Cmd) {
 	m = m.ensureCardContent(m.cursor)
 	card := m.cards[m.cursor]
-	front, back, hasBack := splitCardSides(card.Content)
+	front, back, hasBack, backPortrait := splitCardSides(card.Content)
 
 	var sectionContent, section, otherSide string
 	if m.overlayFlipped {
@@ -546,6 +567,7 @@ func (m Model) openSectionInAppFromOverlay(start time.Time) (tea.Model, tea.Cmd)
 	es, cmd := newEditorState(card.Path, sectionContent, m.viewport, m.settings.TextWidth, 0)
 	es.section = section
 	es.otherSide = otherSide
+	es.backPortrait = backPortrait
 	m.editors[0] = es
 	m.editors[1] = editorState{}
 	m.paneCount = 1
@@ -615,36 +637,6 @@ func (m Model) submitPrompt(start time.Time) (tea.Model, tea.Cmd) {
 
 // ==== Navigation ====
 
-// navStep returns the step count for a single directional keypress.
-// sameDir is false on direction change or the first press, which always yields 1.
-// dt is milliseconds since the last same-direction press.
-//
-// Power-law model: step = round((tau/dt)^gamma).
-// tau is the breakeven interval — pressing every tau ms gives exactly step=1.
-// gamma > 1 makes the response non-linear: a modest speedup in pressing rate
-// produces a dramatic jump in step size, matching the feel of physical thumbing.
-// minDt floors dt so auto-repeat (key-hold) converges with fast deliberate pressing.
-func navStep(dt, tau, gamma, minDt float64, sameDir bool, maxStep int) int {
-	if !sameDir || dt <= 0 {
-		return 1
-	}
-	if dt < minDt {
-		dt = minDt
-	}
-	ratio := tau / dt
-	if ratio <= 1 {
-		return 1
-	}
-	step := int(math.Round(math.Pow(ratio, gamma)))
-	if step < 1 {
-		step = 1
-	}
-	if step > maxStep {
-		step = maxStep
-	}
-	return step
-}
-
 func (m Model) warnIfOversized(content string) Model {
 	if !m.settings.CardSizeLimit {
 		return m
@@ -666,42 +658,18 @@ func (m Model) moveCursor(dir int) Model {
 	if dir == 0 || len(vis) == 0 {
 		return m
 	}
-
 	pos := m.visibleCursorIndex(vis)
 	if pos < 0 {
 		m.cursor = vis[0]
-		pos = 0
+		return m
 	}
-
-	now := time.Now()
-	dt := float64(now.Sub(m.lastNavTime).Milliseconds())
-	sameDir := dir == m.lastNavDir
-
-	m.lastNavDir = dir
-	m.lastNavTime = now
-
-	maxStep := len(vis) / 10
-	if maxStep < m.settings.NavMaxStep {
-		maxStep = m.settings.NavMaxStep
-	}
-
-	step := navStep(dt, m.settings.NavTau, m.settings.NavGamma, m.settings.NavMinDt, sameDir, maxStep)
-
-	remaining := pos
-	if dir > 0 {
-		remaining = len(vis) - 1 - pos
-	}
-	if step > remaining {
-		step = remaining
-	}
-	newPos := pos + dir*step
+	newPos := pos + dir
 	if newPos < 0 {
 		newPos = 0
 	}
 	if newPos >= len(vis) {
 		newPos = len(vis) - 1
 	}
-
 	m.cursor = vis[newPos]
 	return m
 }
@@ -717,7 +685,6 @@ func (m Model) jumpToEdge(dir int) Model {
 	} else {
 		m.cursor = vis[0]
 	}
-	m.lastNavDir = 0
 	return m
 }
 
@@ -735,7 +702,86 @@ func (m Model) jumpToPercent(pct int) Model {
 		idx = 0
 	}
 	m.cursor = vis[idx]
-	m.lastNavDir = 0
+	return m
+}
+
+// navJitter returns a random integer delta in the range [-jitter*scale, +jitter*scale],
+// or 0 when jitter is disabled or scale is zero.
+func (m Model) navJitter(scale int) int {
+	if m.settings.NavJitter <= 0 || m.rng == nil || scale <= 0 {
+		return 0
+	}
+	spread := int(float64(scale) * m.settings.NavJitter)
+	if spread <= 0 {
+		return 0
+	}
+	return m.rng.Intn(spread*2+1) - spread
+}
+
+// jumpToBisect moves roughly to the midpoint between the current cursor and the
+// far edge of the visible deck. dir > 0 bisects toward the end; dir < 0 bisects
+// toward the start. NavJitter adds a small random offset so the landing point is
+// realistic rather than perfectly centred.
+func (m Model) jumpToBisect(dir int) Model {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return m
+	}
+	cur := 0
+	for i, idx := range vis {
+		if idx == m.cursor {
+			cur = i
+			break
+		}
+	}
+	var target int
+	if dir > 0 {
+		half := (len(vis) - 1 - cur) / 2
+		target = cur + half + m.navJitter(half)
+	} else {
+		half := cur / 2
+		target = cur - half + m.navJitter(half)
+	}
+	if target >= len(vis) {
+		target = len(vis) - 1
+	}
+	if target < 0 {
+		target = 0
+	}
+	m.cursor = vis[target]
+	return m
+}
+
+// jumpToChunk moves forward (dir > 0) or backward (dir < 0) by NavChunkSize
+// cards, with NavJitter randomness applied to the step.
+func (m Model) jumpToChunk(dir int) Model {
+	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return m
+	}
+	cur := 0
+	for i, idx := range vis {
+		if idx == m.cursor {
+			cur = i
+			break
+		}
+	}
+	base := m.settings.NavChunkSize
+	if base < 1 {
+		base = 1
+	}
+	step := base + m.navJitter(base)
+	if step < 1 {
+		step = 1
+	}
+	target := cur + dir*step
+	if target >= len(vis) {
+		target = len(vis) - 1
+	}
+	if target < 0 {
+		target = 0
+	}
+	m.cursor = vis[target]
 	return m
 }
 
@@ -749,7 +795,6 @@ func (m Model) randomCursor() Model {
 	} else {
 		m.cursor = vis[rand.Intn(len(vis))]
 	}
-	m.lastNavDir = 0
 	return m
 }
 

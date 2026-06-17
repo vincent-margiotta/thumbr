@@ -14,11 +14,11 @@ import (
 // highlightOverLimit applies a subtle background to textarea view lines that
 // exceed the card face capacity. cursorLine is es.ta.Line() — that visual row
 // is left untouched so the textarea cursor remains visible.
-func (m Model) highlightOverLimit(body string, cursorLine int) string {
+func (m Model) highlightOverLimit(body string, cursorLine int, portrait bool) string {
 	if !m.settings.HighlightOverLimit {
 		return body
 	}
-	_, cardH := m.cardSize()
+	_, cardH := m.cardSizeOriented(portrait)
 	maxLines := cardH - 4
 	if maxLines <= 0 {
 		return body
@@ -40,6 +40,51 @@ func (m Model) highlightOverLimit(body string, cursorLine int) string {
 	return strings.Join(lines, "\n")
 }
 
+func (m Model) renderEditorHelp() string {
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG)
+	col := func(label, keys, desc string) string {
+		return hi.Render(fmt.Sprintf("  %-16s", label)) + dim.Render(fmt.Sprintf("%-14s", keys)) + dim.Render(desc)
+	}
+	sec := func(title string) string { return hi.Render(title) }
+	lines := []string{
+		sec("Navigation"),
+		col("", "h j k l", "left / down / up / right"),
+		col("", "w  b  e", "word forward / back / end"),
+		col("", "0  $", "line start / end"),
+		col("", "G", "file end  (ctrl+home = start)"),
+		col("", "{n}<motion>", "repeat n times"),
+		"",
+		sec("Editing"),
+		col("", "i  a  A", "insert before / after / end of line"),
+		col("", "o  O", "open line below / above"),
+		col("", "x", "delete char under cursor"),
+		col("", "u   ctrl+r", "undo / redo"),
+		col("", ".", "repeat last change"),
+		col("", "yy  dd  p", "yank line / delete line / paste"),
+		"",
+		sec("Commands"),
+		col(":w", "", "save"),
+		col(":wq  :x", "", "save and quit"),
+		col(":q", "", "quit (warns if unsaved)"),
+		col(":q!", "", "discard and quit"),
+		col(":wqa", "", "save all panes and quit"),
+		col(":sort", "", "sort lines alphabetically"),
+		col(":fill [c]", "", "pad fill char c to card width"),
+		col(":rename <n>", "", "rename file (links not updated)"),
+		col(":back", "", "edit back face"),
+		col(":back:portrait", "", "edit back face (portrait)"),
+		col(":front", "", "edit front face"),
+		col(":help", "", "this screen"),
+		"",
+		sec("Global"),
+		col("", "ctrl+s", "save"),
+		col("", "ctrl+w", "switch pane (split mode)"),
+		col("", "ctrl+b", "suspend to browser"),
+	}
+	return strings.Join(lines, "\n")
+}
+
 func (m Model) renderEditor() string {
 	if m.paneCount == 2 {
 		return m.renderSplitEditor()
@@ -56,7 +101,9 @@ func (m Model) renderSingleEditor() string {
 	label := modeLabel(es.mode)
 	modeStr := hi.Render("[" + label + "]")
 	sectionTag := ""
-	if es.section == "back" {
+	if es.section == "back" && es.backPortrait {
+		sectionTag = " [back:portrait]"
+	} else if es.section == "back" {
 		sectionTag = " [back]"
 	} else if es.section == "front" {
 		sectionTag = " [front]"
@@ -65,17 +112,26 @@ func (m Model) renderSingleEditor() string {
 	if es.dirty {
 		dirtyFlag = " [*]"
 	}
+	posStr := dim.Render(fmt.Sprintf("L%d C%d", es.ta.Line()+1, es.ta.LineInfo().CharOffset+1))
 	headerLeft := hi.Render(filepath.Base(es.path) + sectionTag + dirtyFlag)
-	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
-	header := headerLeft + strings.Repeat(" ", padLen) + modeStr
+	padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(posStr))-1-len(stripANSI(modeStr)))
+	header := headerLeft + strings.Repeat(" ", padLen) + posStr + " " + modeStr
 
-	body := m.highlightOverLimit(es.ta.View(), es.ta.Line())
+	portrait := es.section == "back" && es.backPortrait
+	var body string
+	if m.editorHelpVisible {
+		body = m.renderEditorHelp()
+	} else {
+		body = m.highlightOverLimit(es.ta.View(), es.ta.Line(), portrait)
+	}
 
 	var footer string
-	if es.mode == vimCommand {
+	if m.editorHelpVisible {
+		footer = dim.Render("press any key to close")
+	} else if es.mode == vimCommand {
 		footer = hi.Render(":") + es.cmdLine + "█"
-	} else {
-		footer = dim.Render("ctrl+s save  :w save  :wq save+quit  :q quit  :q! discard  :back/:front flip")
+	} else if es.mode == vimNormal && es.countBuf != "" {
+		footer = dim.Render(es.countBuf)
 	}
 
 	return header + "\n" + body + "\n" + footer + "\n" + m.renderStatusBar()
@@ -87,7 +143,9 @@ func (m Model) renderSplitEditor() string {
 
 	renderPaneHeader := func(es editorState, active bool) string {
 		sectionTag := ""
-		if es.section == "back" {
+		if es.section == "back" && es.backPortrait {
+			sectionTag = " [back:portrait]"
+		} else if es.section == "back" {
 			sectionTag = " [back]"
 		} else if es.section == "front" {
 			sectionTag = " [front]"
@@ -98,6 +156,7 @@ func (m Model) renderSplitEditor() string {
 		}
 		label := modeLabel(es.mode)
 		modeStr := "[" + label + "]"
+		posStr := fmt.Sprintf("L%d C%d", es.ta.Line()+1, es.ta.LineInfo().CharOffset+1)
 		headerLeft := filepath.Base(es.path) + sectionTag + dirtyFlag
 		if active {
 			modeStr = hi.Render(modeStr)
@@ -106,22 +165,36 @@ func (m Model) renderSplitEditor() string {
 			modeStr = dim.Render(modeStr)
 			headerLeft = dim.Render(headerLeft)
 		}
-		padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(modeStr)))
-		return headerLeft + strings.Repeat(" ", padLen) + modeStr
+		posStr = dim.Render(posStr)
+		padLen := max(0, m.viewport.Width-len(stripANSI(headerLeft))-len(stripANSI(posStr))-1-len(stripANSI(modeStr)))
+		return headerLeft + strings.Repeat(" ", padLen) + posStr + " " + modeStr
 	}
 
+	top0Portrait := m.editors[0].section == "back" && m.editors[0].backPortrait
+	top1Portrait := m.editors[1].section == "back" && m.editors[1].backPortrait
 	topHeader := renderPaneHeader(m.editors[0], m.activePane == 0)
-	topBody := m.highlightOverLimit(m.editors[0].ta.View(), m.editors[0].ta.Line())
+	topBody := m.highlightOverLimit(m.editors[0].ta.View(), m.editors[0].ta.Line(), top0Portrait)
 	divider := strings.Repeat(string(m.settings.BorderH), m.viewport.Width)
 	botHeader := renderPaneHeader(m.editors[1], m.activePane == 1)
-	botBody := m.highlightOverLimit(m.editors[1].ta.View(), m.editors[1].ta.Line())
+	botBody := m.highlightOverLimit(m.editors[1].ta.View(), m.editors[1].ta.Line(), top1Portrait)
+
+	if m.editorHelpVisible {
+		helpBody := m.renderEditorHelp()
+		if m.activePane == 0 {
+			topBody = helpBody
+		} else {
+			botBody = helpBody
+		}
+	}
 
 	activeES := m.editors[m.activePane]
 	var footer string
-	if activeES.mode == vimCommand {
+	if m.editorHelpVisible {
+		footer = dim.Render("press any key to close")
+	} else if activeES.mode == vimCommand {
 		footer = hi.Render(":") + activeES.cmdLine + "█"
-	} else {
-		footer = dim.Render("ctrl+s save  ctrl+w switch  :wq save+quit  :q quit  :q! discard  :back/:front flip")
+	} else if activeES.mode == vimNormal && activeES.countBuf != "" {
+		footer = dim.Render(activeES.countBuf)
 	}
 
 	return topHeader + "\n" + topBody + "\n" + divider + "\n" + botHeader + "\n" + botBody + "\n" + footer + "\n" + m.renderStatusBar()
@@ -253,7 +326,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 
 	// Back indicator: show ↻ at top-right of the active (depth-0) card when it has a back side.
 	if g.active && card.ContentLoaded {
-		_, _, hasBack := splitCardSides(card.Content)
+		_, _, hasBack, _ := splitCardSides(card.Content)
 		if hasBack {
 			indicX := g.x + g.w - 3
 			if indicX >= 0 && indicX < maxX && headerY >= 0 && headerY < maxY {
@@ -266,7 +339,7 @@ func (m Model) drawCardOntoGrid(grid [][]cell, g cardGeom, activeDepth int) {
 	// inner cards only expose their left edge so one line is enough.
 	// Always use the front side only — strip any back content.
 	if g.h > 3 && card.ContentLoaded && card.Content != "" {
-		frontContent, _, _ := splitCardSides(card.Content)
+		frontContent, _, _, _ := splitCardSides(card.Content)
 		previewWidth := g.w - 4 // 1-char inner margin each side, matching the overlay
 		previewX := g.x + 2
 		maxRows := 1
@@ -335,7 +408,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	}
 
 	card := m.cards[m.cursor]
-	_, _, hasBack := splitCardSides(card.Content)
+	_, _, hasBack, _ := splitCardSides(card.Content)
 	content := m.overlayContent()
 	backIsEmpty := m.overlayFlipped && !hasBack
 
@@ -808,7 +881,7 @@ func (m Model) renderStatusBar() string {
 			if m.overlayFlipped {
 				hint = "e edit back · f front · esc back"
 			} else if len(m.cards) > 0 {
-				_, _, hasBack := splitCardSides(m.cards[m.cursor].Content)
+				_, _, hasBack, _ := splitCardSides(m.cards[m.cursor].Content)
 				if hasBack {
 					hint = "j/k scroll · n/p page · f flip · esc back"
 				} else {
@@ -1013,7 +1086,7 @@ func (m Model) renderDebug() string {
 		fmt.Sprintf("Root: %s", m.noteRoot),
 		fmt.Sprintf("Cards: %d (visible: %d, marked: %d, filter: %v)", len(m.cards), len(vis), m.markedCountCurrent(), m.filterMarked),
 		fmt.Sprintf("Page step: %d, bodyH: %d, totalLines: %d", m.pageStep(), bodyH, totalLines),
-		fmt.Sprintf("Nav max step: %d", m.settings.NavMaxStep),
+		fmt.Sprintf("Nav chunk: %d, jitter: %.2f", m.settings.NavChunkSize, m.settings.NavJitter),
 		fmt.Sprintf("Cursor depth max: %d", m.settings.MaxCursorDepth),
 	}
 	if len(m.updateSamples) > 0 || m.updateMax > 0 {

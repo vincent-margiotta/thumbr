@@ -127,43 +127,41 @@ func (m Model) computeStackGeometry() []cardGeom {
 	return geoms
 }
 
-// cardSize computes the width/height of an index-card-shaped rectangle in
-// terminal cells, preserving a 4"×6" landscape aspect ratio.
-//
-// Width: TextWidth+4 when configured, else 60% of viewport width.
-// Height: derived from aspect ratio (unconstrained by config).
-func (m Model) cardSize() (int, int) {
+// cardSizeOriented returns the card dimensions for the given orientation.
+// portrait=false → landscape (6"×4", aspect 3.0); portrait=true → portrait (4"×6", aspect 4/3).
+func (m Model) cardSizeOriented(portrait bool) (int, int) {
 	vw := float64(m.viewport.Width)
 	vh := float64(m.viewport.Height)
 	if vw <= 0 || vh <= 0 {
 		return 0, 0
 	}
 
-	// A 4"×6" index card (landscape) has a 6:4 = 1.5 physical aspect ratio.
-	// Terminal cells are roughly 2× taller than wide, so the visual column:row
-	// ratio that reproduces the physical shape is 1.5 × 2 = 3.0.
-	const aspect = 3.0
-
-	// Target width.
-	var maxW float64
-	if m.settings.TextWidth > 0 {
-		// Anchor to the configured line width: +2 for left/right borders,
-		// +2 for one column of inner margin on each side.
-		maxW = float64(m.settings.TextWidth + 4)
+	var aspect, maxW float64
+	if portrait {
+		// Portrait: 4"×6" — terminal col:row ratio = (4×2)/6 = 4/3.
+		aspect = 4.0 / 3.0
+		if m.settings.TextWidth > 0 {
+			// Scale width from landscape textWidth by the physical 4:6 ratio.
+			maxW = float64(m.settings.TextWidth)*2.0/3.0 + 4
+		} else {
+			maxW = vw * 0.4
+		}
 	} else {
-		maxW = vw * 0.6
+		// Landscape: 6"×4" — terminal col:row ratio = (6×2)/4 = 3.
+		aspect = 3.0
+		if m.settings.TextWidth > 0 {
+			maxW = float64(m.settings.TextWidth + 4)
+		} else {
+			maxW = vw * 0.6
+		}
 	}
+
 	if maxW > vw-2 {
 		maxW = vw - 2
 	}
 
-	// Target height: aspect ratio drives the actual height.
 	maxH := vh - 2
-	if maxH > vh-2 {
-		maxH = vh - 2
-	}
 
-	// Fit within maxW × maxH while preserving the aspect ratio.
 	var w, h float64
 	hFromW := maxW / aspect
 	if hFromW <= maxH {
@@ -176,15 +174,12 @@ func (m Model) cardSize() (int, int) {
 		}
 	}
 
-	// Minimums so it still looks like a card.
 	if w < 20 {
 		w = 20
 	}
 	if h < 6 {
 		h = 6
 	}
-
-	// Final viewport clamp.
 	if w > vw-2 {
 		w = vw - 2
 	}
@@ -193,4 +188,9 @@ func (m Model) cardSize() (int, int) {
 	}
 
 	return int(w + 0.5), int(h + 0.5)
+}
+
+// cardSize returns dimensions for the current UI context (portrait or landscape).
+func (m Model) cardSize() (int, int) {
+	return m.cardSizeOriented(m.isPortraitContext())
 }

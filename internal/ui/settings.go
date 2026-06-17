@@ -28,10 +28,8 @@ type Settings struct {
 	ColorStatusFG  lipgloss.Color
 	ColorStatusDim lipgloss.Color
 
-	NavMaxStep int
-	NavTau     float64 // breakeven interval (ms): pressing at this rate → step=1
-	NavGamma   float64 // power-law exponent; >1 = sharper acceleration with speed
-	NavMinDt   float64 // minimum interval floor (ms); hold == pressing at top speed
+	NavChunkSize int     // base step for J/K chunk jumps
+	NavJitter    float64 // fractional randomness added to bisect and chunk jumps (0=off)
 
 	MaxCursorDepth int
 	ActiveLiftY    int
@@ -69,10 +67,8 @@ var DefaultSettings = Settings{
 	ColorStatusBG:     lipgloss.Color("#222222"),
 	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
 	ColorStatusDim:    lipgloss.Color("#999999"),
-	NavMaxStep: 8,
-	NavTau:     300.0,
-	NavGamma:   1.75,
-	NavMinDt:   50.0,
+	NavChunkSize: 7,
+	NavJitter:    0.15,
 	MaxCursorDepth: 2,
 	ActiveLiftY:    2,
 
@@ -140,10 +136,14 @@ type KeyBindings struct {
 	OverlayUp     []string
 	OverlayDown   []string
 	Reload        []string
-	NavFirst      []string
-	NavLast       []string
-	SwitchPane    []string
-	OpenBox       []string
+	NavFirst       []string
+	NavLast        []string
+	BisectForward  []string
+	BisectBackward []string
+	ChunkForward   []string
+	ChunkBackward  []string
+	SwitchPane     []string
+	OpenBox        []string
 }
 
 // DefaultBindings returns the out-of-the-box keybinding set.
@@ -169,10 +169,14 @@ func DefaultBindings() KeyBindings {
 		OverlayUp:     []string{"k", "up"},
 		OverlayDown:   []string{"j", "down"},
 		Reload:        []string{"R"},
-		NavFirst:      []string{"g"},
-		NavLast:       []string{"G"},
-		SwitchPane:    []string{"ctrl+w"},
-		OpenBox:       []string{"b"},
+		NavFirst:       []string{"g"},
+		NavLast:        []string{"G"},
+		BisectForward:  []string{"]"},
+		BisectBackward: []string{"["},
+		ChunkForward:   []string{"J"},
+		ChunkBackward:  []string{"K"},
+		SwitchPane:     []string{"ctrl+w"},
+		OpenBox:        []string{"b"},
 	}
 }
 
@@ -282,6 +286,10 @@ func (m *Model) ApplyBindings(b KeyBindings) {
 	override(&m.bindings.OverlayDown, b.OverlayDown)
 	override(&m.bindings.NavFirst, b.NavFirst)
 	override(&m.bindings.NavLast, b.NavLast)
+	override(&m.bindings.BisectForward, b.BisectForward)
+	override(&m.bindings.BisectBackward, b.BisectBackward)
+	override(&m.bindings.ChunkForward, b.ChunkForward)
+	override(&m.bindings.ChunkBackward, b.ChunkBackward)
 	override(&m.bindings.SwitchPane, b.SwitchPane)
 	override(&m.bindings.OpenBox, b.OpenBox)
 }
@@ -305,22 +313,18 @@ func (m *Model) ApplyFileCreation(fc FileCreation) {
 	}
 }
 
-// ApplyNav overrides the maximum navigation step size (positive values only).
-// ApplyNav overrides navigation tuning. Zero values are ignored (keep default).
-// navMaxStep caps the step size per keypress.
-// tau, gamma, minDt control the power-law curve; see NavTau/NavGamma/NavMinDt docs.
-func (m *Model) ApplyNav(navMaxStep int, tau, gamma, minDt float64) {
-	if navMaxStep > 0 {
-		m.settings.NavMaxStep = navMaxStep
+// ApplyNavChunk sets the chunk-jump step size (J/K) and the fractional jitter
+// applied to bisect and chunk jumps. Zero values are ignored (keep default).
+// jitter is a fraction in [0, 1]; values outside that range are clamped.
+func (m *Model) ApplyNavChunk(chunkSize int, jitter float64) {
+	if chunkSize > 0 {
+		m.settings.NavChunkSize = chunkSize
 	}
-	if tau > 0 {
-		m.settings.NavTau = tau
-	}
-	if gamma > 0 {
-		m.settings.NavGamma = gamma
-	}
-	if minDt > 0 {
-		m.settings.NavMinDt = minDt
+	if jitter >= 0 {
+		if jitter > 1 {
+			jitter = 1
+		}
+		m.settings.NavJitter = jitter
 	}
 }
 
