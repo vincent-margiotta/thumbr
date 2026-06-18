@@ -429,6 +429,9 @@ func (m Model) defaultExt() string {
 // each navigation move so the preview is present in the same render frame.
 func (m Model) ensureVisibleContent() Model {
 	vis := m.visibleIndices()
+	if len(vis) == 0 {
+		return m
+	}
 	pos := m.visibleCursorIndex(vis)
 	if pos < 0 {
 		pos = 0

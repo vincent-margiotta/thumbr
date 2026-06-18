@@ -4,7 +4,7 @@
 
 ## Influence
 
-Notes are files. Thumbr keeps them that way — plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through with momentum, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search — random jumps, no hierarchy, no backlinks graph — because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
+Notes are files. Thumbr keeps them that way — plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search — random jumps, bisect, no hierarchy, no backlinks graph — because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
 
 ## Features
 
@@ -79,11 +79,14 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 
 | Action | Keybinding | Notes |
 | :--- | :--- | :--- |
-| **Forward** | `k` / `Up` | Move deeper into the stack. Accelerates with rapid presses. |
+| **Forward** | `k` / `Up` | Move deeper into the stack. |
 | **Back** | `j` / `Down` | Move back toward the front. |
+| **Chunk forward** | `J` | Jump forward ~7 cards (configurable; varies slightly each press). |
+| **Chunk back** | `K` | Jump backward ~7 cards. |
+| **Bisect forward** | `]` | Jump to the midpoint between cursor and end. Repeat to converge. |
+| **Bisect back** | `[` | Jump to the midpoint between cursor and start. |
 | **First card** | `g` `g` | Jump to the first card in the deck. |
 | **Last card** | `G` | Jump to the last card. |
-| **Jump to ~%** | `g` `1`–`9` | Jump to 10%–90% through the deck. |
 | **Random** | `r` | Jump to a random card. |
 | **Open overlay** | `Enter` | Pull the active card into the reading overlay. |
 | **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. If another editor is suspended, opens as a companion pane. Set `editMode: "external"` to redirect `e` to `$EDITOR` instead. |
@@ -96,7 +99,7 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 | **Box picker** | `b` | Switch between open boxes (when more than one is loaded). |
 | **Reload** | `R` | Reload the card list from disk. |
 | **Help** | `?` / `h` | Show current keybindings. |
-| **Quit** | `q` / `Ctrl+c` | Quit. |
+| **Quit** | `q` | Press twice within 3 seconds to confirm quit. `Ctrl+c` quits immediately. |
 
 ### Overlay
 
@@ -157,9 +160,15 @@ The in-app editor uses vim-style modes.
 | **Save** | `:w` / `Ctrl+s` | Save without exiting. |
 | **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split → single; single → browse. |
 | **Discard & quit** | `:q!` | Discard changes and close active pane. |
-| **Save & quit** | `:wq` | Save and close active pane. |
+| **Save & quit** | `:wq` / `:x` | Save and close active pane. |
 | **Save & quit all** | `:wqa` | Save all open panes and exit the editor. |
 | **Sort lines** | `:sort` | Sort all lines in the file alphabetically. |
+| **Fill char** | `:fill [c]` | Expand or contract a run of character `c` on the current line so the total line length fits the card face width. Default char is `.`. |
+| **Rename file** | `:rename <name>` | Rename the current file (no extension needed). Does not update links. |
+| **Edit back** | `:back` | Switch to editing the back face of the card. |
+| **Edit back (portrait)** | `:back:portrait` | Switch to editing the back face in portrait orientation. |
+| **Edit front** | `:front` | Switch to editing the front face of the card. |
+| **Help** | `:help` | Show the full command reference overlay. Any key closes it. |
 
 #### Pane Management
 
@@ -167,6 +176,10 @@ The in-app editor uses vim-style modes.
 | :--- | :--- | :--- |
 | **Switch pane** | `Ctrl+w` | Switch focus between top and bottom panes (split view only). |
 | **Suspend editor** | `Ctrl+b` | Suspend editor and return to browse; press `e` to resume. |
+
+#### Count Prefix
+
+Prefix any normal-mode motion or insert command with a count to repeat it: `5j` moves down 5 lines, `3x` deletes 3 characters, `10i.<Esc>` inserts ten dots. The count is displayed in the footer while you type it.
 
 > Keybindings can be customized via the configuration file. The debug overlay (`d`) is disabled by default; enable it with `enableDebugUI: true`.
 
@@ -185,6 +198,18 @@ Additional thoughts, added later.
 ```
 
 The `↻` indicator appears on the active stack card and in the overlay header when a back side exists. In the overlay, `f` flips between sides. Pressing `e` opens whichever side is currently visible; saving reconstructs the full file transparently.
+
+#### Portrait backs
+
+For notes that work better in portrait orientation (taller than wide), use `---back:portrait---` instead:
+
+```
+Front of the card (landscape).
+---back:portrait---
+Back of the card (portrait).
+```
+
+When editing or viewing a portrait back, the card dimensions use a 4:3 aspect ratio. Use `:back:portrait` in the editor to create or convert a back section to portrait orientation.
 
 Luhmann rarely used card backs. When you do, keep the same discipline: one idea per side.
 
@@ -269,7 +294,7 @@ On panic, Thumbr writes a crash log to `~/.thumbr/crash.log` (override with `--c
 
 - `cmd/thumbr`: CLI entry point and Bubble Tea program initialization.
 - `internal/notes`: Card discovery, file parsing, and filtering logic.
-- `internal/ui`: The Bubble Tea model, input handling, rendering, and physics.
+- `internal/ui`: The Bubble Tea model, input handling, and rendering.
 - `samples/notes`: Sample notes for smoke testing.
 - `samples/print-test`: Minimal two-card set for testing the print script.
 - `scripts/`: Utility scripts. `print_cards.py` generates print-ready PDFs.

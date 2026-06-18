@@ -63,8 +63,7 @@ bindBranch = ["C"]
 # Falls back to the new-file prompt if no integer-named cards exist.
 bindNextRoot = ["N"]
 
-# Jump to the first card in the deck. Also acts as a prefix: gg = first card,
-# g1–g9 = jump to 10%–90% through the deck.
+# Jump to the first card in the deck (gg — press twice).
 bindNavFirst = ["g"]
 
 # Jump to the last card in the deck.

@@ -976,89 +976,121 @@ func (m Model) renderHelp() string {
 		return "Help\n"
 	}
 
-	type binding struct {
-		keys []string
-		desc string
+	hi := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true)
+	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
+
+	type row struct {
+		section string   // non-empty → render as section header, ignore keys/desc
+		keys    []string
+		desc    string
 	}
 
-	bindings := []binding{
+	chunk := fmt.Sprintf("%d", m.settings.NavChunkSize)
+	rows := []row{
+		{section: "Movement"},
 		{keys: m.bindings.Up, desc: "move into stack"},
-		{keys: m.bindings.Down, desc: "move back/out"},
-		{keys: m.bindings.OpenBox, desc: "open box picker (when multiple boxes are open)"},
-		{keys: m.bindings.NavFirst, desc: "jump to first card (gg), or g1–g9 for 10–90%"},
-		{keys: m.bindings.NavLast, desc: "jump to last card"},
-		{keys: m.bindings.Random, desc: "jump to random card"},
-		{keys: m.bindings.Mark, desc: "mark/unmark card"},
-		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
-		{keys: m.bindings.Continue, desc: func() string {
-			if m.settings.FreeMode {
-				return "continue card (Luhmann) — disabled in free mode"
-			}
-			return "continue card (Luhmann)"
-		}()},
-		{keys: m.bindings.Branch, desc: func() string {
-			if m.settings.FreeMode {
-				return "branch card (Luhmann) — disabled in free mode"
-			}
-			return "branch card (Luhmann)"
-		}()},
-		{keys: m.bindings.NextRoot, desc: func() string {
-			if m.settings.FreeMode {
-				return "create new card (free mode)"
-			}
-			return "create next integer root card"
-		}()},
+		{keys: m.bindings.Down, desc: "move back"},
+		{keys: m.bindings.ChunkForward, desc: "jump forward ~" + chunk + " cards"},
+		{keys: m.bindings.ChunkBackward, desc: "jump backward ~" + chunk + " cards"},
+		{keys: m.bindings.BisectForward, desc: "bisect toward end of deck"},
+		{keys: m.bindings.BisectBackward, desc: "bisect toward start of deck"},
+		{keys: m.bindings.NavFirst, desc: "first card  (gg)"},
+		{keys: m.bindings.NavLast, desc: "last card"},
+		{keys: m.bindings.Random, desc: "random card"},
+
+		{section: "View"},
+		{keys: m.bindings.OverlayToggle, desc: "open / close overlay"},
 		{keys: m.bindings.OpenInApp, desc: func() string {
 			if m.settings.ExternalEditMode {
 				return "open card in $EDITOR"
 			}
-			return "open card in in-app editor (or companion pane)"
+			return "open in editor  (companion pane if one is suspended)"
 		}()},
-		{keys: m.bindings.SwitchPane, desc: "switch focus between split editor panes"},
-		{keys: m.bindings.SuspendEditor, desc: "suspend editor, return to browse"},
 		{keys: m.bindings.OpenExternal, desc: "open card in $EDITOR"},
-		{keys: m.bindings.OverlayToggle, desc: "toggle overlay view"},
-		{keys: nil, desc: ""},
-		{keys: []string{"(overlay only)"}, desc: ""},
-		{keys: m.bindings.OverlayDown, desc: "scroll overlay by 1 line"},
-		{keys: m.bindings.PageNext, desc: "next page"},
-		{keys: m.bindings.PagePrev, desc: "previous page"},
-		{keys: []string{"f"}, desc: "flip card to back / front (when back side exists)"},
-		{keys: nil, desc: ""},
-		{keys: m.bindings.Quit, desc: "quit (from stack) / back (from overlay)"},
-		{keys: []string{"esc"}, desc: "close overlay or help"},
-		{keys: m.bindings.Help, desc: "toggle this help overlay"},
-		{keys: []string{"ctrl+c"}, desc: "quit immediately"},
-	}
-	if m.enableDebug {
-		bindings = append(bindings, binding{keys: m.bindings.Debug, desc: "toggle debug overlay"})
+
+		{section: "Cards"},
+		{keys: m.bindings.Mark, desc: "mark / unmark"},
+		{keys: m.bindings.Filter, desc: "toggle marked-only filter"},
+		{keys: m.bindings.OpenBox, desc: "box picker  (when multiple boxes are open)"},
 	}
 	if len(m.bindings.Reload) > 0 {
-		bindings = append(bindings, binding{keys: m.bindings.Reload, desc: "reload current box"})
+		rows = append(rows, row{keys: m.bindings.Reload, desc: "reload box from disk"})
+	}
+	rows = append(rows,
+		row{section: "Create"},
+		row{keys: m.bindings.Continue, desc: func() string {
+			if m.settings.FreeMode {
+				return "continue card (Luhmann) — disabled in free mode"
+			}
+			return "continue card  (Luhmann alphanumeric)"
+		}()},
+		row{keys: m.bindings.Branch, desc: func() string {
+			if m.settings.FreeMode {
+				return "branch card (Luhmann) — disabled in free mode"
+			}
+			return "branch card  (Luhmann alphanumeric)"
+		}()},
+		row{keys: m.bindings.NextRoot, desc: func() string {
+			if m.settings.FreeMode {
+				return "new card  (prompts for filename)"
+			}
+			return "next integer root card"
+		}()},
+
+		row{section: "Editor"},
+		row{keys: m.bindings.SwitchPane, desc: "switch focus between split panes"},
+		row{keys: m.bindings.SuspendEditor, desc: "suspend editor, return to browse"},
+
+		row{section: "Overlay"},
+		row{keys: m.bindings.OverlayDown, desc: "scroll down"},
+		row{keys: m.bindings.OverlayUp, desc: "scroll up"},
+		row{keys: m.bindings.PageNext, desc: "next page"},
+		row{keys: m.bindings.PagePrev, desc: "previous page"},
+		row{keys: []string{"f"}, desc: "flip to back / front"},
+
+		row{section: "General"},
+		row{keys: m.bindings.Quit, desc: "quit  (press twice within 3s to confirm; or close overlay)"},
+		row{keys: []string{"esc"}, desc: "close overlay or help"},
+		row{keys: m.bindings.Help, desc: "this help screen"},
+		row{keys: []string{"ctrl+c"}, desc: "quit immediately"},
+	)
+	if m.enableDebug {
+		rows = append(rows, row{keys: m.bindings.Debug, desc: "toggle debug overlay"})
 	}
 
+	// Measure key-column width (binding rows only).
 	leftWidth := 0
-	for _, b := range bindings {
-		keyStr := strings.Join(b.keys, " / ")
-		if len(keyStr) > leftWidth {
-			leftWidth = len(keyStr)
+	for _, r := range rows {
+		if r.section != "" {
+			continue
+		}
+		w := len(strings.Join(r.keys, " / "))
+		if w > leftWidth {
+			leftWidth = w
 		}
 	}
 
 	var sb strings.Builder
-	title := lipgloss.NewStyle().Foreground(m.settings.ColorHiFG).Bold(true).Render("Thumbr Help")
-	sb.WriteString(title)
-	sb.WriteString("\n\n")
+	sb.WriteString(hi.Render("Thumbr Help"))
+	sb.WriteString("\n")
 
-	for _, b := range bindings {
-		keyStr := strings.Join(b.keys, " / ")
+	for _, r := range rows {
+		if r.section != "" {
+			sb.WriteString("\n")
+			sb.WriteString(hi.Render(r.section))
+			sb.WriteString("\n")
+			continue
+		}
+		keyStr := strings.Join(r.keys, " / ")
 		pad := strings.Repeat(" ", leftWidth-len(keyStr))
-		line := fmt.Sprintf("  %s%s  %s\n", keyStr, pad, b.desc)
-		sb.WriteString(line)
+		sb.WriteString("  ")
+		sb.WriteString(dim.Render(keyStr + pad))
+		sb.WriteString("  ")
+		sb.WriteString(r.desc)
+		sb.WriteString("\n")
 	}
 
-	body := sb.String()
-	return body + "\n" + m.renderStatusBar()
+	return sb.String() + "\n" + m.renderStatusBar()
 }
 
 func (m Model) renderDebug() string {
