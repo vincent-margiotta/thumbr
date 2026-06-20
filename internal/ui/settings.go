@@ -41,18 +41,18 @@ type Settings struct {
 	BorderH  rune
 	BorderV  rune
 
-	NewFileEditor string // "inapp" | "external" | "none"
-	ContinueNameCmd     string
-	BranchNameCmd       string
-	AutoSplitOnLink     bool
+	NewFileEditor   string // "inapp" | "external" | "none"
+	ContinueNameCmd string
+	BranchNameCmd   string
+	AutoSplitOnLink bool
 
-	TextWidth        int  // hard-wrap column in the editor; 0 disables
-	LiveReload       bool // reload card list when files change on disk
-	ExternalEditMode bool // e key opens $EDITOR instead of the in-app editor
-	FreeMode         bool // disables c/C; N prompts for arbitrary filename
-	CardSizeLimit       bool // block new lines when content exceeds one card face
-	HighlightOverLimit  bool // subtly highlight editor lines that exceed the card face
-	ColorOverLimit      lipgloss.Color
+	TextWidth          int  // hard-wrap column in the editor; 0 disables
+	LiveReload         bool // reload card list when files change on disk
+	ExternalEditMode   bool // e key opens $EDITOR instead of the in-app editor
+	FreeMode           bool // disables c/C; N prompts for arbitrary filename
+	CardSizeLimit      bool // block new lines when content exceeds one card face
+	HighlightOverLimit bool // subtly highlight editor lines that exceed the card face
+	ColorOverLimit     lipgloss.Color
 }
 
 // DefaultSettings is the out-of-the-box configuration used by NewModel.
@@ -67,10 +67,10 @@ var DefaultSettings = Settings{
 	ColorStatusBG:     lipgloss.Color("#222222"),
 	ColorStatusFG:     lipgloss.Color("#F5F5F5"),
 	ColorStatusDim:    lipgloss.Color("#999999"),
-	NavChunkSize: 7,
-	NavJitter:    0.15,
-	MaxCursorDepth: 2,
-	ActiveLiftY:    2,
+	NavChunkSize:      7,
+	NavJitter:         0.15,
+	MaxCursorDepth:    2,
+	ActiveLiftY:       2,
 
 	BorderTL: '╭',
 	BorderTR: '╮',
@@ -79,15 +79,15 @@ var DefaultSettings = Settings{
 	BorderH:  '─',
 	BorderV:  '│',
 
-	NewFileEditor: "inapp",
-	ContinueNameCmd:     "",
-	BranchNameCmd:       "",
-	AutoSplitOnLink:     true,
-	TextWidth:           80,
-	LiveReload:          true,
-	CardSizeLimit:       true,
-	HighlightOverLimit:  true,
-	ColorOverLimit:      lipgloss.Color("#3a0000"),
+	NewFileEditor:      "inapp",
+	ContinueNameCmd:    "",
+	BranchNameCmd:      "",
+	AutoSplitOnLink:    true,
+	TextWidth:          80,
+	LiveReload:         true,
+	CardSizeLimit:      true,
+	HighlightOverLimit: true,
+	ColorOverLimit:     lipgloss.Color("#3a0000"),
 }
 
 // Colors groups the colour overrides accepted by ApplyColors.
@@ -116,26 +116,26 @@ type Layout struct {
 
 // KeyBindings maps actions to their trigger key strings.
 type KeyBindings struct {
-	Up            []string
-	Down          []string
-	Random        []string
-	OverlayToggle []string
-	OpenInApp    []string
-	OpenExternal []string
-	Continue     []string
-	Branch        []string
-	NextRoot      []string
-	SuspendEditor []string
-	Mark          []string
-	Filter        []string
-	Help          []string
-	Debug         []string
-	Quit          []string
-	PageNext      []string
-	PagePrev      []string
-	OverlayUp     []string
-	OverlayDown   []string
-	Reload        []string
+	Up             []string
+	Down           []string
+	Random         []string
+	OverlayToggle  []string
+	OpenInApp      []string
+	OpenExternal   []string
+	Continue       []string
+	Branch         []string
+	NextRoot       []string
+	SuspendEditor  []string
+	Mark           []string
+	Filter         []string
+	Help           []string
+	Debug          []string
+	Quit           []string
+	PageNext       []string
+	PagePrev       []string
+	OverlayUp      []string
+	OverlayDown    []string
+	Reload         []string
 	NavFirst       []string
 	NavLast        []string
 	BisectForward  []string
@@ -149,26 +149,26 @@ type KeyBindings struct {
 // DefaultBindings returns the out-of-the-box keybinding set.
 func DefaultBindings() KeyBindings {
 	return KeyBindings{
-		Up:            []string{"k", "up"},
-		Down:          []string{"j", "down"},
-		Random:        []string{"r"},
-		OverlayToggle: []string{"enter"},
-		OpenInApp:    []string{"e"},
-		OpenExternal: []string{"E"},
-		Continue:     []string{"c"},
-		Branch:        []string{"C"},
-		NextRoot:      []string{"N"},
-		SuspendEditor: []string{"ctrl+b"},
-		Mark:          []string{"m"},
-		Filter:        []string{"t"},
-		Help:          []string{"?", "h"},
-		Debug:         []string{"d"},
-		Quit:          []string{"q"},
-		PageNext:      []string{"n"},
-		PagePrev:      []string{"p"},
-		OverlayUp:     []string{"k", "up"},
-		OverlayDown:   []string{"j", "down"},
-		Reload:        []string{"R"},
+		Up:             []string{"k", "up"},
+		Down:           []string{"j", "down"},
+		Random:         []string{"r"},
+		OverlayToggle:  []string{"enter"},
+		OpenInApp:      []string{"e"},
+		OpenExternal:   []string{"E"},
+		Continue:       []string{"c"},
+		Branch:         []string{"C"},
+		NextRoot:       []string{"N"},
+		SuspendEditor:  []string{"ctrl+b"},
+		Mark:           []string{"m"},
+		Filter:         []string{"t"},
+		Help:           []string{"?", "h"},
+		Debug:          []string{"d"},
+		Quit:           []string{"q"},
+		PageNext:       []string{"n"},
+		PagePrev:       []string{"p"},
+		OverlayUp:      []string{"k", "up"},
+		OverlayDown:    []string{"j", "down"},
+		Reload:         []string{"R"},
 		NavFirst:       []string{"g"},
 		NavLast:        []string{"G"},
 		BisectForward:  []string{"]"},

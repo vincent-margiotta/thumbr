@@ -48,7 +48,6 @@ func (s State) String() string {
 	}
 }
 
-
 // ---------------------------------------------------------------------------
 // Rendering internals
 // ---------------------------------------------------------------------------
@@ -94,18 +93,18 @@ type Model struct {
 
 	enableDebug bool
 
-	navPending  string // pending nav prefix key ("g" waits for a second key)
+	navPending string // pending nav prefix key ("g" waits for a second key)
 
-	rng             *rand.Rand
-	showHelp        bool
-	showDebug       bool
-	marked          map[string]bool // absolute file paths of marked cards
-	filterMarked    bool
+	rng               *rand.Rand
+	showHelp          bool
+	showDebug         bool
+	marked            map[string]bool // absolute file paths of marked cards
+	filterMarked      bool
 	prompt            promptState
 	stateBeforePrompt State
-	overlayPage     int
-	overlayPageStep int // overrides computed half-page step when > 0
-	overlayFlipped  bool // true when the overlay is showing the back side of a card
+	overlayPage       int
+	overlayPageStep   int  // overrides computed half-page step when > 0
+	overlayFlipped    bool // true when the overlay is showing the back side of a card
 
 	loadOpts notes.LoadOptions
 
@@ -136,9 +135,9 @@ type Model struct {
 	pendingSeekPath string
 
 	// editors[0] is the top pane, editors[1] is the bottom pane.
-	editors          [2]editorState
-	activePane       int  // 0 or 1
-	paneCount        int  // 0=none, 1=single, 2=split
+	editors           [2]editorState
+	activePane        int  // 0 or 1
+	paneCount         int  // 0=none, 1=single, 2=split
 	editorHelpVisible bool // true while :help overlay is shown
 
 	// watchStop is closed to signal the current watcher goroutine to exit.

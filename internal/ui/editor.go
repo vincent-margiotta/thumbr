@@ -57,16 +57,16 @@ type editorState struct {
 	// section editing: when section is "front" or "back", the textarea holds only
 	// that side of the card and otherSide holds the other half. save() reconstructs
 	// the full file. section == "" means the whole file is in the textarea.
-	section     string
-	otherSide   string
+	section      string
+	otherSide    string
 	backPortrait bool // true when the back side uses portrait orientation (---back:portrait---)
 
 	// count prefix support (normal mode)
-	countBuf             string // accumulated digit count for pending motion/insert
-	insertCount          int    // count passed into current insert session
-	insertEntryRepeatable bool  // true for o/O: entry should be repeated per count
-	pendingFillChar      rune   // character to use for :fill command
-	pendingRenameTarget  string // new filename stem for :rename command
+	countBuf              string // accumulated digit count for pending motion/insert
+	insertCount           int    // count passed into current insert session
+	insertEntryRepeatable bool   // true for o/O: entry should be repeated per count
+	pendingFillChar       rune   // character to use for :fill command
+	pendingRenameTarget   string // new filename stem for :rename command
 }
 
 // fullContent returns the complete file content, reconstructing from section parts if needed.
@@ -171,7 +171,11 @@ func newEditorState(path, content string, vp Viewport, textWidth, cursorLine int
 }
 
 func (es *editorState) save() error {
-	err := os.WriteFile(es.path, []byte(es.fullContent()), 0o644)
+	content := es.fullContent()
+	if !strings.HasSuffix(content, "\n") {
+		content += "\n"
+	}
+	err := os.WriteFile(es.path, []byte(content), 0o644)
 	if err != nil {
 		es.saveErr = err
 		return err
@@ -469,7 +473,13 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		lines := strings.Split(es.ta.Value(), "\n")
 		sorted := make([]string, len(lines))
 		copy(sorted, lines)
-		sort.Strings(sorted)
+		sort.Slice(sorted, func(i, j int) bool {
+			ki, kj := dotLeaderSortKey(sorted[i]), dotLeaderSortKey(sorted[j])
+			if ki != kj {
+				return ki < kj
+			}
+			return sorted[i] < sorted[j]
+		})
 		newContent := strings.Join(sorted, "\n")
 		if newContent != es.ta.Value() {
 			es = es.pushUndo()
@@ -1388,7 +1398,6 @@ func prevWordStart(runes []rune, col int) int {
 	return start
 }
 
-
 // wordForwardEnd returns the rune index just past the end of the word/token
 // motion from col — matching vim's `w` / `dw` target (skips trailing spaces).
 func wordForwardEnd(runes []rune, col int) int {
@@ -1582,4 +1591,14 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 		}
 		return es, editorActionNone
 	}
+}
+
+// dotLeaderSortKey returns the subject heading portion of a dot-leader register
+// line (everything before the first " .."), so lines with parenthetical variants
+// sort immediately after their base entry rather than after all dot characters.
+func dotLeaderSortKey(line string) string {
+	if idx := strings.Index(line, " .."); idx >= 0 {
+		return strings.TrimSpace(line[:idx])
+	}
+	return line
 }

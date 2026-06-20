@@ -26,27 +26,27 @@ import (
 var version = "dev"
 
 type config struct {
-	NoteRoot       string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
-	RandomSeed     *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
-	AltScreen      *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
-	ColorMark      string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
-	ColorMuted     string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
-	ColorHi        string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
-	ColorDim       string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
-	ColorStatusBG  string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
-	ColorStatusFG  string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
-	ColorStatusDim string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
-	PageStep       int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
-	NavChunkSize   int      `json:"navChunkSize"  yaml:"navChunkSize"  toml:"navChunkSize"`
-	NavJitter      float64  `json:"navJitter"     yaml:"navJitter"     toml:"navJitter"`
-	StackVisible   int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
-	StackOffsetX   int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
-	StackOffsetY   int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
-	ActiveLiftY    int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
-	MaxCursorDepth int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
-	BorderCorner   string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
-	BorderH        string   `json:"borderH" yaml:"borderH" toml:"borderH"`
-	BorderV        string   `json:"borderV" yaml:"borderV" toml:"borderV"`
+	NoteRoot           string   `json:"noteRoot" yaml:"noteRoot" toml:"noteRoot"`
+	RandomSeed         *int64   `json:"randomSeed" yaml:"randomSeed" toml:"randomSeed"`
+	AltScreen          *bool    `json:"altScreen" yaml:"altScreen" toml:"altScreen"`
+	ColorMark          string   `json:"colorMark" yaml:"colorMark" toml:"colorMark"`
+	ColorMuted         string   `json:"colorMuted" yaml:"colorMuted" toml:"colorMuted"`
+	ColorHi            string   `json:"colorHi" yaml:"colorHi" toml:"colorHi"`
+	ColorDim           string   `json:"colorDim" yaml:"colorDim" toml:"colorDim"`
+	ColorStatusBG      string   `json:"colorStatusBG" yaml:"colorStatusBG" toml:"colorStatusBG"`
+	ColorStatusFG      string   `json:"colorStatusFG" yaml:"colorStatusFG" toml:"colorStatusFG"`
+	ColorStatusDim     string   `json:"colorStatusDim" yaml:"colorStatusDim" toml:"colorStatusDim"`
+	PageStep           int      `json:"pageStep" yaml:"pageStep" toml:"pageStep"`
+	NavChunkSize       int      `json:"navChunkSize"  yaml:"navChunkSize"  toml:"navChunkSize"`
+	NavJitter          float64  `json:"navJitter"     yaml:"navJitter"     toml:"navJitter"`
+	StackVisible       int      `json:"stackVisible" yaml:"stackVisible" toml:"stackVisible"`
+	StackOffsetX       int      `json:"stackOffsetX" yaml:"stackOffsetX" toml:"stackOffsetX"`
+	StackOffsetY       int      `json:"stackOffsetY" yaml:"stackOffsetY" toml:"stackOffsetY"`
+	ActiveLiftY        int      `json:"activeLiftY" yaml:"activeLiftY" toml:"activeLiftY"`
+	MaxCursorDepth     int      `json:"maxCursorDepth" yaml:"maxCursorDepth" toml:"maxCursorDepth"`
+	BorderCorner       string   `json:"borderCorner" yaml:"borderCorner" toml:"borderCorner"`
+	BorderH            string   `json:"borderH" yaml:"borderH" toml:"borderH"`
+	BorderV            string   `json:"borderV" yaml:"borderV" toml:"borderV"`
 	BindUp             []string `json:"bindUp" yaml:"bindUp" toml:"bindUp"`
 	BindDown           []string `json:"bindDown" yaml:"bindDown" toml:"bindDown"`
 	BindRandom         []string `json:"bindRandom" yaml:"bindRandom" toml:"bindRandom"`
@@ -181,31 +181,31 @@ func main() {
 	}
 
 	var (
-		configPath        string
-		showVersion       bool
-		randomSeedArg     int64Flag
-		altScreenArg      bool
-		noAltScreen       bool
-		colorMarkArg      string
-		colorMutedArg     string
-		colorHiArg        string
-		colorDimArg       string
-		colorStatusBGArg  string
-		colorStatusFGArg  string
-		colorStatusDimArg string
-		pageStepArg       int
-		cfgNavChunkSize   int
-		cfgNavJitter      float64
-		stackVisibleArg   int
-		stackOffsetXArg   int
-		stackOffsetYArg   int
-		activeLiftYArg    int
-		maxCursorDepthArg int
-		borderCornerArg   string
-		borderHArg        string
-		borderVArg        string
-		textWidthArg      int
-		noLiveReloadArg   bool
+		configPath          string
+		showVersion         bool
+		randomSeedArg       int64Flag
+		altScreenArg        bool
+		noAltScreen         bool
+		colorMarkArg        string
+		colorMutedArg       string
+		colorHiArg          string
+		colorDimArg         string
+		colorStatusBGArg    string
+		colorStatusFGArg    string
+		colorStatusDimArg   string
+		pageStepArg         int
+		cfgNavChunkSize     int
+		cfgNavJitter        float64
+		stackVisibleArg     int
+		stackOffsetXArg     int
+		stackOffsetYArg     int
+		activeLiftYArg      int
+		maxCursorDepthArg   int
+		borderCornerArg     string
+		borderHArg          string
+		borderVArg          string
+		textWidthArg        int
+		noLiveReloadArg     bool
 		externalEditModeArg bool
 	)
 
@@ -245,25 +245,25 @@ func main() {
 	flagSet.Var(&orderedBoxFlag{entries: &orderedBoxes, free: true}, "free-box", "add a note directory as a free-mode box (repeatable)")
 	// Keybinding overrides (comma-separated lists)
 	var (
-		bindUpArg            string
-		bindDownArg          string
-		bindRandomArg        string
-		bindOverlayArg       string
-		bindEditArg          string
-		bindMarkArg          string
-		bindFilterArg        string
-		bindHelpArg          string
-		bindQuitArg          string
-		bindPageNextArg      string
-		bindPagePrevArg      string
-		bindOverlayUpArg     string
-		bindOverlayDnArg     string
-		bindReloadArg        string
-		bindContinueArg      string
-		bindBranchArg        string
-		bindNextRootArg      string
-		bindSuspendEditorArg string
-		bindInAppArg         string
+		bindUpArg             string
+		bindDownArg           string
+		bindRandomArg         string
+		bindOverlayArg        string
+		bindEditArg           string
+		bindMarkArg           string
+		bindFilterArg         string
+		bindHelpArg           string
+		bindQuitArg           string
+		bindPageNextArg       string
+		bindPagePrevArg       string
+		bindOverlayUpArg      string
+		bindOverlayDnArg      string
+		bindReloadArg         string
+		bindContinueArg       string
+		bindBranchArg         string
+		bindNextRootArg       string
+		bindSuspendEditorArg  string
+		bindInAppArg          string
 		bindNavFirstArg       string
 		bindNavLastArg        string
 		bindBisectForwardArg  string

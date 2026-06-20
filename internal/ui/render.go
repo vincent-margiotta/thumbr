@@ -980,7 +980,7 @@ func (m Model) renderHelp() string {
 	dim := lipgloss.NewStyle().Foreground(m.settings.ColorStatusDim)
 
 	type row struct {
-		section string   // non-empty → render as section header, ignore keys/desc
+		section string // non-empty → render as section header, ignore keys/desc
 		keys    []string
 		desc    string
 	}
