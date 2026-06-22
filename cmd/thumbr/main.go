@@ -76,7 +76,9 @@ type config struct {
 	NewFileEditor      string   `json:"newFileEditor"       yaml:"newFileEditor"       toml:"newFileEditor"`
 	BindInApp          []string `json:"bindInApp"           yaml:"bindInApp"           toml:"bindInApp"`
 	BindSwitchPane     []string `json:"bindSwitchPane"      yaml:"bindSwitchPane"      toml:"bindSwitchPane"`
+	BindOpenBox        []string `json:"bindOpenBox"         yaml:"bindOpenBox"         toml:"bindOpenBox"`
 	AutoSplitOnLink    *bool    `json:"autoSplitOnLink"     yaml:"autoSplitOnLink"     toml:"autoSplitOnLink"`
+	CardSizeLimit      *bool    `json:"cardSizeLimit"       yaml:"cardSizeLimit"       toml:"cardSizeLimit"`
 	HighlightOverLimit *bool    `json:"highlightOverLimit"  yaml:"highlightOverLimit"  toml:"highlightOverLimit"`
 	TextWidth          *int     `json:"textWidth"      yaml:"textWidth"      toml:"textWidth"`
 	LiveReload         *bool    `json:"liveReload"     yaml:"liveReload"     toml:"liveReload"`
@@ -271,6 +273,7 @@ func main() {
 		bindChunkForwardArg   string
 		bindChunkBackwardArg  string
 		bindSwitchPaneArg     string
+		bindOpenBoxArg        string
 	)
 	var (
 		continueNameCmdArg string
@@ -306,6 +309,7 @@ func main() {
 	flagSet.StringVar(&newFileEditorArg, "new-file-editor", "", "editor to open after c/C creates a file: inapp, external, or none (default inapp)")
 	flagSet.StringVar(&bindInAppArg, "bind-inapp", "", "comma-separated keys to open card in in-app editor")
 	flagSet.StringVar(&bindSwitchPaneArg, "bind-switch-pane", "", "comma-separated keys to switch focus between split editor panes")
+	flagSet.StringVar(&bindOpenBoxArg, "bind-open-box", "", "comma-separated keys to open the box picker")
 
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		log.Fatal(err)
@@ -345,6 +349,7 @@ func main() {
 		branchNameCmd      string
 		newFileEditor      string
 		autoSplitOnLink    bool
+		cardSizeLimit      bool
 		highlightOverLimit bool
 		textWidth          int
 		liveReload         bool
@@ -378,6 +383,7 @@ func main() {
 		branchNameCmd:      "",
 		newFileEditor:      "",
 		autoSplitOnLink:    ui.DefaultSettings.AutoSplitOnLink,
+		cardSizeLimit:      ui.DefaultSettings.CardSizeLimit,
 		highlightOverLimit: ui.DefaultSettings.HighlightOverLimit,
 		textWidth:          ui.DefaultSettings.TextWidth,
 		liveReload:         ui.DefaultSettings.LiveReload,
@@ -486,6 +492,7 @@ func main() {
 		mergeBinding(&opts.bindings.ChunkForward, cfg.BindChunkForward)
 		mergeBinding(&opts.bindings.ChunkBackward, cfg.BindChunkBackward)
 		mergeBinding(&opts.bindings.SwitchPane, cfg.BindSwitchPane)
+		mergeBinding(&opts.bindings.OpenBox, cfg.BindOpenBox)
 		if cfg.NavChunkSize > 0 {
 			opts.navChunkSize = cfg.NavChunkSize
 		}
@@ -494,6 +501,9 @@ func main() {
 		}
 		if cfg.AutoSplitOnLink != nil {
 			opts.autoSplitOnLink = *cfg.AutoSplitOnLink
+		}
+		if cfg.CardSizeLimit != nil {
+			opts.cardSizeLimit = *cfg.CardSizeLimit
 		}
 		if cfg.HighlightOverLimit != nil {
 			opts.highlightOverLimit = *cfg.HighlightOverLimit
@@ -686,6 +696,9 @@ func main() {
 	if v := parseBinding(bindSwitchPaneArg); len(v) > 0 {
 		opts.bindings.SwitchPane = v
 	}
+	if v := parseBinding(bindOpenBoxArg); len(v) > 0 {
+		opts.bindings.OpenBox = v
+	}
 	if continueNameCmdArg != "" {
 		opts.continueNameCmd = continueNameCmdArg
 	}
@@ -800,8 +813,9 @@ func main() {
 	m.EnableDebugUI(opts.enableDebugUI)
 	m.SetBoxes(boxConfigs)
 	if *noCardLimitArg {
-		m.EnableCardSizeLimit(false)
+		opts.cardSizeLimit = false
 	}
+	m.EnableCardSizeLimit(opts.cardSizeLimit)
 
 	programOptions := []tea.ProgramOption{}
 	if opts.useAlternateScreen {

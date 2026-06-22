@@ -333,6 +333,9 @@ docker build -t thumbr --build-arg VERSION=$(git describe --tags --dirty --alway
 
 # Run (Mount your notes to /notes)
 docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
+
+# Run with no arguments — prints --help (the image default CMD)
+docker run --rm thumbr
 ```
 
 ## Roadmap / Known Gaps

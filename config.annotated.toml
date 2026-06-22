@@ -116,8 +116,20 @@ editMode = "inapp"
 # Also controls the default card width (textWidth + 4). Set to 0 to disable.
 textWidth = 80
 
+# Block new lines when card content would exceed one card face. Set false to
+# allow scrolling cards (equivalent to --no-card-limit). Default true.
+cardSizeLimit = true
+
+# Subtly highlight editor lines that exceed the card face height so you can
+# see at a glance that a card is over the limit. Only meaningful when
+# cardSizeLimit is false (or --no-card-limit is passed).
+highlightOverLimit = true
+
 # Key to switch focus between split editor panes.
 bindSwitchPane = ["ctrl+w"]
+
+# Key to open the box picker (switch between open boxes).
+bindOpenBox = ["b"]
 
 # Debug overlay: disabled by default. Set true to allow the Debug keybinding.
 enableDebugUI = false

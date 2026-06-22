@@ -68,7 +68,7 @@ func (m Model) computeStackGeometry() []cardGeom {
 	visibleCount := endIdx - startIdx + 1
 	maxLayer := visibleCount - 1 // deepest layer index
 
-	cardW, cardH := m.cardSize()
+	cardW, cardH := m.cardSizeOriented(false)
 	if cardW <= 0 || cardH <= 0 {
 		return nil
 	}
