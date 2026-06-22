@@ -418,7 +418,7 @@ func (m Model) drawOverlayCardOntoGrid(grid [][]cell) {
 	}
 	maxX := len(grid[0])
 
-	cardW, cardH := m.cardSizeOriented(false)
+	cardW, cardH := m.cardSize()
 	if cardW <= 0 || cardH <= 0 {
 		return
 	}
