@@ -23,6 +23,15 @@ func taKey(ta textarea.Model, key tea.KeyType) textarea.Model {
 	return ta
 }
 
+// taCol returns the real-line column of the textarea cursor.
+// LineInfo().CharOffset alone is the offset within the current visual (wrapped)
+// line; StartColumn is how many chars precede that visual segment on the real
+// line. Together they give the true column in the underlying string.
+func taCol(ta textarea.Model) int {
+	info := ta.LineInfo()
+	return info.StartColumn + info.CharOffset
+}
+
 type vimMode int
 
 const (
@@ -189,7 +198,7 @@ func (es editorState) snapshot() undoEntry {
 	return undoEntry{
 		content: es.ta.Value(),
 		line:    es.ta.Line(),
-		col:     es.ta.LineInfo().CharOffset,
+		col:     taCol(es.ta),
 	}
 }
 
@@ -639,7 +648,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es = es.pushUndo()
 		lines := strings.Split(es.ta.Value(), "\n")
 		lineIdx := es.ta.Line()
-		col := es.ta.LineInfo().CharOffset
+		col := taCol(es.ta)
 		if lineIdx >= 0 && lineIdx < len(lines) {
 			runes := []rune(lines[lineIdx])
 			end := col + count
@@ -661,7 +670,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s = s.pushUndo()
 			ls := strings.Split(s.ta.Value(), "\n")
 			li := s.ta.Line()
-			c := s.ta.LineInfo().CharOffset
+			c := taCol(s.ta)
 			if li >= 0 && li < len(ls) {
 				r := []rune(ls[li])
 				e := c + finalCount
@@ -798,7 +807,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es = es.pushUndo()
 		lines := strings.Split(es.ta.Value(), "\n")
 		lineIdx := es.ta.Line()
-		col := es.ta.LineInfo().CharOffset
+		col := taCol(es.ta)
 		if lineIdx >= 0 && lineIdx < len(lines) {
 			runes := []rune(lines[lineIdx])
 			if col < len(runes) {
@@ -814,7 +823,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s = s.pushUndo()
 			ls := strings.Split(s.ta.Value(), "\n")
 			li := s.ta.Line()
-			c := s.ta.LineInfo().CharOffset
+			c := taCol(s.ta)
 			if li >= 0 && li < len(ls) {
 				r := []rune(ls[li])
 				if c < len(r) {
@@ -832,7 +841,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 		es = es.pushUndo()
 		lines := strings.Split(es.ta.Value(), "\n")
 		lineIdx := es.ta.Line()
-		col := es.ta.LineInfo().CharOffset
+		col := taCol(es.ta)
 		if lineIdx >= 0 && lineIdx < len(lines) {
 			runes := []rune(lines[lineIdx])
 			lines[lineIdx] = string(runes[:col])
@@ -847,7 +856,7 @@ func (es editorState) handleNormal(key string) (editorState, editorAction) {
 			s = s.pushUndo()
 			ls := strings.Split(s.ta.Value(), "\n")
 			li := s.ta.Line()
-			c := s.ta.LineInfo().CharOffset
+			c := taCol(s.ta)
 			if li >= 0 && li < len(ls) {
 				r := []rune(ls[li])
 				ls[li] = string(r[:c])
@@ -915,7 +924,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			es = es.pushUndo()
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				end := wordForwardEnd(runes, col)
@@ -929,7 +938,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					s = s.pushUndo()
 					ls := strings.Split(s.ta.Value(), "\n")
 					li := s.ta.Line()
-					c := s.ta.LineInfo().CharOffset
+					c := taCol(s.ta)
 					if li >= 0 && li < len(ls) {
 						r := []rune(ls[li])
 						e := wordForwardEnd(r, c)
@@ -979,7 +988,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			es = es.pushUndo()
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				start, end := wordBoundary(runes, col)
@@ -993,7 +1002,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 					s = s.pushUndo()
 					ls := strings.Split(s.ta.Value(), "\n")
 					li := s.ta.Line()
-					c := s.ta.LineInfo().CharOffset
+					c := taCol(s.ta)
 					if li >= 0 && li < len(ls) {
 						r := []rune(ls[li])
 						st, en := wordBoundary(r, c)
@@ -1021,7 +1030,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 		case "w":
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				end := wordForwardEnd(runes, col)
@@ -1055,7 +1064,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 		if key == "w" {
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				start, end := wordBoundary(runes, col)
@@ -1088,7 +1097,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			es = es.pushUndo()
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				end := wordForwardEnd(runes, col)
@@ -1104,7 +1113,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 				s = s.pushUndo()
 				ls := strings.Split(s.ta.Value(), "\n")
 				li := s.ta.Line()
-				c := s.ta.LineInfo().CharOffset
+				c := taCol(s.ta)
 				if li >= 0 && li < len(ls) {
 					r := []rune(ls[li])
 					e := wordForwardEnd(r, c)
@@ -1125,7 +1134,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 			es = es.pushUndo()
 			lines := strings.Split(es.ta.Value(), "\n")
 			lineIdx := es.ta.Line()
-			col := es.ta.LineInfo().CharOffset
+			col := taCol(es.ta)
 			if lineIdx >= 0 && lineIdx < len(lines) {
 				runes := []rune(lines[lineIdx])
 				start, end := wordBoundary(runes, col)
@@ -1141,7 +1150,7 @@ func (es editorState) handlePending(key string, textwidth int) editorState {
 				s = s.pushUndo()
 				ls := strings.Split(s.ta.Value(), "\n")
 				li := s.ta.Line()
-				c := s.ta.LineInfo().CharOffset
+				c := taCol(s.ta)
 				if li >= 0 && li < len(ls) {
 					r := []rune(ls[li])
 					st, en := wordBoundary(r, c)
@@ -1234,7 +1243,7 @@ func wordBoundary(runes []rune, col int) (start, end int) {
 func (es editorState) moveWordForward() editorState {
 	lines := strings.Split(es.ta.Value(), "\n")
 	lineIdx := es.ta.Line()
-	col := es.ta.LineInfo().CharOffset
+	col := taCol(es.ta)
 	if lineIdx >= len(lines) {
 		return es
 	}
@@ -1259,7 +1268,7 @@ func (es editorState) moveWordForward() editorState {
 func (es editorState) moveWordBackward() editorState {
 	lines := strings.Split(es.ta.Value(), "\n")
 	lineIdx := es.ta.Line()
-	col := es.ta.LineInfo().CharOffset
+	col := taCol(es.ta)
 	if lineIdx >= len(lines) {
 		return es
 	}
@@ -1292,7 +1301,7 @@ func (es editorState) moveWordBackward() editorState {
 func (es editorState) moveWordEnd() editorState {
 	lines := strings.Split(es.ta.Value(), "\n")
 	lineIdx := es.ta.Line()
-	col := es.ta.LineInfo().CharOffset
+	col := taCol(es.ta)
 	if lineIdx >= len(lines) {
 		return es
 	}
