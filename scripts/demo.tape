@@ -1,5 +1,5 @@
 # Thumbr demo -- run from project root:
-#   PATH="/tmp:$PATH" /home/vince/go/bin/vhs scripts/demo.tape
+#   PATH="/tmp:$PATH" vhs scripts/demo.tape
 #   then: bash scripts/demo_gif.sh
 # Requires: vhs, ttyd >= 1.7.2, ffmpeg
 
@@ -13,12 +13,12 @@ Set Theme "Dracula"
 Set PlaybackSpeed 0.8
 
 # Setup: copy sample notes so new cards don't touch the repo
-Type "cp -r /home/vince/Documents/src/thumbr/samples/notes /tmp/thumbr_demo"
+Type "cp -r samples/notes /tmp/thumbr_demo"
 Enter
 Sleep 0.5s
 
 # t=0 (launch): thumbr starts
-Type "/home/vince/Documents/src/thumbr/bin/thumbr /tmp/thumbr_demo"
+Type "bin/thumbr /tmp/thumbr_demo"
 Enter
 Sleep 2.5s
 
