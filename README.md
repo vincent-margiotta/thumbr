@@ -3,6 +3,7 @@
 **Thumbr** is a terminal card box emulator for Luhmann-style zettelkasten notes. It walks a directory of `.txt` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content shown as plain text — no rendering).
 
 ![Thumbr demo](docs/thumbr.gif)
+<!-- Source: docs/thumbr.webm (regenerate: PATH="/tmp:$PATH" vhs scripts/demo.tape && ffmpeg -y -i docs/thumbr.webm -filter_complex "[0:v]fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=new=1:dither=sierra2_4a" docs/thumbr.gif) -->
 
 ## Influence
 
