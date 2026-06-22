@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-print_cards.py — lay out Luhmann .txt cards on 8.5"×11" letter paper for printing.
+print_cards.py -- lay out Luhmann .txt cards on 8.5"x11" letter paper for printing.
 
-Two 4"×6" landscape cards are printed per sheet, centered with corner tick marks
-as cutting guides. Cards are sorted in natural Luhmann order (1, 1a, 1a1, 2, …).
+Two 4"x6" landscape cards are printed per sheet, centered with corner tick marks
+as cutting guides. Cards are sorted in natural Luhmann order (1, 1a, 1a1, 2, ...).
 
 Cards that exceed the printable area are refused with an error message; they must
 be split before printing.
@@ -44,12 +44,12 @@ except ImportError:
     print("reportlab not found.  Install with:  pip install reportlab", file=sys.stderr)
     sys.exit(1)
 
-# ── dimensions ────────────────────────────────────────────────────────────────
+# -- dimensions ----------------------------------------------------------------
 
-CARD_W = 6.0 * inch   # 4"×6" card in landscape orientation
+CARD_W = 6.0 * inch   # 4"x6" card in landscape orientation
 CARD_H = 4.0 * inch
 
-PAGE_W, PAGE_H = letter  # 8.5"×11" = 612pt × 792pt
+PAGE_W, PAGE_H = letter  # 8.5"x11" = 612pt x 792pt
 
 # Two cards per page, vertically centered with equal margins.
 _gap       = 0.5 * inch
@@ -60,7 +60,7 @@ CARD_X     = (PAGE_W - CARD_W) / 2
 
 PAD        = 0.2 * inch
 
-# ── typography ────────────────────────────────────────────────────────────────
+# -- typography ----------------------------------------------------------------
 
 HEADER_FONT = "Courier-Bold"
 BODY_FONT   = "Courier"
@@ -68,10 +68,10 @@ HEADER_PT   = 11
 BODY_PT     = 10
 LEADING     = BODY_PT * 1.4
 
-# Courier is a fixed-pitch font; each character is ~0.6× the point size wide.
+# Courier is a fixed-pitch font; each character is ~0.6x the point size wide.
 _CHAR_W_RATIO = 0.6
 
-# ── size limits (derived from the typography constants above) ─────────────────
+# -- size limits (derived from the typography constants above) -----------------
 
 def _content_max_chars() -> int:
     content_w = CARD_W - 2 * PAD
@@ -118,13 +118,13 @@ def _reflow(content: str, max_chars: int) -> list:
 def _visual_line_count(content: str, max_chars: int) -> int:
     return len(_reflow(content, max_chars))
 
-# ── natural sort ──────────────────────────────────────────────────────────────
+# -- natural sort --------------------------------------------------------------
 
 def _natural_key(path: Path):
     parts = re.split(r'(\d+)', path.stem)
     return [int(p) if p.isdigit() else p.lower() for p in parts]
 
-# ── card back splitting ───────────────────────────────────────────────────────
+# -- card back splitting -------------------------------------------------------
 
 BACK_DELIMITER = "---back---"
 
@@ -138,7 +138,7 @@ def _split_sides(content: str) -> tuple[str, str | None]:
             return front, back
     return content, None
 
-# ── drawing ───────────────────────────────────────────────────────────────────
+# -- drawing -------------------------------------------------------------------
 
 def _tick(c: canvas.Canvas, cx: float, cy: float, size: float = 0.08 * inch):
     c.line(cx - size, cy, cx + size, cy)
@@ -180,7 +180,7 @@ def draw_card(c: canvas.Canvas, x: float, y: float, stem: str, content: str):
         current_y -= LEADING
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
+# -- main ----------------------------------------------------------------------
 
 def main():
     MM = 72 / 25.4  # points per millimetre
@@ -251,7 +251,7 @@ def main():
             # if it fits, or skipped in --duplex if it was refused.
 
     if refused:
-        print("refused (exceeds card face — split before printing):", file=sys.stderr)
+        print("refused (exceeds card face -- split before printing):", file=sys.stderr)
         for stem, lines, side in refused:
             print(f"  {stem}  ({lines} lines, limit {max_lines})", file=sys.stderr)
 
@@ -263,8 +263,8 @@ def main():
 
     if duplex:
         # Duplex mode (long-edge binding):
-        #   PDF page N   — fronts for this sheet (top + bottom slots, up to 2 cards)
-        #   PDF page N+1 — backs in the SAME slots, so they land physically behind
+        #   PDF page N   -- fronts for this sheet (top + bottom slots, up to 2 cards)
+        #   PDF page N+1 -- backs in the SAME slots, so they land physically behind
         #                  the fronts when the printer flips on the long edge.
         # After printing, cut the sheet horizontally to get two-sided cards.
         slots = [CARD_TOP_Y, CARD_BOT_Y]
@@ -278,7 +278,7 @@ def main():
             for i, (stem, front, back) in enumerate(sheet_cards):
                 draw_card(c, CARD_X, slots[i], stem, front)
             pdf_pages += 1
-            # Back page — only if at least one card in this sheet has a back
+            # Back page -- only if at least one card in this sheet has a back
             backs = [(i, stem, back) for i, (stem, front, back) in enumerate(sheet_cards)
                      if back is not None and _visual_line_count(back, max_chars) <= max_lines]
             if backs:
@@ -286,7 +286,7 @@ def main():
                 pdf_pages += 1
                 for i, stem, back in backs:
                     draw_card(c, CARD_X + back_dx, slots[i] + back_dy, stem + " (back)", back)
-        print(f"{len(cards)} card(s) → {num_sheets} sheet(s) → {pdf_pages} page(s) duplex (long-edge) → {output}")
+        print(f"{len(cards)} card(s) -> {num_sheets} sheet(s) -> {pdf_pages} page(s) duplex (long-edge) -> {output}")
     else:
         # Default mode: collect all faces (fronts + backs labeled separately).
         faces = []
@@ -298,7 +298,7 @@ def main():
                     faces.append((stem + " (back)", back))
 
         pages = (len(faces) + 1) // 2
-        print(f"{len(faces)} face(s) → {pages} page(s) → {output}")
+        print(f"{len(faces)} face(s) -> {pages} page(s) -> {output}")
 
         slots = [CARD_TOP_Y, CARD_BOT_Y]
         for i, (label, content) in enumerate(faces):

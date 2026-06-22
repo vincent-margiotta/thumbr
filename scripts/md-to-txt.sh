@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: ./md2txt.sh [directory]
-# Renames *.md → *.txt in the given directory (non-recursive).
+# Renames *.md -> *.txt in the given directory (non-recursive).
 # Skips any file where the .txt name already exists.
 
 set -euo pipefail
@@ -24,7 +24,7 @@ for src in "$dir"/*.md; do
     continue
   fi
   mv -- "$src" "$dst"
-  echo "  $(basename "$src") → $(basename "$dst")"
+  echo "  $(basename "$src") -> $(basename "$dst")"
   count=$((count + 1))
 done
 

@@ -1,4 +1,4 @@
-# Thumbr demo — run from project root:
+# Thumbr demo -- run from project root:
 #   PATH="/tmp:$PATH" /home/vince/go/bin/vhs scripts/demo.tape
 #   then: bash scripts/demo_gif.sh
 # Requires: vhs, ttyd >= 1.7.2, ffmpeg
@@ -22,7 +22,7 @@ Type "/home/vince/Documents/src/thumbr/bin/thumbr /tmp/thumbr_demo"
 Enter
 Sleep 2.5s
 
-# t≈3s — SECTION: browse the stack (k/j, one card at a time)
+# t~3s -- SECTION: browse the stack (k/j, one card at a time)
 Type "k"
 Sleep 0.5s
 Type "k"
@@ -38,7 +38,7 @@ Sleep 0.5s
 Type "j"
 Sleep 0.9s
 
-# t≈8s — SECTION: open and read (cursor on 1b which has content)
+# t~8s -- SECTION: open and read (cursor on 1b which has content)
 # navigate back to 1b: gg then k k k
 Type "g"
 Sleep 0.3s
@@ -61,7 +61,7 @@ Sleep 0.6s
 Escape
 Sleep 0.8s
 
-# t≈15s — SECTION: edit in place
+# t~15s -- SECTION: edit in place
 Type "e"
 Sleep 1.5s
 Type "G"
@@ -76,7 +76,7 @@ Type ":wq"
 Enter
 Sleep 1.2s
 
-# t≈21s — SECTION: continue a thread (c → split pane)
+# t~21s -- SECTION: continue a thread (c -> split pane)
 Type "c"
 Sleep 2.5s
 Type "i"
@@ -89,11 +89,11 @@ Type ":wqa"
 Enter
 Sleep 1.5s
 
-# t≈28s — SECTION: random jump
+# t~28s -- SECTION: random jump
 Type "r"
 Sleep 1.5s
 
-# t≈30s — SECTION: branch (C → split pane sibling)
+# t~30s -- SECTION: branch (C -> split pane sibling)
 Type "C"
 Sleep 2.5s
 Type "i"

@@ -1,15 +1,15 @@
 # Changelog
 
-## v0.1.0 — 2026-06-22
+## v0.1.0 -- 2026-06-22
 
 Initial public release.
 
 ### TUI
 
-- Stack view: cards rendered as physical 4"×6" index cards, sized from `textWidth` and terminal dimensions.
+- Stack view: cards rendered as physical 4"x6" index cards, sized from `textWidth` and terminal dimensions.
 - Content preview on stack cards with soft-wrap and consistent margins.
 - Focus overlay: pull the active card into a centered reading view with scroll and page navigation.
-- Marks (`m`) and marked-only filter (`t`) — the digital equivalent of tabbing or orienting a card sideways.
+- Marks (`m`) and marked-only filter (`t`) -- the digital equivalent of tabbing or orienting a card sideways.
 - Confirm-before-quit: `q` requires a second press within 3 seconds; `ctrl+c` exits immediately.
 - Reload (`R`) to refresh the card list from disk on demand.
 - Debug overlay gated behind `enableDebugUI` config flag.
@@ -18,7 +18,7 @@ Initial public release.
 
 - `j`/`k` (or arrow keys): move one card at a time.
 - `J`/`K`: chunk jumps (~7 cards, configurable via `navChunkSize`).
-- `[`/`]`: bisect — jump to the midpoint between cursor and the deck edge; converges in O(log N) presses.
+- `[`/`]`: bisect -- jump to the midpoint between cursor and the deck edge; converges in O(log N) presses.
 - `r`: random jump.
 - `gg`/`G`: first / last card.
 - `navJitter` (default 0.15) adds slight randomness to chunk and bisect landings for a more physical feel.
@@ -26,8 +26,8 @@ Initial public release.
 ### Luhmann Addressing
 
 - Filename is the card address. No database, no metadata.
-- `c`: continue — appends the next alternating component (`16a` → `16a1`).
-- `C`: branch — increments the last component as a sibling (`16a` → `16b`).
+- `c`: continue -- appends the next alternating component (`16a` -> `16a1`).
+- `C`: branch -- increments the last component as a sibling (`16a` -> `16b`).
 - `N`: create the next integer root card (`17` if `16` is the highest).
 - `continueNameCmd` / `branchNameCmd`: override derivation with a custom shell command.
 - Natural Luhmann sort order throughout.
@@ -35,7 +35,7 @@ Initial public release.
 ### Card Backs
 
 - Add a back side with a `---back---` line; use `---back:portrait---` for portrait orientation (4:3 aspect).
-- `↻` indicator on stack cards and in the overlay header when a back exists.
+- Flip indicator on stack cards and in the overlay header when a back exists.
 - `f` in the overlay flips between front and back.
 - `e` in the overlay opens whichever side is currently visible.
 
@@ -56,7 +56,7 @@ Initial public release.
 - `c`/`C` opens source and new card in a 35/65 horizontal split by default (`autoSplitOnLink: true`).
 - Pressing `e` on a different card while a single-pane editor is suspended opens it as a companion pane.
 - `ctrl+w` switches focus between panes.
-- Each pane tracks dirty state independently; `:q`/`:wq` close the focused pane (split → single → browse).
+- Each pane tracks dirty state independently; `:q`/`:wq` close the focused pane (split -> single -> browse).
 - Portrait-orientation card backs render at the correct aspect in the editor without affecting the stack.
 
 ### Multi-Box
@@ -73,7 +73,7 @@ Initial public release.
 
 ### Physical Printing
 
-- `scripts/print_cards.py`: two 4"×6" landscape cards per 8.5"×11" sheet with cutting guides.
+- `scripts/print_cards.py`: two 4"x6" landscape cards per 8.5"x11" sheet with cutting guides.
 - `--duplex`: long-edge duplex layout so backs land physically behind their fronts after cutting.
 - `--back-offset`: millimetre registration correction for printer variance.
 - Pass `-` as the directory to read a list of paths from stdin (e.g., from `git log`).

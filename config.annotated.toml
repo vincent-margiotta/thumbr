@@ -51,19 +51,19 @@ bindOverlayDown = ["j", "down"]
 bindReload = ["R"]
 
 # Luhmann-style card continuation: appends the next alternating component.
-# e.g. "16a" → "16a1", "16a1" → "16a1a". Falls back to new-file prompt if name
+# e.g. "16a" -> "16a1", "16a1" -> "16a1a". Falls back to new-file prompt if name
 # doesn't match the pattern.
 bindContinue = ["c"]
 
 # Luhmann-style card branching: increments the last component as a sibling.
-# e.g. "16a" → "16b", "16a1" → "16a2". Falls back to new-file prompt on mismatch.
+# e.g. "16a" -> "16b", "16a1" -> "16a2". Falls back to new-file prompt on mismatch.
 bindBranch = ["C"]
 
 # Create the next integer root card (e.g. 17 if 16 is the highest integer stem).
 # Falls back to the new-file prompt if no integer-named cards exist.
 bindNextRoot = ["N"]
 
-# Jump to the first card in the deck (gg — press twice).
+# Jump to the first card in the deck (gg -- press twice).
 bindNavFirst = ["g"]
 
 # Jump to the last card in the deck.
@@ -76,7 +76,7 @@ bindBisectForward  = ["]"]
 bindBisectBackward = ["["]
 
 # Chunk navigation: jump forward or backward by a fixed handful of cards at a
-# time. The step is navChunkSize ± navJitter randomness.
+# time. The step is navChunkSize +/- navJitter randomness.
 bindChunkForward  = ["J"]
 bindChunkBackward = ["K"]
 

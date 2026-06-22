@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Convert docs/thumbr.webm → docs/thumbr.gif with section label overlays.
+# Convert docs/thumbr.webm -> docs/thumbr.gif with section label overlays.
 # Run from project root after: vhs scripts/demo.tape
 # Requires: ffmpeg
 
@@ -13,11 +13,11 @@ TMP="docs/thumbr_labeled.mp4"
 # Format: "text:start:end"
 LABELS=(
   "browse the stack:10:19"
-  "open and read  ·  enter:20:25"
-  "edit in place  ·  e:26:33"
-  "continue a thread  ·  c:34:42"
-  "random jump  ·  r:43:46"
-  "branch  ·  C:46:57"
+  "open and read   -   enter:20:25"
+  "edit in place   -   e:26:33"
+  "continue a thread   -   c:34:42"
+  "random jump   -   r:43:46"
+  "branch   -   C:46:57"
 )
 
 # Build drawtext filter chain
@@ -40,12 +40,12 @@ for label in "${LABELS[@]}"; do
   fi
 done
 
-echo "Step 1: applying labels → $TMP"
+echo "Step 1: applying labels -> $TMP"
 ffmpeg -y -i "$SRC" \
   -vf "fps=12,scale=960:trunc(ow/a/2)*2:flags=lanczos,${drawtext_chain}" \
   -c:v libx264 -crf 18 "$TMP"
 
-echo "Step 2: converting to gif with clean palette → $OUT"
+echo "Step 2: converting to gif with clean palette -> $OUT"
 ffmpeg -y -i "$TMP" \
   -filter_complex "split[a][b];[a]palettegen=stats_mode=full:max_colors=256[p];[b][p]paletteuse=dither=none" \
   "$OUT"

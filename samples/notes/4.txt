@@ -13,11 +13,11 @@ self whose associations had since diverged.
 --> 4a
 ---back:portrait---
 Niklas Luhmann
-"Kommunikation mit Zettelkästen"
+"Kommunikation mit Zettelkasten"
 1981
 
 Describes the zettelkasten as a cybernetic
-system — not a tool for storage but for
+system -- not a tool for storage but for
 generating complexity from simple rules:
 one idea per card, every card addressable,
 links explicit.

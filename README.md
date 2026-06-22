@@ -1,13 +1,13 @@
 # Thumbr
 
-**Thumbr** is a terminal card box emulator for Luhmann-style zettelkasten notes. It walks a directory of `.txt` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content shown as plain text — no rendering).
+**Thumbr** is a terminal card box emulator for Luhmann-style zettelkasten notes. It walks a directory of `.txt` files, renders them as index cards in the terminal, and pulls the active card into an overlay for reading (content shown as plain text -- no rendering).
 
 ![Thumbr demo](docs/thumbr.gif)
 <!-- Regenerate: PATH="/tmp:$PATH" vhs scripts/demo.tape && bash scripts/demo_gif.sh -->
 
 ## Influence
 
-Notes are files. Thumbr keeps them that way — plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search — random jumps, bisect, no hierarchy, no backlinks graph — because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
+Notes are files. Thumbr keeps them that way -- plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search -- random jumps, bisect, no hierarchy, no backlinks graph -- because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
 
 ## Features
 
@@ -17,8 +17,8 @@ Notes are files. Thumbr keeps them that way — plain text on disk, no database,
 - **Card Backs:** Cards can have a back side, separated by a `---back---` line. Flip between sides in the overlay with `f`; `e` opens whichever side is visible.
 - **In-App Editor:** Browse, create, and edit notes without leaving Thumbr. Built-in vim-style editing (normal/insert/command modes) with `:w`/`ctrl+s` to save and `:q`/`:wq` to exit. When `c`/`C` creates a linked card, both notes open in a split pane (source top, new card bottom); `ctrl+w` switches focus between panes.
 - **Multi-Box:** Open multiple note directories simultaneously with `--box`/`--free-box` and switch between them with `b`.
-- **Organization:** Mark important cards (`m`) and toggle "marked-only" filters (`t`) — the digital equivalent of pulling slips or orienting cards sideways.
-- **Physical Printing:** `scripts/print_cards.py` lays out cards on 8.5"×11" paper (two 4"×6" landscape cards per sheet) as a print-ready PDF. Supports card backs and duplex printing.
+- **Organization:** Mark important cards (`m`) and toggle "marked-only" filters (`t`) -- the digital equivalent of pulling slips or orienting cards sideways.
+- **Physical Printing:** `scripts/print_cards.py` lays out cards on 8.5"x11" paper (two 4"x6" landscape cards per sheet) as a print-ready PDF. Supports card backs and duplex printing.
 - **Fast Loads:** On an i7-4770HQ with SSD and warm cache, loading/sorting ~90k notes benchmarks at ~0.23s (`make bench`).
 
 ## Requirements
@@ -70,8 +70,8 @@ thumbr --box ~/notes/zettel --box ~/notes/journal
 thumbr --box ~/notes/zettel --free-box ~/notes/scratch
 ```
 
-- `--box <dir>` — open a directory in standard (Luhmann) mode.
-- `--free-box <dir>` — open a directory in free mode (disables `c`/`C`; `N` prompts for any filename).
+- `--box <dir>` -- open a directory in standard (Luhmann) mode.
+- `--free-box <dir>` -- open a directory in free mode (disables `c`/`C`; `N` prompts for any filename).
 - Flags can be interleaved in any order to control which box is active first.
 
 ## Controls
@@ -94,8 +94,8 @@ Thumbr has three interaction modes: the **Stack** (browsing), the **Overlay** (r
 | **Open overlay** | `Enter` | Pull the active card into the reading overlay. |
 | **Edit (in-app)** | `e` | Open the active card in the built-in vim-style editor. If another editor is suspended, opens as a companion pane. Set `editMode: "external"` to redirect `e` to `$EDITOR` instead. |
 | **Edit (external)** | `E` | Open the active card in `$EDITOR`. |
-| **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` → `16a1`). Opens in a split pane by default (`autoSplitOnLink`). |
-| **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` → `16b`). Opens in a split pane by default (`autoSplitOnLink`). |
+| **Continue** | `c` | Create a Luhmann continuation card (e.g. `16a` -> `16a1`). Opens in a split pane by default (`autoSplitOnLink`). |
+| **Branch** | `C` | Create a Luhmann sibling card (e.g. `16a` -> `16b`). Opens in a split pane by default (`autoSplitOnLink`). |
 | **Next root** | `N` | Create the next integer root card (e.g. `17` if `16` is highest). |
 | **Mark card** | `m` | Toggle mark (`*`). |
 | **Filter** | `t` | Toggle "Marked-Only" view. |
@@ -161,7 +161,7 @@ The in-app editor uses vim-style modes.
 | Action | Keybinding | Notes |
 | :--- | :--- | :--- |
 | **Save** | `:w` / `Ctrl+s` | Save without exiting. |
-| **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split → single; single → browse. |
+| **Quit** | `:q` | Close active pane (blocked if unsaved changes). Split -> single; single -> browse. |
 | **Discard & quit** | `:q!` | Discard changes and close active pane. |
 | **Save & quit** | `:wq` / `:x` | Save and close active pane. |
 | **Save & quit all** | `:wqa` | Save all open panes and exit the editor. |
@@ -200,7 +200,7 @@ The back of the card.
 Additional thoughts, added later.
 ```
 
-The `↻` indicator appears on the active stack card and in the overlay header when a back side exists. In the overlay, `f` flips between sides. Pressing `e` opens whichever side is currently visible; saving reconstructs the full file transparently.
+The flip indicator appears on the active stack card and in the overlay header when a back side exists. In the overlay, `f` flips between sides. Pressing `e` opens whichever side is currently visible; saving reconstructs the full file transparently.
 
 #### Portrait backs
 
@@ -218,7 +218,7 @@ Luhmann rarely used card backs. When you do, keep the same discipline: one idea 
 
 ## Printing
 
-`scripts/print_cards.py` generates a print-ready PDF. Two 4"×6" landscape cards are laid out per 8.5"×11" sheet with corner tick marks as cutting guides. Cards are sorted in natural Luhmann order.
+`scripts/print_cards.py` generates a print-ready PDF. Two 4"x6" landscape cards are laid out per 8.5"x11" sheet with corner tick marks as cutting guides. Cards are sorted in natural Luhmann order.
 
 ```bash
 pip install reportlab   # one-time setup
@@ -250,7 +250,7 @@ If the back side lands slightly off-center relative to the front, use `--back-of
 python3 scripts/print_cards.py ~/notes/zettel out.pdf --duplex --back-offset -2,-2
 ```
 
-Adjust in 1–2mm increments until the cut cards align. Once dialled in, the values are stable for a given printer.
+Adjust in 1-2mm increments until the cut cards align. Once dialled in, the values are stable for a given printer.
 
 ### Printing only changed cards
 
@@ -284,7 +284,7 @@ If you prefer inline documentation, use `config.annotated.toml` as a commented r
 Common tweaks:
 - **Layout/Styling:** `stackVisible`, `textWidth`, `colors`, border characters.
 - **Bindings:** `bind*` keys to remap navigation, overlay, marks, etc.
-- **Editor:** `editMode` (`"inapp"` / `"external"`) — redirect `e` to `$EDITOR`; `textWidth` for hard-wrap column; `autoSplitOnLink` for split-pane on `c`/`C`.
+- **Editor:** `editMode` (`"inapp"` / `"external"`) -- redirect `e` to `$EDITOR`; `textWidth` for hard-wrap column; `autoSplitOnLink` for split-pane on `c`/`C`.
 - **Card size limit:** Disabled with `--no-card-limit`; applies globally regardless of free mode.
 
 Full reference lives in `config.annotated.toml` (TOML with inline docs); JSON and YAML are also supported.
@@ -337,10 +337,10 @@ docker build -t thumbr --build-arg VERSION=$(git describe --tags --dirty --alway
 # Run (Mount your notes to /notes)
 docker run --rm -v "$PWD/samples/notes":/notes thumbr /notes
 
-# Run with no arguments — prints --help (the image default CMD)
+# Run with no arguments -- prints --help (the image default CMD)
 docker run --rm thumbr
 ```
 
 ## Roadmap / Known Gaps
 
-- Release pipelines (GoReleaser/Homebrew) — on hold pending demand.
+- Release pipelines (GoReleaser/Homebrew) -- on hold pending demand.
