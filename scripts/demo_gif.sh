@@ -12,12 +12,12 @@ TMP="docs/thumbr_labeled.mp4"
 # Section label timestamps (seconds): derived from tape Sleep sums.
 # Format: "text:start:end"
 LABELS=(
-  "browse the stack:10:19"
-  "open and read   -   enter:20:25"
-  "edit in place   -   e:26:33"
-  "continue a thread   -   c:34:42"
-  "random jump   -   r:43:46"
-  "branch   -   C:46:57"
+  "browse the stack:5:16"
+  "open and read   -   enter:17:20"
+  "edit in place   -   e:21:29"
+  "continue a thread   -   c:30:38"
+  "random jump   -   r:39:42"
+  "branch   -   C:43:53"
 )
 
 # Build drawtext filter chain
