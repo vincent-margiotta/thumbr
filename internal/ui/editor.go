@@ -479,7 +479,7 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		return m.withUpdateSample(start), nil
 
 	case editorActionSort:
-		lines := strings.Split(es.ta.Value(), "\n")
+		lines := strings.Split(strings.TrimSuffix(es.ta.Value(), "\n"), "\n")
 		sorted := make([]string, len(lines))
 		copy(sorted, lines)
 		sort.Slice(sorted, func(i, j int) bool {
