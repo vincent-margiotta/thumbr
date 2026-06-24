@@ -7,7 +7,11 @@
 
 ## Influence
 
-Notes are files. Thumbr keeps them that way -- plain text on disk, no database, readable by any tool long after the app is gone. What it adds is the feel of a physical Zettelkasten: cards in a stack you thumb through, an overlay for reading, and Luhmann-style alphanumeric addressing for branching and continuing ideas. Navigation favors serendipity over search -- random jumps, bisect, no hierarchy, no backlinks graph -- because landing on an unexpected old card is often where connections form. When a note calls for a direct reply, the split-pane editor keeps source and response in view at once.
+Niklas Luhmann kept a physical card box -- tens of thousands of index cards, each holding one idea, addressed so any card could link to any other. The box was his thinking partner, not his archive. Thumbr is an attempt to bring that feel into the terminal: the same rhythm of thumbing through a stack, the same discipline of one idea per card, the same addressing scheme for branching and continuing threads.
+
+Navigation here favors repeated encounters over precise retrieval. The moves available -- random jumps, bisect, chunk steps -- are roughly the moves you can make with your hands on a physical box. You land somewhere unexpected, see what connects, and move on. Because you encounter the same cards again and again, small imperfections surface naturally: a note that isn't quite atomic, a card filed somewhere it doesn't belong. The tool makes it easy to fix things as you go. That's intentional -- it builds in a maintenance cycle, something Luhmann practiced regularly, and lets the box grow with you rather than demanding correctness upfront.
+
+The terminal is the right home for this. It stays out of the way. Files stay plain text, readable by any tool, long after the app is gone.
 
 ## Features
 
