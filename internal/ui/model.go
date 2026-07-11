@@ -496,19 +496,28 @@ func (m Model) clearPrompt() Model {
 }
 
 func (m Model) resetAfterLoad(cards []notes.Card, root string) Model {
+	// Preserve the currently viewed card across a reload by default (e.g. a
+	// background live-reload triggered by an unrelated save) so only an
+	// explicit pendingSeekPath — or a genuine box switch — moves the cursor.
+	seekPath := m.pendingSeekPath
+	sameBox := cleanBoxPath(root) == m.noteRoot
+	if seekPath == "" && sameBox && m.cursor >= 0 && m.cursor < len(m.cards) {
+		seekPath = m.cards[m.cursor].Path
+	}
+
 	m.noteRoot = cleanBoxPath(root)
 	m.cards = cards
 	m.cursor = 0
 	m.filterMarked = false
-	if m.pendingSeekPath != "" {
+	if seekPath != "" {
 		for i, c := range cards {
-			if c.Path == m.pendingSeekPath {
+			if c.Path == seekPath {
 				m.cursor = i
 				break
 			}
 		}
-		m.pendingSeekPath = ""
 	}
+	m.pendingSeekPath = ""
 	m.overlayPage = 0
 	m.state = StateBrowsing
 	return m.ensureCursorVisible()
