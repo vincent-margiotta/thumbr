@@ -86,16 +86,50 @@ func (es editorState) fullContent() string {
 	switch es.section {
 	case "front":
 		if strings.TrimSpace(es.otherSide) == "" {
-			return v
+			return expandTabs(v, tabWidth)
 		}
-		return joinCardSides(v, es.otherSide)
+		return expandTabs(joinCardSides(v, es.otherSide), tabWidth)
 	case "back":
 		if es.backPortrait {
-			return joinCardSidesPortrait(es.otherSide, v)
+			return expandTabs(joinCardSidesPortrait(es.otherSide, v), tabWidth)
 		}
-		return joinCardSides(es.otherSide, v)
+		return expandTabs(joinCardSides(es.otherSide, v), tabWidth)
 	}
-	return v
+	return expandTabs(v, tabWidth)
+}
+
+// tabWidth is the number of columns a tab character expands to when notes
+// are saved. Notes are stored as plain text, so tabs are normalized to
+// spaces to keep rendering (which counts runes, not display columns)
+// consistent across editors and terminals.
+const tabWidth = 4
+
+// expandTabs replaces every tab character in s with spaces, padding out to
+// the next tabWidth-column stop, tracking columns per line.
+func expandTabs(s string, width int) string {
+	if !strings.ContainsRune(s, '\t') {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	col := 0
+	for _, r := range s {
+		switch r {
+		case '\t':
+			spaces := width - (col % width)
+			for i := 0; i < spaces; i++ {
+				b.WriteByte(' ')
+			}
+			col += spaces
+		case '\n':
+			b.WriteRune(r)
+			col = 0
+		default:
+			b.WriteRune(r)
+			col++
+		}
+	}
+	return b.String()
 }
 
 type editorAction int

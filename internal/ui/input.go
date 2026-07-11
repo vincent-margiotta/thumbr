@@ -262,7 +262,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.withUpdateSample(start), nil
 		}
 		if content, err := os.ReadFile(msg.path); err == nil {
-			m = m.syncCardContent(msg.path, string(content))
+			normalized := expandTabs(string(content), tabWidth)
+			if normalized != string(content) {
+				if werr := os.WriteFile(msg.path, []byte(normalized), 0o644); werr != nil {
+					m = m.setStatus(fmt.Sprintf("Tab normalize failed: %v", werr), 3*time.Second)
+				}
+			}
+			m = m.syncCardContent(msg.path, normalized)
 		}
 		m.pendingSeekPath = msg.path
 		return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
