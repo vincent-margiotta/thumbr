@@ -163,6 +163,13 @@ func naturalCompare(a, b string) int {
 				return cmp
 			}
 		} else {
+			// Case-insensitive first so "and" and "Greek" sort by letter
+			// (a before g) rather than by ASCII case (all uppercase before
+			// all lowercase). Fall back to a raw comparison only to keep
+			// differently-cased variants of the same word in a stable order.
+			if cmp := strings.Compare(strings.ToLower(sa.text), strings.ToLower(sb.text)); cmp != 0 {
+				return cmp
+			}
 			if cmp := strings.Compare(sa.text, sb.text); cmp != 0 {
 				return cmp
 			}

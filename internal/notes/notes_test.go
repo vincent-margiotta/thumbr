@@ -105,6 +105,11 @@ func TestNaturalSort(t *testing.T) {
 			input:  []string{"1", "1a1", "1a2", "1a9", "1a10", "1a11", "2", "10"},
 			expect: []string{"1", "1a1", "1a2", "1a9", "1a10", "1a11", "2", "10"},
 		},
+		{
+			name:   "case insensitive letter ordering",
+			input:  []string{"Greek", "and", "Zebra", "apple", "Banana"},
+			expect: []string{"and", "apple", "Banana", "Greek", "Zebra"},
+		},
 	}
 
 	for _, tc := range cases {
