@@ -663,44 +663,66 @@ func wrapText(s string, width, maxLines int) []string {
 			continue
 		}
 
-		words := strings.Fields(para)
+		// Preserve leading indentation (e.g. nested list items) on every
+		// wrapped line produced from this paragraph.
+		trimmedPara := strings.TrimLeft(para, " \t")
+		indent := para[:len(para)-len(trimmedPara)]
+		contentWidth := width - len([]rune(indent))
+		if contentWidth <= 0 {
+			indent = ""
+			contentWidth = width
+		}
+
+		// Tokenize into words and the literal gaps between them so that
+		// intentional multi-space runs (e.g. alignment, "key:    value")
+		// survive wrapping instead of collapsing to a single space.
+		tokens := splitWordsAndGaps(trimmedPara)
 		var current []rune
 
 		addLine := func() {
 			if len(current) == 0 {
 				return
 			}
-			lines = append(lines, string(current))
+			lines = append(lines, indent+string(current))
 			current = nil
 		}
 
-		for _, w := range words {
+		hardBreak := func(wRunes []rune) {
+			for len(wRunes) > 0 && len(lines) < maxLines {
+				chunk := wRunes
+				if len(chunk) > contentWidth {
+					chunk = chunk[:contentWidth]
+				}
+				lines = append(lines, indent+string(chunk))
+				wRunes = wRunes[len(chunk):]
+			}
+		}
+
+		for i := 0; i < len(tokens); i += 2 {
 			if len(lines) >= maxLines {
 				break
 			}
 
-			wRunes := []rune(w)
+			wRunes := []rune(tokens[i])
+			var gapRunes []rune
+			if i > 0 {
+				gapRunes = []rune(tokens[i-1])
+			}
+
 			if len(current) == 0 {
-				// First word on the line
-				if len(wRunes) <= width {
+				// First word on the line: no gap prefix, since a wrap
+				// point (or line start) already swallows it.
+				if len(wRunes) <= contentWidth {
 					current = append(current, wRunes...)
 				} else {
-					// Hard-break long word
-					for len(wRunes) > 0 && len(lines) < maxLines {
-						chunk := wRunes
-						if len(chunk) > width {
-							chunk = chunk[:width]
-						}
-						lines = append(lines, string(chunk))
-						wRunes = wRunes[len(chunk):]
-					}
+					hardBreak(wRunes)
 				}
 				continue
 			}
 
-			// Check if adding " space + word" fits
-			if len(current)+1+len(wRunes) <= width {
-				current = append(current, ' ')
+			// Check if adding the literal gap + word fits.
+			if len(current)+len(gapRunes)+len(wRunes) <= contentWidth {
+				current = append(current, gapRunes...)
 				current = append(current, wRunes...)
 			} else {
 				// Flush current line
@@ -709,17 +731,10 @@ func wrapText(s string, width, maxLines int) []string {
 					break
 				}
 				// Start new line with this word, possibly hard-breaking it
-				if len(wRunes) <= width {
+				if len(wRunes) <= contentWidth {
 					current = append(current, wRunes...)
 				} else {
-					for len(wRunes) > 0 && len(lines) < maxLines {
-						chunk := wRunes
-						if len(chunk) > width {
-							chunk = chunk[:width]
-						}
-						lines = append(lines, string(chunk))
-						wRunes = wRunes[len(chunk):]
-					}
+					hardBreak(wRunes)
 				}
 			}
 		}
@@ -736,6 +751,29 @@ func wrapText(s string, width, maxLines int) []string {
 		return lines[:maxLines]
 	}
 	return lines
+}
+
+// splitWordsAndGaps splits s into alternating non-whitespace and
+// space/tab-run tokens, starting and ending with a non-whitespace token
+// (s must already have no leading/trailing spaces or tabs). This lets
+// wrapText preserve literal multi-space gaps instead of collapsing them.
+func splitWordsAndGaps(s string) []string {
+	var tokens []string
+	runes := []rune(s)
+	i := 0
+	for i < len(runes) {
+		start := i
+		isSpace := runes[i] == ' ' || runes[i] == '\t'
+		for i < len(runes) {
+			c := runes[i]
+			if (c == ' ' || c == '\t') != isSpace {
+				break
+			}
+			i++
+		}
+		tokens = append(tokens, string(runes[start:i]))
+	}
+	return tokens
 }
 
 func (m Model) renderGrid(grid [][]cell, styles []lipgloss.Style) string {
