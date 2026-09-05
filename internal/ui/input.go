@@ -207,6 +207,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.warnIfOversized(editContent)
 		return m.withUpdateSample(start), cmd
 
+	case editNoteResult:
+		if msg.err != nil {
+			m.err = msg.err
+			m = m.setStatus(fmt.Sprintf("Open failed: %v", msg.err), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		editContent := msg.content
+		editSection := ""
+		editOther := ""
+		editBackPortrait := false
+		if front, back, hasBack, backPortrait := splitCardSides(msg.content); hasBack {
+			editContent = front
+			editSection = "front"
+			editOther = back
+			editBackPortrait = backPortrait
+		}
+		vp := m.viewport
+		if m.paneCount == 2 {
+			topVP, botVP := splitViewports(m.viewport)
+			if msg.pane == 0 {
+				vp = topVP
+			} else {
+				vp = botVP
+			}
+		}
+		es, cmd := newEditorState(msg.path, editContent, vp, m.settings.TextWidth, 0)
+		es.section = editSection
+		es.otherSide = editOther
+		es.backPortrait = editBackPortrait
+		m.editors[msg.pane] = es
+		m.activePane = msg.pane
+		m.state = StateEditing
+		m = m.warnIfOversized(editContent)
+		m = m.setStatus(fmt.Sprintf("Editing %s", filepath.Base(msg.path)), 2*time.Second)
+		return m.withUpdateSample(start), cmd
+
 	case openSplitResult:
 		if msg.err != nil {
 			m.err = msg.err

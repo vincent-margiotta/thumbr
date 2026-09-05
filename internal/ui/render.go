@@ -72,6 +72,7 @@ func (m Model) renderEditorHelp() string {
 		col(":sort", "", "sort lines alphabetically"),
 		col(":fill [c]", "", "pad fill char c to card width"),
 		col(":rename <n>", "", "rename file (links not updated)"),
+		col(":e <note>", "", "switch pane to note (exact filename match)"),
 		col(":back", "", "edit back face"),
 		col(":back:portrait", "", "edit back face (portrait)"),
 		col(":front", "", "edit front face"),

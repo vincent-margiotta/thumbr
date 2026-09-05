@@ -172,6 +172,7 @@ The in-app editor uses vim-style modes.
 | **Sort lines** | `:sort` | Sort all lines in the file alphabetically. |
 | **Fill char** | `:fill [c]` | Expand or contract a run of character `c` on the current line so the total line length fits the card face width. Default char is `.`. |
 | **Rename file** | `:rename <name>` | Rename the current file (no extension needed). Does not update links. |
+| **Edit note** | `:e <note>` | Switch the active pane to a different note by exact filename match (extension optional). Blocked if the current pane has unsaved changes. |
 | **Edit back** | `:back` | Switch to editing the back face of the card. |
 | **Edit back (portrait)** | `:back:portrait` | Switch to editing the back face in portrait orientation. |
 | **Edit front** | `:front` | Switch to editing the front face of the card. |

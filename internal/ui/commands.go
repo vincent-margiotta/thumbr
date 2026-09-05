@@ -65,6 +65,15 @@ type openSplitResult struct {
 	err                       error
 }
 
+// editNoteResult is returned by editNoteCmd to replace a single pane's
+// contents in place (used by the :e command).
+type editNoteResult struct {
+	pane    int
+	path    string
+	content string
+	err     error
+}
+
 // ---------------------------------------------------------------------------
 // Async command methods
 // ---------------------------------------------------------------------------
@@ -195,6 +204,15 @@ func openInAppCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		content, err := os.ReadFile(path)
 		return openInAppResult{path: path, content: string(content), err: err}
+	}
+}
+
+// editNoteCmd reads the file at path and returns an editNoteResult so the
+// caller can replace the contents of the given pane (used by the :e command).
+func editNoteCmd(path string, pane int) tea.Cmd {
+	return func() tea.Msg {
+		content, err := os.ReadFile(path)
+		return editNoteResult{pane: pane, path: path, content: string(content), err: err}
 	}
 }
 

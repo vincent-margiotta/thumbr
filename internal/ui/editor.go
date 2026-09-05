@@ -76,6 +76,7 @@ type editorState struct {
 	insertEntryRepeatable bool   // true for o/O: entry should be repeated per count
 	pendingFillChar       rune   // character to use for :fill command
 	pendingRenameTarget   string // new filename stem for :rename command
+	pendingEditTarget     string // note stem to switch the active pane to for :e command
 }
 
 // fullContent returns the complete file content, reconstructing from section parts if needed.
@@ -148,6 +149,7 @@ const (
 	editorActionFill
 	editorActionRename
 	editorActionHelp
+	editorActionEditNote
 )
 
 // splitViewports returns per-pane Viewports for a 35/65 split.
@@ -507,6 +509,36 @@ func (m Model) applyEditorAction(action editorAction, start time.Time) (tea.Mode
 		}
 		m = m.setStatus(fmt.Sprintf("Renamed to %s", newName), 3*time.Second)
 		return m.withUpdateSample(start), m.loadBoxCmd(m.noteRoot)
+
+	case editorActionEditNote:
+		target := strings.TrimSpace(es.pendingEditTarget)
+		es.pendingEditTarget = ""
+		m.editors[m.activePane] = es
+		if target == "" {
+			m = m.setStatus("Usage: :e <note>", 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		if es.dirty {
+			m = m.setStatus("Unsaved changes — save first (:w) or discard (:q!)", 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		stem := strings.TrimSuffix(target, ".txt")
+		var targetPath string
+		for _, c := range m.cards {
+			if c.Title == stem {
+				targetPath = c.Path
+				break
+			}
+		}
+		if targetPath == "" {
+			m = m.setStatus(fmt.Sprintf("No note matches %q", stem), 3*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		if targetPath == es.path {
+			m = m.setStatus("Already editing this note", 2*time.Second)
+			return m.withUpdateSample(start), nil
+		}
+		return m.withUpdateSample(start), editNoteCmd(targetPath, m.activePane)
 
 	case editorActionHelp:
 		m.editorHelpVisible = true
@@ -1619,6 +1651,10 @@ func (es editorState) handleCommand(key string) (editorState, editorAction) {
 			if strings.HasPrefix(cmd, "rename ") {
 				es.pendingRenameTarget = strings.TrimSpace(strings.TrimPrefix(cmd, "rename"))
 				return es, editorActionRename
+			}
+			if cmd == "e" || strings.HasPrefix(cmd, "e ") {
+				es.pendingEditTarget = strings.TrimSpace(strings.TrimPrefix(cmd, "e"))
+				return es, editorActionEditNote
 			}
 		}
 		return es, editorActionNone
